@@ -1544,16 +1544,322 @@ struct SettingsView: View {
 }
 ```
 
-### 7.2 Widget
+### 7.2 Widget — 对标 LACRM 每日邮件
 
-- 主屏 Widget：显示 Top 3 Echo 联系人卡片
-- 锁屏 Widget：下一个跟进截止日
-- 使用 WidgetKit + SwiftUI
+> LACRM 的核心留存机制是每天早上发邮件到收件箱。Echo 用 Widget 实现同等效果——不需要打开 App 就能看到今天该联系谁。
+
+Widget 需要创建独立的 Widget Extension target：
+
+**Xcode → File → New → Target → Widget Extension:**
+```
+Name: EchoWidget
+☑ Include Configuration App Intent
+```
+
+**EchoWidget/EchoWidget.swift:**
+
+```swift
+import WidgetKit
+import SwiftUI
+import SwiftData
+
+struct EchoWidgetEntry: TimelineEntry {
+    let date: Date
+    let topContacts: [WidgetContact]
+}
+
+struct WidgetContact: Identifiable {
+    let id: String
+    let name: String
+    let initials: String
+    let daysSinceContact: Int
+    let context: String
+}
+
+struct Provider: TimelineProvider {
+    func placeholder(in context: Context) -> EchoWidgetEntry {
+        EchoWidgetEntry(date: Date(), topContacts: [
+            WidgetContact(id: "1", name: "Sarah Chen", initials: "SC", daysSinceContact: 19, context: "Mom recovering from surgery"),
+            WidgetContact(id: "2", name: "Mike Johnson", initials: "MJ", daysSinceContact: 28, context: "Changing jobs — follow up"),
+            WidgetContact(id: "3", name: "Lisa Park", initials: "LP", daysSinceContact: 8, context: "Monthly coffee ritual")
+        ])
+    }
+    
+    func getSnapshot(in context: Context, completion: @escaping (EchoWidgetEntry) -> Void) {
+        let contacts = fetchTopContacts()
+        completion(EchoWidgetEntry(date: Date(), topContacts: contacts))
+    }
+    
+    func getTimeline(in context: Context, completion: @escaping (Timeline<EchoWidgetEntry>) -> Void) {
+        let contacts = fetchTopContacts()
+        let entry = EchoWidgetEntry(date: Date(), topContacts: contacts)
+        // Refresh every 3 hours
+        let nextUpdate = Calendar.current.date(byAdding: .hour, value: 3, to: Date())!
+        completion(Timeline(entries: [entry], policy: .after(nextUpdate)))
+    }
+    
+    private func fetchTopContacts() -> [WidgetContact] {
+        // Access shared SwiftData container
+        // Simplified: read from shared UserDefaults or App Group container
+        guard let data = UserDefaults(suiteName: "group.com.echo.app")?.data(forKey: "widgetData"),
+              let contacts = try? JSONDecoder().decode([WidgetContactData].self, from: data) else {
+            return placeholder(in: .current).topContacts
+        }
+        return contacts.prefix(3).map { WidgetContact(id: $0.id, name: $0.name, initials: $0.initials, daysSinceContact: $0.days, context: $0.context) }
+    }
+}
+
+struct WidgetContactData: Codable {
+    let id, name, initials, context: String
+    let days: Int
+}
+
+struct EchoWidgetEntryView: View {
+    var entry: Provider.Entry
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("〰️").font(.caption)
+                Text("Today's Echo").font(.caption).fontWeight(.semibold)
+                Spacer()
+            }
+            .foregroundColor(.gray)
+            
+            ForEach(entry.topContacts) { contact in
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Color.blue.opacity(0.2))
+                        .frame(width: 28, height: 28)
+                        .overlay(Text(contact.initials).font(.system(size: 12, weight: .bold)).foregroundColor(.blue))
+                    
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(contact.name)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.white)
+                        Text(contact.context)
+                            .font(.system(size: 10))
+                            .foregroundColor(.gray)
+                            .lineLimit(1)
+                    }
+                    
+                    Spacer()
+                    
+                    Text("\(contact.daysSinceContact)d")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(contact.daysSinceContact > 14 ? .orange : .gray)
+                }
+            }
+        }
+        .padding()
+        .containerBackground(.black, for: .widget)
+    }
+}
+
+struct EchoWidget: Widget {
+    let kind: String = "EchoWidget"
+    
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: Provider()) { entry in
+            EchoWidgetEntryView(entry: entry)
+        }
+        .configurationDisplayName("Today's Echo")
+        .description("See who needs your attention today.")
+        .supportedFamilies([.systemMedium, .systemLarge])
+    }
+}
+```
+
+**在主 App 中更新 Widget 数据（每次 Reach 操作后）：**
+
+```swift
+// In EchoEngine.logReach() — add after saving:
+func refreshWidgetData(in context: ModelContext) {
+    let contacts = echoContacts(in: context).prefix(5).map { c in
+        WidgetContactData(
+            id: c.systemIdentifier,
+            name: c.fullName,
+            initials: String(c.givenName.prefix(1)) + String(c.familyName.prefix(1)),
+            days: Calendar.current.dateComponents([.day], from: c.lastReachedOut ?? Date(), to: Date()).day ?? 0,
+            context: c.notes.last?.content ?? (c.interactions.last?.note ?? "")
+        )
+    }
+    if let data = try? JSONEncoder().encode(contacts) {
+        UserDefaults(suiteName: "group.com.echo.app")?.set(data, forKey: "widgetData")
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+}
+```
+
+**App Groups 配置：**
+- 主 App target → Signing & Capabilities → + App Groups → `group.com.echo.app`
+- Widget target → Signing & Capabilities → + App Groups → `group.com.echo.app`
+
+---
+
+### 7.3 Daily Briefing System — 对标 LACRM 每日邮件
+
+> LACRM 每天早上发邮件；Echo 每天早上发推送 + AI 简报（可选择 TTS 朗读）。
+
+#### 7.3.1 本地通知服务
+
+```swift
+// Services/NotificationService.swift
+import UserNotifications
+import SwiftData
+
+final class NotificationService {
+    static let shared = NotificationService()
+    
+    func requestPermission() async -> Bool {
+        do {
+            return try await UNUserNotificationCenter.current()
+                .requestAuthorization(options: [.alert, .sound, .badge])
+        } catch {
+            return false
+        }
+    }
+    
+    func scheduleDailyBriefing(context: ModelContext, hour: Int = 8) {
+        let engine = EchoEngine()
+        let contacts = engine.echoContacts(in: context)
+            .sorted { ($0.lastReachedOut ?? .distantPast) < ($1.lastReachedOut ?? .distantPast) }
+            .prefix(3)
+        
+        guard !contacts.isEmpty else { return }
+        
+        let names = contacts.map { $0.givenName }.joined(separator: ", ")
+        let topContact = contacts.first!
+        let days = Calendar.current.dateComponents([.day], from: topContact.lastReachedOut ?? Date(), to: Date()).day ?? 0
+        
+        let body = days > 0
+            ? "\(names) — \(topContact.givenName) was last contacted \(days) days ago."
+            : "\(names) are on your mind today."
+        
+        let content = UNMutableNotificationContent()
+        content.title = "〰️ Today's Echo"
+        content.body = body
+        content.sound = .default
+        content.userInfo = ["type": "daily_briefing"]
+        content.interruptionLevel = .timeSensitive
+        
+        // Schedule for user's preferred hour
+        var dateComponents = DateComponents()
+        dateComponents.hour = hour
+        dateComponents.minute = 0
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+        
+        let request = UNNotificationRequest(
+            identifier: "echo.daily.briefing",
+            content: content,
+            trigger: trigger
+        )
+        
+        UNUserNotificationCenter.current().add(request)
+    }
+    
+    func scheduleRhythmAlert(for contact: EchoContact, daysSince: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = "👋 \(contact.givenName) \(contact.familyName)"
+        content.body = "It's been \(daysSince) days — longer than your usual rhythm."
+        content.sound = .default
+        content.userInfo = ["type": "rhythm_alert", "contactId": contact.systemIdentifier]
+        
+        // Deliver in 10 seconds (for testing) or schedule intelligently
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 10, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "echo.rhythm.\(contact.systemIdentifier)",
+            content: content,
+            trigger: trigger
+        )
+        
+        UNUserNotificationCenter.current().add(request)
+    }
+}
+```
+
+#### 7.3.2 AI 简报文案生成（通过 DeepSeek）
+
+```swift
+// Extension in NotificationService
+extension NotificationService {
+    func generateAIBriefingBody(context: ModelContext) async -> String {
+        let engine = EchoEngine()
+        let contacts = engine.echoContacts(in: context)
+            .sorted { ($0.lastReachedOut ?? .distantPast) < ($1.lastReachedOut ?? .distantPast) }
+            .prefix(3)
+        
+        let contactsDesc = contacts.map { c in
+            let days = Calendar.current.dateComponents([.day], from: c.lastReachedOut ?? Date(), to: Date()).day ?? 0
+            let note = c.notes.last?.content ?? ""
+            return "\(c.givenName) (last contact: \(days)d ago, note: \(note))"
+        }.joined(separator: "; ")
+        
+        let prompt = """
+        You are a morning briefing assistant. Write a ONE-sentence briefing about these people. 
+        Use first names. Warm tone. Under 40 words.
+        Contacts: \(contactsDesc)
+        """
+        
+        do {
+            return try await AIService.shared.chat(
+                systemPrompt: "You write warm, concise morning briefings. One sentence only.",
+                userMessage: prompt
+            )
+        } catch {
+            // Fallback to template
+            let names = contacts.map(\.givenName).joined(separator: ", ")
+            return "Good morning. \(names) are on your mind today. Tap to reach out."
+        }
+    }
+}
+```
+
+#### 7.3.3 TTS 朗读集成（通过火山引擎）
+
+```swift
+// Extension to VoiceService for morning briefing
+extension VoiceService {
+    func playMorningBriefing(text: String) async {
+        do {
+            let audioURL = try await synthesizeSpeech(text: text)
+            // Play audio through AVAudioPlayer
+            let player = try AVAudioPlayer(contentsOf: audioURL)
+            player.prepareToPlay()
+            player.play()
+        } catch {
+            print("TTS briefing failed: \(error)")
+        }
+    }
+}
+```
+
+**推送通知的交互流程：**
+
+```
+早上 8:00
+  → 收到推送: "〰️ Today's Echo: Sarah, Mike, Lisa — Sarah was last contacted 19 days ago."
+  → 用户长按/下拉推送 → 展开操作按钮:
+      [Listen 🎧] → 播放 TTS 朗读简报
+      [Open Echo] → 直接进入 Personal Tab
+  → 如果用户不操作 → Widget 上已经显示了同样的信息
+```
+
+**Info.plist 通知权限请求文案：**
+```
+"Echo sends a daily briefing to help you stay in touch. 
+You can customize the time or turn it off anytime."
+```
+
+---
 
 ### 🔨 验证
 
 - Settings 页 → API key 输入 → 保存到 Keychain
-- Widget 添加到主屏 → 显示联系人
+- Widget 添加到主屏 → 显示 Top 3 联系人 + 联系间隔
+- App 内执行 Reach 操作 → Widget 数据刷新
+- 授权通知权限 → 每日简报推送测试
+- AI Pro 用户 → 简报用 DeepSeek 生成文案 → TTS 朗读
 
 ---
 
