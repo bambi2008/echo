@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Echo — Stay in Touch (Full Demo)</title>
+<style>
+:root{--bg:#090A0E;--surface:#1A1B1F;--accent:#3B82F6;--hot:#FF453A;--warm:#F59E0B;--cold:#636366;--won:#34C759;--lost:#8E8E93;--text-primary:#FFF;--text-secondary:#8E8E93;--text-muted:#636366;--radius:16px;--radius-sm:10px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#111;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;-webkit-font-smoothing:antialiased}
+.phone{width:390px;height:844px;background:var(--bg);border-radius:40px;overflow:hidden;position:relative;box-shadow:0 0 0 3px #1c1c1e,0 20px 60px rgba(0,0,0,.5)}
+.status-bar{height:54px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 28px 8px;color:var(--text-primary);font-size:14px;font-weight:600}
+.screen{position:absolute;top:54px;left:0;right:0;bottom:0;display:none;flex-direction:column;overflow-y:auto}
+.screen.active{display:flex}
+.screen::-webkit-scrollbar{width:0}
+
+/* Nav */
+.nav-bar{display:flex;align-items:center;padding:8px 16px;min-height:44px}
+.nav-title{font-size:34px;font-weight:700;color:var(--text-primary);letter-spacing:-.5px}
+.nav-inline{font-size:17px;font-weight:600;color:var(--text-primary);text-align:center;flex:1}
+.back-btn{width:36px;height:36px;border-radius:50%;background:var(--surface);border:none;color:var(--accent);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* Tab Bar */
+.tab-bar{position:absolute;bottom:0;left:0;right:0;height:83px;background:var(--bg);border-top:.5px solid rgba(255,255,255,.08);display:flex;padding-bottom:20px;z-index:10}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--text-muted);cursor:pointer;font-size:10px;font-weight:500;transition:color .2s}
+.tab-item.active{color:var(--accent)}
+.tab-item svg{width:24px;height:24px}
+
+/* Echo Cards */
+.echo-cards{padding:8px 16px 100px}
+.echo-card{background:var(--surface);border-radius:var(--radius);padding:16px;margin-bottom:12px;cursor:pointer;transition:transform .15s}
+.echo-card:active{transform:scale(.98)}
+.card-header{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.card-avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;color:var(--accent);flex-shrink:0}
+.card-name{font-size:17px;font-weight:600;color:var(--text-primary)}
+.card-time{font-size:13px;color:var(--text-muted)}
+.card-context{font-size:14px;color:var(--text-secondary);line-height:1.4;margin-bottom:12px;-webkit-line-clamp:2;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical}
+.card-reach{width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.rhythm-tag{font-size:11px;color:var(--warm);background:rgba(245,158,11,.15);padding:2px 8px;border-radius:8px;display:inline-block;margin-bottom:8px}
+
+/* AI Cards */
+.ai-cards{padding:8px 16px 100px}
+.insight-card{background:var(--surface);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.insight-type{font-size:11px;color:var(--accent);font-weight:600;background:rgba(59,130,246,.15);padding:3px 10px;border-radius:10px;display:inline-block;margin-bottom:10px}
+.insight-name{font-size:17px;font-weight:600;color:var(--text-primary);margin-bottom:6px}
+.insight-msg{font-size:14px;color:var(--text-secondary);line-height:1.5}
+.ai-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 40px;gap:16px}
+.ai-spinner{width:36px;height:36px;border:3px solid var(--surface);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Kanban Pipeline */
+.pipeline{display:flex;gap:10px;padding:8px 16px 100px;overflow-x:auto}
+.pipeline::-webkit-scrollbar{height:0}
+.kanban-col{min-width:150px;flex-shrink:0}
+.kanban-col-header{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.kanban-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.kanban-col-title{font-size:13px;font-weight:600;color:var(--text-primary)}
+.kanban-count{font-size:11px;color:var(--text-muted);margin-left:auto;background:var(--surface);padding:1px 8px;border-radius:8px}
+.deal-card{background:var(--surface);border-radius:10px;padding:10px;margin-bottom:8px;cursor:pointer}
+.deal-card:active{transform:scale(.97)}
+.deal-title{font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:4px}
+.deal-contact{font-size:11px;color:var(--text-muted);margin-bottom:3px}
+.deal-value{font-size:14px;font-weight:600;color:var(--accent)}
+.deal-empty{text-align:center;color:var(--text-muted);font-size:12px;padding:20px 10px}
+
+/* B2B contact list */
+.biz-section-header{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding:12px 16px 4px}
+.biz-contact{display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer}
+.biz-contact:hover{background:rgba(255,255,255,.03)}
+.biz-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:var(--accent);flex-shrink:0}
+.biz-info{flex:1;min-width:0}
+.biz-name{font-size:15px;font-weight:500;color:var(--text-primary)}
+.biz-company{font-size:12px;color:var(--text-muted)}
+.biz-priority{padding:3px 10px;border-radius:8px;font-size:10px;font-weight:600;flex-shrink:0}
+.priority-hot{background:rgba(255,69,58,.15);color:var(--hot)}
+.priority-warm{background:rgba(245,158,11,.15);color:var(--warm)}
+.priority-cold{background:rgba(99,99,102,.15);color:var(--cold)}
+
+/* Settings */
+.settings-list{padding:16px 16px 100px}
+.settings-section{margin-bottom:24px}
+.settings-section-title{font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding:0 0 8px}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--surface);border-radius:var(--radius-sm);margin-bottom:1px}
+.settings-label{font-size:16px;color:var(--text-primary)}
+.settings-value{font-size:16px;color:var(--text-secondary)}
+.pro-badge{background:var(--accent);color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.pro-card{background:var(--surface);border-radius:var(--radius);padding:20px;margin-bottom:12px}
+.pro-card h3{font-size:18px;color:var(--text-primary);margin-bottom:8px}
+.pro-card p{font-size:14px;color:var(--text-secondary);line-height:1.5;margin-bottom:12px}
+.pro-card .feat{font-size:13px;color:var(--text-secondary);padding:3px 0}
+.pro-card .feat::before{content:'✓ ';color:var(--accent);font-weight:700}
+.upgrade-btn{width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer}
+
+/* Sheets */
+.sheet-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:20;display:none;justify-content:flex-end}
+.sheet-overlay.active{display:flex}
+.sheet{background:#1c1c1e;border-radius:20px 20px 0 0;width:100%;padding:12px 16px 40px;animation:slideUp .3s ease-out}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet-handle{width:36px;height:5px;background:rgba(255,255,255,.2);border-radius:3px;margin:0 auto 16px}
+.sheet-title{font-size:17px;font-weight:600;color:var(--text-primary);text-align:center;margin-bottom:16px}
+.sheet-action{display:flex;align-items:center;gap:12px;padding:14px;background:#2c2c2e;border:none;border-radius:12px;color:var(--text-primary);font-size:16px;width:100%;cursor:pointer;margin-bottom:8px}
+.sheet-note-input{width:100%;background:#2c2c2e;border:none;border-radius:10px;padding:10px 12px;color:var(--text-primary);font-size:15px;outline:none;margin:8px 0}
+.sheet-note-input::placeholder{color:var(--text-muted)}
+.sheet-log-btn{width:100%;padding:12px;background:none;border:none;color:var(--accent);font-size:16px;font-weight:500;cursor:pointer}
+.sheet-cancel{width:100%;padding:12px;background:none;border:none;color:var(--text-secondary);font-size:16px;cursor:pointer;margin-top:4px}
+
+.toast{position:absolute;top:70px;left:50%;transform:translateX(-50%);background:var(--won);color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:500;z-index:30;opacity:0;pointer-events:none;transition:opacity .3s}
+.toast.show{opacity:1}
+
+/* Onboarding */
+.onboard-content{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 32px;text-align:center}
+.onboard-icon{width:120px;height:120px;border-radius:50%;background:rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;margin-bottom:32px;font-size:48px}
+.onboard-title{font-size:36px;font-weight:700;color:var(--text-primary);letter-spacing:-1px;margin-bottom:8px}
+.onboard-subtitle{font-size:17px;color:var(--text-secondary);line-height:1.5;margin-bottom:48px}
+.onboard-btn{width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:17px;font-weight:600;cursor:pointer}
+.onboard-privacy{font-size:12px;color:var(--text-muted);margin-top:16px;line-height:1.5}
+.import-progress{margin-top:24px;text-align:center;width:100%}
+.progress-bar{width:100%;height:4px;background:var(--surface);border-radius:2px;overflow:hidden;margin-bottom:8px}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
+.progress-text{font-size:12px;color:var(--text-muted)}
+.import-done{font-size:15px;color:var(--won);font-weight:600;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+<div class="status-bar"><span>9:41</span><span style="font-size:12px">●●●●○ WiFi 🔋</span></div>
+<div class="toast" id="toast"></div>
+
+<!-- Onboarding -->
+<div class="screen active" id="screen-onboard">
+<div class="onboard-content">
+<div class="onboard-icon">〰️</div>
+<div class="onboard-title">Echo</div>
+<div class="onboard-subtitle">A whisper across time<br>always finds its way back.</div>
+<button class="onboard-btn" onclick="startImport()">Import Contacts</button>
+<div class="onboard-privacy">Your contacts never leave your device.<br>AI features send only anonymized data.</div>
+<div class="import-progress" id="import-progress" style="display:none">
+<div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+<div class="progress-text" id="progress-text">Requesting permission...</div>
+</div>
+<div class="import-done" id="import-done" style="display:none">✓ Ready</div>
+</div>
+</div>
+
+<!-- Personal Tab -->
+<div class="screen" id="screen-personal">
+<div class="nav-bar"><span class="nav-title">Echo</span><div style="flex:1"></div></div>
+<div class="echo-cards" id="echo-cards-container"></div>
+<div class="tab-bar">
+<div class="tab-item active" id="tab-personal" onclick="switchTab('personal')">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Personal</span></div>
+<div class="tab-item" id="tab-ai" onclick="switchTab('ai')">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6.4-4.8-6.4 4.8 2.4-7.2-6-4.8h7.6z"/></svg><span>AI</span></div>
+<div class="tab-item" id="tab-business" onclick="switchTab('business')">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg><span>Business</span></div>
+<div class="tab-item" id="tab-settings" onclick="switchTab('settings')">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg><span>Settings</span></div>
+</div>
+</div>
+
+<!-- AI Tab -->
+<div class="screen" id="screen-ai">
+<div class="nav-bar"><span class="nav-title">AI Insights</span><div style="flex:1"></div><button class="back-btn" onclick="refreshAI()">⟳</button></div>
+<div class="ai-cards" id="ai-cards-container">
+<div class="ai-loading"><div class="ai-spinner"></div><div style="color:var(--text-secondary);font-size:14px">Analyzing your relationships...</div></div>
+</div>
+<div class="tab-bar">
+<div class="tab-item" id="tab-personal2" onclick="switchTab('personal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Personal</span></div>
+<div class="tab-item active" id="tab-ai2" onclick="switchTab('ai')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6.4-4.8-6.4 4.8 2.4-7.2-6-4.8h7.6z"/></svg><span>AI</span></div>
+<div class="tab-item" id="tab-business2" onclick="switchTab('business')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg><span>Business</span></div>
+<div class="tab-item" id="tab-settings2" onclick="switchTab('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg><span>Settings</span></div>
+</div>
+</div>
+
+<!-- Business Tab -->
+<div class="screen" id="screen-business">
+<div class="nav-bar"><span class="nav-title">Pipeline</span><div style="flex:1"></div><button class="back-btn" onclick="showToast('+ New deal created','')">+</button></div>
+<div style="padding:12px 16px 8px">
+<span style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">PRIORITY CONTACTS (BUSINESS)</span>
+</div>
+<div id="biz-contacts" style="padding:0 16px 8px"></div>
+<div style="padding:0 16px 12px">
+<span style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">DEAL PIPELINE</span>
+</div>
+<div class="pipeline" id="pipeline-container"></div>
+<div class="tab-bar">
+<div class="tab-item" id="tab-personal3" onclick="switchTab('personal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Personal</span></div>
+<div class="tab-item" id="tab-ai3" onclick="switchTab('ai')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6.4-4.8-6.4 4.8 2.4-7.2-6-4.8h7.6z"/></svg><span>AI</span></div>
+<div class="tab-item active" id="tab-business3" onclick="switchTab('business')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg><span>Business</span></div>
+<div class="tab-item" id="tab-settings3" onclick="switchTab('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg><span>Settings</span></div>
+</div>
+</div>
+
+<!-- Settings Tab -->
+<div class="screen" id="screen-settings">
+<div class="nav-bar"><span class="nav-title">Settings</span></div>
+<div class="settings-list"><div class="settings-section"><div class="settings-section-title">Subscription</div><div id="pro-status"></div></div>
+<div class="settings-section"><div class="settings-section-title">AI Configuration</div><div class="settings-row"><span class="settings-label">DeepSeek API</span><span class="settings-value" style="color:var(--won)">Connected ✓</span></div><div class="settings-row"><span class="settings-label">Volcano Engine</span><span class="settings-value" style="color:var(--won)">Connected ✓</span></div></div>
+<div class="settings-section"><div class="settings-section-title">About</div><div class="settings-row"><span class="settings-label">Version</span><span class="settings-value">1.0.0</span></div></div></div>
+<div class="tab-bar">
+<div class="tab-item" id="tab-personal4" onclick="switchTab('personal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Personal</span></div>
+<div class="tab-item" id="tab-ai4" onclick="switchTab('ai')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6.4-4.8-6.4 4.8 2.4-7.2-6-4.8h7.6z"/></svg><span>AI</span></div>
+<div class="tab-item" id="tab-business4" onclick="switchTab('business')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg><span>Business</span></div>
+<div class="tab-item active" id="tab-settings4" onclick="switchTab('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg><span>Settings</span></div>
+</div>
+</div>
+
+<!-- Reach Sheet -->
+<div class="sheet-overlay" id="reach-sheet" onclick="closeReachSheet(event)"><div class="sheet" onclick="event.stopPropagation()">
+<div class="sheet-handle"></div><div class="sheet-title" id="sheet-contact-name">Reach out</div>
+<button class="sheet-action" onclick="doReach('called')">📞 Call</button>
+<button class="sheet-action" onclick="doReach('messaged')">💬 Message</button>
+<button class="sheet-action" onclick="doReach('emailed')">📧 Email</button>
+<input class="sheet-note-input" id="reach-note" placeholder="Quick note (optional)...">
+<button class="sheet-log-btn" onclick="doReach('reachedOut')">Log as Reached Out</button>
+<button class="sheet-cancel" onclick="document.getElementById('reach-sheet').classList.remove('active')">Cancel</button>
+</div></div>
+
+</div>
+
+<script>
+// ============ DATA ============
+const contacts = [
+{id:'p1',given:'Sarah',family:'Chen',phone:'(415) 555-0182',avatarColor:'#3B82F6',initials:'SC',echoLayer:true,lastReachedOut:Date.now()-19*86400000,notes:[{content:'Her mom is recovering well from surgery. Check in next week.',date:Date.now()-12*86400000}],interactions:[{type:'called',note:'Caught up for 30min. She just got back from Tokyo. Mom doing better.',date:Date.now()-19*86400000}]},
+{id:'p2',given:'Mike',family:'Johnson',phone:'(650) 555-0191',avatarColor:'#8B5CF6',initials:'MJ',echoLayer:true,lastReachedOut:Date.now()-28*86400000,notes:[{content:'Leaving Stripe to join a seed-stage startup as CTO.',date:Date.now()-30*86400000}],interactions:[{type:'metInPerson',note:'Coffee at Blue Bottle. He is joining a startup.',date:Date.now()-28*86400000}]},
+{id:'p3',given:'Emma',family:'Williams',phone:'(510) 555-0123',avatarColor:'#EC4899',initials:'EW',echoLayer:true,lastReachedOut:Date.now()-6*86400000,notes:[{content:'Birthday: March 15. Loves modern art and hiking.',date:Date.now()-60*86400000}],interactions:[{type:'messaged',note:'Shared Point Reyes hiking recommendations',date:Date.now()-6*86400000}]},
+{id:'p4',given:'David',family:'Kim',phone:'(408) 555-0147',avatarColor:'#F59E0B',initials:'DK',echoLayer:true,lastReachedOut:Date.now()-42*86400000,notes:[],interactions:[{type:'called',note:'Long overdue catch-up. He has two kids now!',date:Date.now()-42*86400000}]},
+{id:'p5',given:'Lisa',family:'Park',phone:'(925) 555-0168',avatarColor:'#10B981',initials:'LP',echoLayer:true,lastReachedOut:Date.now()-8*86400000,notes:[{content:'Mentor since 2023. Monthly coffee ritual. Brilliant career coach.',date:Date.now()-100*86400000}],interactions:[{type:'metInPerson',note:'Monthly mentoring session. Discussed the Echo app idea.',date:Date.now()-8*86400000}]},
+{id:'p6',given:'Mom',family:'',phone:'(212) 555-0821',avatarColor:'#EF4444',initials:'M',echoLayer:true,lastReachedOut:Date.now()-7*86400000,notes:[{content:'Birthday: November 8. Retired teacher. Loves gardening.',date:Date.now()-200*86400000}],interactions:[{type:'called',note:'Sunday call. She is planting roses this season.',date:Date.now()-7*86400000}]},
+{id:'p7',given:'Chris',family:'Thompson',phone:'(562) 555-0612',avatarColor:'#06B6D4',initials:'CT',echoLayer:true,lastReachedOut:Date.now()-30*86400000,notes:[{content:'College roommate. Lives in LA.',date:Date.now()-365*86400000}],interactions:[{type:'messaged',note:'Happy birthday!',date:Date.now()-30*86400000}]},
+{id:'p8',given:'Alex',family:'Rivera',phone:'(415) 555-0289',avatarColor:'#A855F7',initials:'AR',echoLayer:true,lastReachedOut:Date.now()-16*86400000,notes:[{content:'Founder friend. Just closed Series A.',date:Date.now()-20*86400000}],interactions:[{type:'metInPerson',note:'Drinks in SoMa. His startup just raised $8M.',date:Date.now()-16*86400000}]},
+{id:'b1',given:'Tom',family:'Brown',phone:'(628) 555-0201',company:'Acme Insurance',avatarColor:'#FF453A',initials:'TB',priority:'hot',echoLayer:false,lastReachedOut:Date.now()-1*86400000,notes:[{content:'Key account. Annual premium $85K. Renewal Oct.',date:Date.now()-20*86400000}]},
+{id:'b2',given:'Robert',family:'Chen',phone:'(415) 555-0356',company:'Delta Tech',avatarColor:'#FF453A',initials:'RC',priority:'hot',echoLayer:false,lastReachedOut:Date.now()-2*86400000,notes:[{content:'Group health insurance. 150 employees. Needs board approval.',date:Date.now()-5*86400000}]},
+{id:'b3',given:'Jennifer',family:'Martinez',phone:'(831) 555-0234',company:'Beta Realty',avatarColor:'#F59E0B',initials:'JM',priority:'warm',echoLayer:false,lastReachedOut:Date.now()-11*86400000,notes:[{content:'Commercial property insurance. Budget $200K.',date:Date.now()-16*86400000}]},
+{id:'b4',given:'James',family:'Anderson',phone:'(310) 555-0934',company:'Gamma Financial',avatarColor:'#F59E0B',initials:'JA',priority:'warm',echoLayer:false,lastReachedOut:Date.now()-13*86400000,notes:[{content:'Referral partner. Sending 2 referrals.',date:Date.now()-15*86400000}]},
+{id:'b5',given:'Amanda',family:'Wilson',phone:'(650) 555-0478',company:'Epsilon Consulting',avatarColor:'#636366',initials:'AW',priority:'cold',echoLayer:false,lastReachedOut:Date.now()-50*86400000,notes:[{content:'Ghosted after initial interest. Might be talking to State Farm.',date:Date.now()-55*86400000}]},
+];
+
+const deals = [
+{id:'d1',title:'Acme Corp — Group Health Renewal',value:85000,stage:'quoted',contactId:'b1'},
+{id:'d2',title:'Delta Tech — New Group Plan',value:120000,stage:'negotiating',contactId:'b2'},
+{id:'d3',title:'Beta Realty — Commercial Package',value:200000,stage:'contacted',contactId:'b3'},
+{id:'d4',title:'Gamma Financial — Life Referral Bundle',value:45000,stage:'lead',contactId:'b4'},
+{id:'d5',title:'Martinez Family — Auto + Home',value:3200,stage:'closedWon',contactId:'b3'},
+];
+
+let isAIPro = true;
+let isBusinessPro = true;
+let currentReachId = null;
+
+// ============ HELPERS ============
+function timeAgo(ts){if(!ts)return'Never contacted';const d=Math.floor((Date.now()-ts)/86400000);if(d===0)return'Today';if(d===1)return'Yesterday';if(d<7)return d+' days ago';if(d<30)return Math.floor(d/7)+' weeks ago';if(d<365)return Math.floor(d/30)+' months ago';return'Over a year ago'}
+function timeAgoShort(ts){if(!ts)return'';const d=Math.floor((Date.now()-ts)/86400000);if(d===0)return'Today';if(d===1)return'1d ago';if(d<7)return d+'d ago';if(d<30)return Math.floor(d/7)+'w ago';return Math.floor(d/30)+'mo ago'}
+function showToast(msg,cls){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(cls?' '+cls:'');setTimeout(()=>t.classList.remove('show'),2000)}
+function findContact(id){return contacts.find(c=>c.id===id)}
+function iconForType(t){const m={called:'📞',messaged:'💬',emailed:'📧',metInPerson:'🤝',reachedOut:'👋'};return m[t]||'👋'}
+
+// ============ SCREEN SWITCHING ============
+function switchToScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');if(id==='screen-personal')renderEchoCards();if(id==='screen-business')renderBusiness();if(id==='screen-settings')renderSettings();if(id==='screen-ai')renderAI()}
+function switchTab(tab){document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
+const map={personal:'screen-personal',ai:'screen-ai',business:'screen-business',settings:'screen-settings'};
+switchToScreen(map[tab])}
+
+// ============ ONBOARDING ============
+function startImport(){const p=document.getElementById('import-progress');const f=document.getElementById('progress-fill');const t=document.getElementById('progress-text');const d=document.getElementById('import-done');const b=document.querySelector('.onboard-btn');b.style.display='none';p.style.display='block';let pct=0;const iv=setInterval(()=>{pct+=Math.random()*25;if(pct>=100){pct=100;clearInterval(iv);f.style.width='100%';t.textContent='All contacts imported';d.style.display='block';setTimeout(()=>{switchToScreen('screen-personal');renderEchoCards();renderBusiness();renderAI();showToast('✓ 200 contacts imported')},600)}else{f.style.width=pct+'%';t.textContent='Importing...'}},120)}
+
+// ============ ECHO CARDS (Personal) ============
+function renderEchoCards(){const container=document.getElementById('echo-cards-container');const echoContacts=contacts.filter(c=>c.echoLayer).sort((a,b)=>{if(!a.lastReachedOut&&!b.lastReachedOut)return 0;if(!a.lastReachedOut)return-1;if(!b.lastReachedOut)return 1;return a.lastReachedOut-b.lastReachedOut});
+container.innerHTML=echoContacts.map(c=>`
+<div class="echo-card" onclick="openReachSheet('${c.id}')">
+<div class="card-header">
+<div class="card-avatar" style="background:${c.avatarColor}22">${c.initials}</div>
+<div><div class="card-name">${c.given} ${c.family}</div><div class="card-time">${c.lastReachedOut?'Last reached out '+timeAgoShort(c.lastReachedOut):'Never contacted — say hi!'}</div></div>
+</div>
+${c.lastReachedOut&&(Date.now()-c.lastReachedOut)>14*86400000?`<div class="rhythm-tag">⚠ It's been longer than usual</div>`:''}
+<div class="card-context">${c.notes.length>0?c.notes[c.notes.length-1].content:(c.interactions.length>0?c.interactions[0].note:'No notes yet.')}</div>
+<button class="card-reach" onclick="event.stopPropagation();openReachSheet('${c.id}')">👋 Reach out</button>
+</div>`).join('')}
+
+// ============ AI TAB ============
+function renderAI(){const container=document.getElementById('ai-cards-container');if(!container)return;
+const echoContacts=contacts.filter(c=>c.echoLayer).slice(0,5);
+const insights=[{type:'What to say',name:'Sarah Chen',msg:'Hey Sarah! Was thinking about you — how is your mom doing? Hope recovery is going smoothly. Would love to catch up this week if you are free ❤️'},{type:'Rhythm alert',name:'David Kim',msg:'You and David usually check in every 2-3 weeks. It has been 6 weeks since your last call. He has two kids now — there might be news.'},{type:'Network insight',name:'Lisa Park (Your Mentor)',msg:'Your monthly coaching sessions have been consistent for 18 months. This is your strongest professional relationship. Consider asking for an introduction to her network.'},{type:'Relationship health',name:'Mike Johnson',msg:'Your interactions with Mike spiked recently (job change discussion). This is a high-trust moment — staying engaged now will deepen this friendship long-term.'}];
+setTimeout(()=>{container.innerHTML=insights.map(i=>`
+<div class="insight-card">
+<div class="insight-type">✨ ${i.type}</div>
+<div class="insight-name">${i.name}</div>
+<div class="insight-msg">${i.msg}</div>
+</div>`).join('')},600)}
+
+function refreshAI(){const c=document.getElementById('ai-cards-container');c.innerHTML='<div class="ai-loading"><div class="ai-spinner"></div><div style="color:var(--text-secondary);font-size:14px">Refreshing insights...</div></div>';setTimeout(renderAI,800)}
+
+// ============ BUSINESS TAB ============
+function renderBusiness(){
+// Biz contacts
+const bizDiv=document.getElementById('biz-contacts');
+const bizContacts=contacts.filter(c=>c.priority);
+bizDiv.innerHTML=bizContacts.sort((a,b)=>{const o={hot:0,warm:1,cold:2};return o[a.priority]-o[b.priority]}).map(c=>`
+<div class="biz-contact" onclick="openReachSheet('${c.id}')">
+<div class="biz-avatar" style="background:${c.avatarColor}22">${c.initials}</div>
+<div class="biz-info"><div class="biz-name">${c.given} ${c.family}</div><div class="biz-company">${c.company||''}</div></div>
+<span class="biz-priority priority-${c.priority}">${c.priority.toUpperCase()}</span>
+</div>`).join('');
+
+// Pipeline
+const stages=[{key:'lead',label:'Lead',color:'var(--cold)'},{key:'contacted',label:'Contacted',color:'var(--accent)'},{key:'quoted',label:'Quoted',color:'var(--warm)'},{key:'negotiating',label:'Negotiating',color:'var(--hot)'},{key:'closedWon',label:'Won',color:'var(--won)'}];
+const pipelineDiv=document.getElementById('pipeline-container');
+pipelineDiv.innerHTML=stages.map(s=>{const stageDeals=deals.filter(d=>d.stage===s.key);return`
+<div class="kanban-col">
+<div class="kanban-col-header"><div class="kanban-dot" style="background:${s.color}"></div><div class="kanban-col-title">${s.label}</div><div class="kanban-count">${stageDeals.length}</div></div>
+${stageDeals.length===0?`<div class="deal-empty">No deals</div>`:stageDeals.map(d=>{const contact=findContact(d.contactId);return`
+<div class="deal-card">
+<div class="deal-title">${d.title}</div>
+${contact?`<div class="deal-contact">${contact.given} ${contact.family} · ${contact.company||''}</div>`:''}
+<div class="deal-value">$${d.value.toLocaleString()}</div>
+</div>`}).join('')}
+</div>`}).join('')}
+
+// ============ SETTINGS ============
+function renderSettings(){const area=document.getElementById('pro-status');if(!area)return;
+let html='';
+if(isBusinessPro){html='<div class="settings-row"><span class="settings-label">⭐ Echo Business Pro</span><span class="settings-value" style="color:var(--won)">Active — $15/mo</span></div><div class="settings-row"><span class="settings-label">✨ AI Pro (included)</span><span class="settings-value" style="color:var(--won)">Active</span></div>'}
+else if(isAIPro){html='<div class="settings-row"><span class="settings-label">✨ Echo AI Pro</span><span class="settings-value" style="color:var(--won)">Active — $4/mo</span></div><div class="pro-card" style="margin-top:12px"><h3>Upgrade to Business</h3><p>Kanban pipeline, deal tracking, business card scanning, policy OCR, sales coaching, team sharing.</p><button class="upgrade-btn" onclick="doUpgradeBiz()">Upgrade — $15/month</button></div>'}
+else{html='<div class="pro-card"><h3>AI Pro — $4/month</h3><p>AI-powered insights, smart openers, voice notes, auto-layering.</p><div class="feat">Auto Echo Layer detection</div><div class="feat">Smart rhythm alerts</div><div class="feat">Conversation openers</div><div class="feat">Voice notes with transcription</div><div class="feat">30-day free trial</div><button class="upgrade-btn" style="margin-top:12px" onclick="doUpgradeAI()">Start Free Trial</button></div>'}
+area.innerHTML=html}
+
+function doUpgradeAI(){isAIPro=true;renderSettings();switchToScreen('screen-settings');showToast('🎉 AI Pro activated! 30-day free trial')}
+function doUpgradeBiz(){isBusinessPro=true;isAIPro=true;renderSettings();renderBusiness();switchToScreen('screen-settings');showToast('🎉 Business Pro activated!')}
+
+// ============ REACH SHEET ============
+function openReachSheet(id){currentReachId=id;const c=findContact(id);if(!c)return;document.getElementById('sheet-contact-name').textContent=`Reach out to ${c.given} ${c.family}`;document.getElementById('reach-note').value='';document.getElementById('reach-sheet').classList.add('active')}
+function closeReachSheet(e){if(e.target===document.getElementById('reach-sheet'))document.getElementById('reach-sheet').classList.remove('active')}
+function doReach(type){const c=findContact(currentReachId);if(!c)return;const note=document.getElementById('reach-note').value.trim();c.interactions.unshift({type,note,date:Date.now()});c.lastReachedOut=Date.now();document.getElementById('reach-sheet').classList.remove('active');renderEchoCards();renderBusiness();const msg=type==='called'?'📞 Calling...':type==='messaged'?'💬 Opening Messages...':type==='emailed'?'📧 Opening Mail...':'✓ Logged!';showToast(msg)}
+
+// ============ INIT ============
+switchToScreen('screen-onboard');
+</script>
+</body>
+</html>
