@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Echo — Stay in Touch</title>
+<style>
+  :root {
+    --bg: #090A0E;
+    --surface: #1A1B1F;
+    --accent: #3B82F6;
+    --accent-glow: rgba(59, 130, 246, 0.15);
+    --text-primary: #FFFFFF;
+    --text-secondary: #8E8E93;
+    --text-muted: #636366;
+    --green: #34C759;
+    --red: #FF453A;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: #111;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .phone {
+    width: 390px;
+    height: 844px;
+    background: var(--bg);
+    border-radius: 40px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 0 3px #1c1c1e, 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .status-bar {
+    height: 54px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 0 28px 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .status-bar .time { font-size: 15px; }
+  .status-bar .icons { display:flex; gap:6px; font-size:12px; }
+
+  .screen {
+    position: absolute;
+    top: 54px; left: 0; right: 0; bottom: 0;
+    display: none;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .screen.active { display: flex; }
+
+  /* Scrollbar */
+  .screen::-webkit-scrollbar { width: 0; }
+
+  /* Navigation */
+  .nav-bar {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    min-height: 44px;
+  }
+  .nav-title {
+    font-size: 34px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+  }
+  .nav-inline {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: center;
+    flex: 1;
+  }
+
+  /* Tab Bar */
+  .tab-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 83px;
+    background: var(--bg);
+    border-top: 0.5px solid rgba(255,255,255,0.08);
+    display: flex;
+    padding-bottom: 20px;
+    z-index: 10;
+  }
+  .tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.2s;
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .tab-item.active { color: var(--accent); }
+  .tab-item svg { width: 26px; height: 26px; }
+
+  /* Echo Cards */
+  .echo-cards { padding: 8px 16px 100px; }
+  .echo-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .echo-card:active { transform: scale(0.98); }
+  .echo-card:hover { box-shadow: 0 0 0 1px rgba(59,130,246,0.2); }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .card-avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  .card-avatar-img {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .card-name {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .card-time {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 1px;
+  }
+  .card-context {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-reach {
+    width: 100%;
+    padding: 10px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.2s;
+  }
+  .card-reach:hover { background: #2563EB; }
+
+  /* People List */
+  .people-list { padding-bottom: 100px; }
+  .people-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .people-item:hover { background: rgba(255,255,255,0.03); }
+  .people-item .avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  .people-item .info { flex:1; min-width:0; }
+  .people-item .name {
+    font-size: 16px; font-weight: 500; color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .people-item .phone {
+    font-size: 13px; color: var(--text-muted); margin-top: 1px;
+  }
+  .people-item .star {
+    font-size: 20px; cursor: pointer; padding: 4px;
+  }
+  .search-bar {
+    margin: 8px 16px;
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .search-bar input {
+    background: none; border: none; color: var(--text-primary);
+    font-size: 15px; outline: none; width: 100%;
+  }
+  .search-bar input::placeholder { color: var(--text-muted); }
+  .search-bar .search-icon { color: var(--text-muted); font-size: 15px; }
+
+  /* Section header */
+  .section-header {
+    padding: 8px 16px 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Detail View */
+  .detail-scroll { padding: 0 0 100px; }
+  .detail-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 16px;
+  }
+  .detail-avatar {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .detail-name {
+    font-size: 22px; font-weight: 700; color: var(--text-primary);
+  }
+  .detail-last {
+    font-size: 14px; color: var(--text-muted); margin-top: 4px;
+  }
+  .detail-reach-btn {
+    margin: 16px 24px;
+    padding: 14px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    width: calc(100% - 48px);
+  }
+  .detail-reach-btn:hover { background: #2563EB; }
+
+  .detail-section {
+    padding: 8px 24px;
+  }
+  .detail-section-title {
+    font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;
+  }
+
+  /* Timeline item */
+  .timeline-item {
+    display: flex; gap: 12px; padding: 10px 0;
+  }
+  .timeline-icon {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--accent-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    font-size: 13px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .timeline-content { flex: 1; min-width: 0; }
+  .timeline-action {
+    font-size: 15px; font-weight: 500; color: var(--text-primary);
+  }
+  .timeline-note {
+    font-size: 13px; color: var(--text-secondary); margin-top: 2px;
+  }
+  .timeline-date {
+    font-size: 13px; color: var(--text-muted); margin-top: 1px;
+  }
+
+  /* Note input */
+  .note-input-row {
+    display: flex; gap: 8px; margin-top: 8px;
+  }
+  .note-input-row input {
+    flex: 1;
+    background: var(--surface);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: 15px;
+    outline: none;
+  }
+  .note-input-row input::placeholder { color: var(--text-muted); }
+  .note-input-row button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  /* Back button */
+  .back-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: none;
+    color: var(--accent);
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Reach Sheet */
+  .sheet-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 20;
+    display: none;
+    justify-content: flex-end;
+  }
+  .sheet-overlay.active { display: flex; }
+  .sheet {
+    background: #1c1c1e;
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    padding: 12px 16px 40px;
+    animation: slideUp 0.3s ease-out;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .sheet-handle {
+    width: 36px; height: 5px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 3px;
+    margin: 0 auto 16px;
+  }
+  .sheet-title {
+    font-size: 17px; font-weight: 600; color: var(--text-primary);
+    text-align: center; margin-bottom: 16px;
+  }
+  .sheet-action {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px;
+    background: #2c2c2e;
+    border: none;
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 16px;
+    width: 100%;
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: background 0.15s;
+  }
+  .sheet-action:hover { background: #3a3a3c; }
+  .sheet-action svg { width: 24px; height: 24px; flex-shrink: 0; }
+  .sheet-note-input {
+    width: 100%;
+    background: #2c2c2e;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: 15px;
+    outline: none;
+    margin: 8px 0;
+  }
+  .sheet-note-input::placeholder { color: var(--text-muted); }
+  .sheet-log-btn {
+    width: 100%;
+    padding: 12px;
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .sheet-cancel {
+    width: 100%;
+    padding: 12px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  .toast {
+    position: absolute;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--green);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .toast.show { opacity: 1; }
+  .toast.note-toast { background: var(--accent); }
+
+  /* Onboarding */
+  .onboard-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 32px;
+    text-align: center;
+  }
+  .onboard-icon {
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: var(--accent-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 32px;
+    font-size: 48px;
+  }
+  .onboard-title {
+    font-size: 36px; font-weight: 700; color: var(--text-primary);
+    letter-spacing: -1px; margin-bottom: 8px;
+  }
+  .onboard-subtitle {
+    font-size: 17px; color: var(--text-secondary);
+    line-height: 1.5; margin-bottom: 48px;
+  }
+  .onboard-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .onboard-btn:hover { background: #2563EB; }
+  .onboard-privacy {
+    font-size: 12px; color: var(--text-muted);
+    margin-top: 16px; line-height: 1.5;
+  }
+
+  /* Import animation */
+  .import-progress {
+    margin-top: 24px;
+    text-align: center;
+  }
+  .progress-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--surface);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+  .progress-text {
+    font-size: 12px; color: var(--text-muted);
+  }
+  .import-done {
+    font-size: 15px; color: var(--green);
+    font-weight: 600; margin-top: 12px;
+  }
+
+  /* Settings */
+  .settings-list { padding: 16px; }
+  .settings-section { margin-bottom: 24px; }
+  .settings-section-title {
+    font-size: 13px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 0 0 8px;
+  }
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px;
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    margin-bottom: 1px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .settings-row:hover { background: #222326; }
+  .settings-row .left {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .settings-row .left svg { width: 22px; height: 22px; flex-shrink: 0; }
+  .settings-row .label { font-size: 16px; color: var(--text-primary); }
+  .settings-row .value { font-size: 16px; color: var(--text-secondary); }
+  .pro-badge {
+    background: var(--accent);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .pro-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin: 4px 0 16px;
+  }
+  .pro-card h3 { font-size: 18px; color: var(--text-primary); margin-bottom: 8px; }
+  .pro-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px; }
+  .pro-card .features { margin-bottom: 16px; }
+  .pro-card .feature {
+    font-size: 14px; color: var(--text-secondary);
+    padding: 4px 0;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .pro-card .feature .check { color: var(--accent); font-weight: 600; }
+  .upgrade-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .upgrade-btn:hover { background: #2563EB; }
+
+  /* Empty state */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 40px;
+    text-align: center;
+    gap: 12px;
+  }
+  .empty-state .icon { font-size: 60px; color: var(--text-muted); opacity: 0.5; }
+  .empty-state .title { font-size: 20px; color: var(--text-primary); font-weight: 600; }
+  .empty-state .desc { font-size: 14px; color: var(--text-secondary); line-height: 1.4; }
+
+  /* Pro lock */
+  .pro-lock {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 600;
+    margin-left: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="phone" id="phone">
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span class="time">9:41</span>
+    <span class="icons">●●●●○ &nbsp;WiFi &nbsp;🔋</span>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- SCREEN: Onboarding -->
+  <div class="screen active" id="screen-onboard">
+    <div class="onboard-content">
+      <div class="onboard-icon">〰️</div>
+      <div class="onboard-title">Echo</div>
+      <div class="onboard-subtitle">A whisper across time<br>always finds its way back.</div>
+      <button class="onboard-btn" onclick="startImport()">Import Contacts</button>
+      <div class="onboard-privacy">Your contacts never leave your device.<br>All processing happens locally.</div>
+      <div class="import-progress" id="import-progress" style="display:none;width:100%">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+        <div class="progress-text" id="progress-text">Requesting permission...</div>
+      </div>
+      <div class="import-done" id="import-done" style="display:none">✓ 187 contacts imported</div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Echo Layer (Main) -->
+  <div class="screen" id="screen-echo">
+    <div class="nav-bar">
+      <span class="nav-title">Echo</span>
+      <div style="flex:1"></div>
+      <button style="background:none;border:none;color:var(--accent);font-size:28px;cursor:pointer;padding:4px 8px;" onclick="switchToScreen('screen-people')">☰</button>
+    </div>
+    <div class="echo-cards" id="echo-cards-container"></div>
+    <div class="tab-bar">
+      <div class="tab-item active" onclick="switchTab('echo')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+        <span>Echo</span>
+      </div>
+      <div class="tab-item" onclick="switchTab('people')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-7 8-7s8 3 8 7"/></svg>
+        <span>People</span>
+      </div>
+      <div class="tab-item" onclick="switchTab('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        <span>Settings</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: People Library -->
+  <div class="screen" id="screen-people">
+    <div class="nav-bar">
+      <button class="back-btn" onclick="switchToScreen('screen-echo')">←</button>
+      <span class="nav-inline">People</span>
+      <div style="width:36px"></div>
+    </div>
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Search contacts" oninput="filterPeople(this.value)">
+    </div>
+    <div class="section-header">IN ECHO LAYER</div>
+    <div class="people-list" id="echo-layer-list"></div>
+    <div class="section-header">PEOPLE LIBRARY</div>
+    <div class="people-list" id="library-list"></div>
+  </div>
+
+  <!-- SCREEN: Contact Detail -->
+  <div class="screen" id="screen-detail">
+    <div class="nav-bar">
+      <button class="back-btn" onclick="goBackFromDetail()">←</button>
+      <span class="nav-inline">Contact</span>
+      <button class="back-btn" id="detail-star-btn" onclick="toggleLayer()" style="font-size:18px">☆</button>
+    </div>
+    <div class="detail-scroll" id="detail-content"></div>
+  </div>
+
+  <!-- SCREEN: Settings -->
+  <div class="screen" id="screen-settings">
+    <div class="nav-bar">
+      <span class="nav-title">Settings</span>
+    </div>
+    <div class="settings-list">
+      <div class="settings-section">
+        <div class="settings-section-title">Subscription</div>
+        <div id="pro-status-area"></div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">About</div>
+        <div class="settings-row">
+          <span class="label">Version</span>
+          <span class="value">1.0.0</span>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab-item" onclick="switchTab('echo')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+        <span>Echo</span>
+      </div>
+      <div class="tab-item" onclick="switchTab('people')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-7 8-7s8 3 8 7"/></svg>
+        <span>People</span>
+      </div>
+      <div class="tab-item active" onclick="switchTab('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        <span>Settings</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reach Action Sheet -->
+  <div class="sheet-overlay" id="reach-sheet" onclick="closeReachSheet(event)">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="sheet-contact-name">Reach out</div>
+      <button class="sheet-action" onclick="doReach('called')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        Call
+      </button>
+      <button class="sheet-action" onclick="doReach('messaged')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Message
+      </button>
+      <button class="sheet-action" onclick="doReach('emailed')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Email
+      </button>
+      <input class="sheet-note-input" id="reach-note" placeholder="Quick note (optional)...">
+      <button class="sheet-log-btn" onclick="doReach('reachedOut')">Log as Reached Out</button>
+      <button class="sheet-cancel" onclick="document.getElementById('reach-sheet').classList.remove('active')">Cancel</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============ DATA ============
+const contacts = [
+  { id:'c1', given:'Sarah', family:'Chen', phone:'(415) 555-0182', email:'sarah@email.com', avatarColor:'#3B82F6', initials:'SC', echoLayer:true, lastReachedOut: Date.now()-3*86400000, notes:[{content:'Her mom is recovering well from surgery. Check in next week.', date:Date.now()-7*86400000}], interactions:[{type:'called',note:'Caught up for 30min. She just got back from Tokyo.',date:Date.now()-3*86400000},{type:'messaged',note:'Sent her the restaurant recommendation',date:Date.now()-14*86400000}] },
+  { id:'c2', given:'Mike', family:'Johnson', phone:'(415) 555-0191', email:'mike@email.com', avatarColor:'#8B5CF6', initials:'MJ', echoLayer:true, lastReachedOut: Date.now()-19*86400000, notes:[{content:'Changing jobs — follow up on new role',date:Date.now()-20*86400000}], interactions:[{type:'metInPerson',note:'Coffee at Blue Bottle. He\'s considering a move to NYC.',date:Date.now()-19*86400000},{type:'messaged',note:'Congrats on the new job offer',date:Date.now()-30*86400000}] },
+  { id:'c3', given:'Emma', family:'Williams', phone:'(415) 555-0123', email:'emma@email.com', avatarColor:'#EC4899', initials:'EW', echoLayer:true, lastReachedOut: Date.now()-6*86400000, notes:[{content:'Birthday: March 15. Loves hiking.',date:Date.now()-60*86400000}], interactions:[{type:'messaged',note:'Shared hiking trail recommendations',date:Date.now()-6*86400000},{type:'called',note:'Planned weekend hike together',date:Date.now()-20*86400000}] },
+  { id:'c4', given:'David', family:'Kim', phone:'(415) 555-0147', email:'david@email.com', avatarColor:'#F59E0B', initials:'DK', echoLayer:true, lastReachedOut: Date.now()-42*86400000, notes:[], interactions:[{type:'called',note:'Long overdue catch-up. He has two kids now!',date:Date.now()-42*86400000},{type:'emailed',note:'Sent portfolio for review',date:Date.now()-90*86400000}] },
+  { id:'c5', given:'Lisa', family:'Park', phone:'(650) 555-0168', email:'lisa@email.com', avatarColor:'#10B981', initials:'LP', echoLayer:true, lastReachedOut: Date.now()-8*86400000, notes:[{content:'Mentor. Monthly coffee ritual.',date:Date.now()-100*86400000}], interactions:[{type:'metInPerson',note:'Monthly mentoring session. Discussed career pivot.',date:Date.now()-8*86400000},{type:'messaged',note:'Scheduled next month\'s coffee',date:Date.now()-10*86400000}] },
+  { id:'c6', given:'Tom', family:'Brown', phone:'(510) 555-0201', email:'tom@email.com', avatarColor:'#EF4444', initials:'TB', echoLayer:false, lastReachedOut: Date.now()-120*86400000, notes:[], interactions:[{type:'emailed',note:'Sent project deliverables',date:Date.now()-120*86400000}] },
+  { id:'c7', given:'Anna', family:'Martinez', phone:'(408) 555-0234', email:'anna@email.com', avatarColor:'#06B6D4', initials:'AM', echoLayer:false, lastReachedOut: Date.now()-200*86400000, notes:[], interactions:[{type:'messaged',note:'Congrats on the baby!',date:Date.now()-200*86400000}] },
+  { id:'c8', given:'James', family:'Wilson', phone:'(925) 555-0267', email:'james@email.com', avatarColor:'#84CC16', initials:'JW', echoLayer:false, lastReachedOut: Date.now()-60*86400000, notes:[], interactions:[{type:'called',note:'Quick check-in',date:Date.now()-60*86400000}] },
+  { id:'c9', given:'Rachel', family:'Taylor', phone:'(707) 555-0290', email:'rachel@email.com', avatarColor:'#A855F7', initials:'RT', echoLayer:true, lastReachedOut: null, notes:[], interactions:[] },
+  { id:'c10',given:'Chris', family:'Anderson', phone:'(831) 555-0312', email:'chris@email.com', avatarColor:'#F97316', initials:'CA', echoLayer:false, lastReachedOut: Date.now()-365*86400000, notes:[], interactions:[{type:'messaged',note:'Happy birthday',date:Date.now()-365*86400000}] },
+];
+
+let isPro = false;
+let currentDetailContact = null;
+let detailReturnScreen = 'screen-echo';
+
+// ============ HELPERS ============
+function timeAgo(ts) {
+  if (!ts) return 'Never contacted';
+  const diff = Date.now() - ts;
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) return `${Math.floor(days/7)} weeks ago`;
+  if (days < 365) return `${Math.floor(days/30)} months ago`;
+  return 'Over a year ago';
+}
+
+function timeAgoShort(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return 'Today';
+  if (days === 1) return '1d ago';
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days/7)}w ago`;
+  if (days < 365) return `${Math.floor(days/30)}mo ago`;
+  return '1y+';
+}
+
+function showToast(msg, cls) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (cls ? ' ' + cls : '');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function findContact(id) {
+  return contacts.find(c => c.id === id) || contacts.find(c => c.id === currentDetailContact);
+}
+
+// ============ SCREEN SWITCHING ============
+let screenHistory = [];
+
+function switchToScreen(id, recordHistory = true) {
+  if (recordHistory && document.querySelector('.screen.active')) {
+    screenHistory.push(document.querySelector('.screen.active').id);
+  }
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+
+  if (id === 'screen-echo') renderEchoCards();
+  if (id === 'screen-people') renderPeopleLists();
+  if (id === 'screen-settings') renderSettings();
+}
+
+function goBackFromDetail() {
+  switchToScreen(detailReturnScreen, false);
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+
+  if (tab === 'echo') {
+    switchToScreen('screen-echo');
+    document.querySelectorAll('#screen-echo .tab-item')[0].classList.add('active');
+  } else if (tab === 'people') {
+    switchToScreen('screen-people');
+    document.querySelectorAll('#screen-people .tab-item')[1]?.classList.add('active');
+    // Update tab bar visually — use the echo screen's tab bar
+    updateAllTabBars('people');
+  } else if (tab === 'settings') {
+    switchToScreen('screen-settings');
+    updateAllTabBars('settings');
+  }
+}
+
+function updateAllTabBars(active) {
+  // Simple approach: just update the active screen's tab bar
+  document.querySelectorAll('.tab-bar').forEach(bar => {
+    bar.querySelectorAll('.tab-item').forEach((item, i) => {
+      item.classList.remove('active');
+      const labels = ['echo','people','settings'];
+      if (labels[i] === active) item.classList.add('active');
+    });
+  });
+}
+
+// ============ ONBOARDING ============
+function startImport() {
+  const progress = document.getElementById('import-progress');
+  const fill = document.getElementById('progress-fill');
+  const text = document.getElementById('progress-text');
+  const done = document.getElementById('import-done');
+  const btn = document.querySelector('.onboard-btn');
+
+  btn.style.display = 'none';
+  progress.style.display = 'block';
+
+  let pct = 0;
+  const interval = setInterval(() => {
+    pct += Math.random() * 30;
+    if (pct >= 100) {
+      pct = 100;
+      clearInterval(interval);
+      fill.style.width = '100%';
+      text.textContent = '187 contacts imported';
+      done.style.display = 'block';
+
+      setTimeout(() => {
+        switchToScreen('screen-echo');
+        renderEchoCards();
+        showToast('✓ 187 contacts imported');
+      }, 800);
+    } else {
+      fill.style.width = pct + '%';
+      text.textContent = `Importing ${Math.floor(pct * 1.87)} of 187...`;
+    }
+  }, 150);
+}
+
+// ============ ECHO CARDS ============
+function renderEchoCards() {
+  const container = document.getElementById('echo-cards-container');
+  const echoContacts = contacts.filter(c => c.echoLayer);
+
+  if (echoContacts.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">〰️</div>
+        <div class="title">No Echoes yet</div>
+        <div class="desc">Promote people from your People Library to see them here.</div>
+      </div>`;
+    return;
+  }
+
+  // Sort: oldest lastReachedOut first (they need you most), null lastReachedOut at top
+  const sorted = [...echoContacts].sort((a, b) => {
+    if (!a.lastReachedOut && !b.lastReachedOut) return 0;
+    if (!a.lastReachedOut) return -1;
+    if (!b.lastReachedOut) return 1;
+    return a.lastReachedOut - b.lastReachedOut;
+  });
+
+  container.innerHTML = sorted.map(c => `
+    <div class="echo-card" onclick="openDetail('${c.id}')">
+      <div class="card-header">
+        <div class="card-avatar" style="background:${c.avatarColor}22">${c.initials}</div>
+        <div>
+          <div class="card-name">${c.given} ${c.family}</div>
+          <div class="card-time">${c.lastReachedOut ? ('Last reached out ' + timeAgoShort(c.lastReachedOut)) : 'Never contacted — say hi!'}</div>
+        </div>
+      </div>
+      <div class="card-context">${c.notes.length > 0 ? c.notes[c.notes.length-1].content : (c.interactions.length > 0 ? c.interactions[0].note : 'No notes yet. Add one to remember your last conversation.')}</div>
+      <button class="card-reach" onclick="event.stopPropagation(); openReachSheet('${c.id}')">
+        👋 Reach out
+      </button>
+    </div>
+  `).join('');
+}
+
+// ============ PEOPLE LISTS ============
+function renderPeopleLists(filter = '') {
+  const echoLayerList = document.getElementById('echo-layer-list');
+  const libraryList = document.getElementById('library-list');
+
+  const filterFn = (c) => {
+    if (!filter) return true;
+    const q = filter.toLowerCase();
+    return (c.given + ' ' + c.family).toLowerCase().includes(q) ||
+           (c.phone || '').includes(q) ||
+           (c.email || '').toLowerCase().includes(q);
+  };
+
+  const echoContacts = contacts.filter(c => c.echoLayer && filterFn(c));
+  const libContacts = contacts.filter(c => !c.echoLayer && filterFn(c));
+
+  if (!echoLayerList || !libraryList) return;
+
+  echoLayerList.innerHTML = echoContacts.length === 0
+    ? '<div style="padding:16px;color:var(--text-muted);font-size:14px;text-align:center;">No contacts in Echo Layer</div>'
+    : echoContacts.map(c => peopleItemHTML(c)).join('');
+
+  libraryList.innerHTML = libContacts.length === 0
+    ? '<div style="padding:16px;color:var(--text-muted);font-size:14px;text-align:center;">No contacts found</div>'
+    : libContacts.map(c => peopleItemHTML(c)).join('');
+}
+
+function peopleItemHTML(c) {
+  return `
+    <div class="people-item" onclick="openDetail('${c.id}')">
+      <div class="avatar" style="background:${c.avatarColor}22">${c.initials}</div>
+      <div class="info">
+        <div class="name">${c.given} ${c.family}</div>
+        <div class="phone">${c.phone || ''}</div>
+      </div>
+      <div class="star" onclick="event.stopPropagation(); toggleEchoLayer('${c.id}')" title="${c.echoLayer ? 'Remove from Echo Layer' : 'Add to Echo Layer'}">
+        ${c.echoLayer ? '⭐' : '☆'}
+      </div>
+    </div>`;
+}
+
+function filterPeople(val) {
+  renderPeopleLists(val);
+}
+
+function toggleEchoLayer(id) {
+  const c = contacts.find(cc => cc.id === id);
+  if (!c) return;
+  c.echoLayer = !c.echoLayer;
+  renderPeopleLists(document.querySelector('#screen-people .search-bar input')?.value || '');
+  renderEchoCards();
+  showToast(c.echoLayer ? `⭐ Added ${c.given} to Echo Layer` : `Removed ${c.given} from Echo Layer`);
+}
+
+// ============ CONTACT DETAIL ============
+function openDetail(id) {
+  currentDetailContact = id;
+  const activeId = document.querySelector('.screen.active').id;
+  detailReturnScreen = activeId === 'screen-people' ? 'screen-people' : 'screen-echo';
+  switchToScreen('screen-detail');
+  renderDetail(id);
+}
+
+function renderDetail(id = null) {
+  const cid = id || currentDetailContact;
+  const c = contacts.find(cc => cc.id === cid);
+  if (!c) return;
+
+  currentDetailContact = cid;
+
+  // Star button
+  document.getElementById('detail-star-btn').textContent = c.echoLayer ? '⭐' : '☆';
+
+  const interactionsHTML = c.interactions.length === 0
+    ? '<div style="padding:16px 0;color:var(--text-muted);font-size:14px;">No interactions yet. Reach out to start the timeline.</div>'
+    : c.interactions.slice().sort((a, b) => b.date - a.date).map(i => `
+      <div class="timeline-item">
+        <div class="timeline-icon">${iconForType(i.type)}</div>
+        <div class="timeline-content">
+          <div class="timeline-action">${labelForType(i.type)}</div>
+          ${i.note ? `<div class="timeline-note">${i.note}</div>` : ''}
+          <div class="timeline-date">${timeAgo(i.date)}</div>
+        </div>
+      </div>
+    `).join('');
+
+  const notesHTML = c.notes.length === 0
+    ? '<div style="padding:8px 0;color:var(--text-muted);font-size:14px;">No notes yet.</div>'
+    : c.notes.slice().sort((a, b) => b.date - a.date).map(n => `
+      <div style="background:var(--surface);padding:12px;border-radius:10px;margin-bottom:8px;">
+        <div style="font-size:15px;color:var(--text-secondary);">${n.content}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">${new Date(n.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+      </div>
+    `).join('');
+
+  document.getElementById('detail-content').innerHTML = `
+    <div class="detail-header">
+      <div class="detail-avatar" style="background:${c.avatarColor}22">${c.initials}</div>
+      <div class="detail-name">${c.given} ${c.family}</div>
+      <div class="detail-last">${c.lastReachedOut ? 'Last reached out ' + timeAgo(c.lastReachedOut) : 'Never contacted'}</div>
+      <div class="detail-last" style="margin-top:2px">${c.phone || ''} · ${c.email || ''}</div>
+    </div>
+    <button class="detail-reach-btn" onclick="openReachSheet('${c.id}')">👋 Reach out</button>
+    <div class="detail-section">
+      <div class="detail-section-title">Notes</div>
+      ${notesHTML}
+      <div class="note-input-row">
+        <input type="text" id="detail-note-input" placeholder="Add a note...">
+        <button onclick="addNote('${c.id}')">Save</button>
+      </div>
+      ${!isPro && c.notes.length >= 1 ? '<div class="pro-lock">🔒 Pro only: unlimited notes</div>' : ''}
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Timeline</div>
+      ${interactionsHTML}
+    </div>
+  `;
+}
+
+function toggleLayer() {
+  const c = contacts.find(cc => cc.id === currentDetailContact);
+  if (!c) return;
+  c.echoLayer = !c.echoLayer;
+  document.getElementById('detail-star-btn').textContent = c.echoLayer ? '⭐' : '☆';
+  renderEchoCards();
+  showToast(c.echoLayer ? `⭐ Added ${c.given} to Echo Layer` : `Removed ${c.given} from Echo Layer`);
+}
+
+function addNote(id) {
+  const c = contacts.find(cc => cc.id === id);
+  if (!c) return;
+
+  if (!isPro && c.notes.length >= 1) {
+    showToast('🔒 Upgrade to Pro for unlimited notes', 'note-toast');
+    return;
+  }
+
+  const input = document.getElementById('detail-note-input');
+  if (!input || !input.value.trim()) return;
+
+  c.notes.push({ content: input.value.trim(), date: Date.now() });
+  input.value = '';
+  renderDetail(id);
+  renderEchoCards();
+  showToast('✓ Note saved', 'note-toast');
+}
+
+// ============ REACH SHEET ============
+function openReachSheet(id) {
+  currentDetailContact = id;
+  const c = contacts.find(cc => cc.id === id);
+  if (!c) return;
+  document.getElementById('sheet-contact-name').textContent = `Reach out to ${c.given}`;
+  document.getElementById('reach-note').value = '';
+  document.getElementById('reach-sheet').classList.add('active');
+}
+
+function closeReachSheet(e) {
+  if (e.target === document.getElementById('reach-sheet')) {
+    document.getElementById('reach-sheet').classList.remove('active');
+  }
+}
+
+function doReach(type) {
+  const c = contacts.find(cc => cc.id === currentDetailContact);
+  if (!c) return;
+
+  const note = document.getElementById('reach-note').value.trim();
+  c.interactions.unshift({ type, note, date: Date.now() });
+  c.lastReachedOut = Date.now();
+  c.reachCount = (c.reachCount || 0) + 1;
+
+  document.getElementById('reach-sheet').classList.remove('active');
+  renderEchoCards();
+  if (document.getElementById('screen-detail').classList.contains('active')) {
+    renderDetail();
+  }
+
+  const msg = type === 'called' ? '📞 Calling...' :
+              type === 'messaged' ? '💬 Opening Messages...' :
+              type === 'emailed' ? '📧 Opening Mail...' :
+              '✓ Logged!';
+  showToast(msg);
+}
+
+function iconForType(t) {
+  const map = { called:'📞', messaged:'💬', emailed:'📧', metInPerson:'🤝', reachedOut:'👋' };
+  return map[t] || '👋';
+}
+
+function labelForType(t) {
+  const map = { called:'Called', messaged:'Messaged', emailed:'Emailed', metInPerson:'Met in person', reachedOut:'Reached out' };
+  return map[t] || t;
+}
+
+// ============ SETTINGS ============
+function renderSettings() {
+  const area = document.getElementById('pro-status-area');
+  if (!area) return;
+
+  if (isPro) {
+    area.innerHTML = `
+      <div class="settings-row">
+        <div class="left">
+          <span style="font-size:22px">⭐</span>
+          <span class="label">Echo Pro</span>
+        </div>
+        <span class="value" style="color:var(--green)">Active</span>
+      </div>`;
+  } else {
+    area.innerHTML = `
+      <div class="pro-card">
+        <h3>Echo Pro</h3>
+        <p>Unlock AI-powered Echo Engine, unlimited notes, calendar integration, and smart rhythm alerts.</p>
+        <div class="features">
+          <div class="feature"><span class="check">✓</span> AI auto-layering</div>
+          <div class="feature"><span class="check">✓</span> Smart rhythm alerts</div>
+          <div class="feature"><span class="check">✓</span> Unlimited notes & timeline</div>
+          <div class="feature"><span class="check">✓</span> Calendar integration</div>
+          <div class="feature"><span class="check">✓</span> Suggested conversation openers</div>
+        </div>
+        <button class="upgrade-btn" onclick="doUpgrade()">Upgrade — $4/month</button>
+      </div>`;
+  }
+}
+
+function doUpgrade() {
+  isPro = true;
+  renderSettings();
+  showToast('🎉 Welcome to Echo Pro!');
+}
+
+// ============ INIT ============
+switchToScreen('screen-onboard', false);
+renderEchoCards();
+renderSettings();
+</script>
+
+</body>
+</html>
