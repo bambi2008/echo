@@ -137,7 +137,56 @@ ECHO LAYER      PEOPLE LIBRARY
 
 ---
 
-## 7. Technical Architecture
+## 7. B2B Opportunity: Sales CRM
+
+During competitive research, a parallel market with stronger revenue potential emerged: individual sales professionals (insurance agents, realtors, financial advisors) who find existing CRMs too heavy.
+
+### Existing B2B Players
+
+| Product | Scale | Price | Key Signal |
+|---------|-------|-------|------------|
+| **Pipedrive** | 100K+ companies, 850+ staff, acquired for $1.5B (2020) | $14-99/seat | Started lightweight; now enterprise trajectory |
+| **Less Annoying CRM** | Self-funded, family-owned since 2009 | **$15/user/mo** | "More than a spreadsheet, less than a CRM." Every feature "designed with the solo user in mind." Survived 17 years without VC — proves the market. |
+| **Streak** | YC S11 | $15-129/mo | CRM inside Gmail. Locked in Google ecosystem. |
+| **Close.com** | YC W11, ~$28M funded | $59-149/mo | Built-in calling. Mid-market, not solo. |
+
+### B2B Market Size
+
+| Segment | US Professionals | 10% adoption × $15/mo |
+|---------|-----------------|----------------------|
+| Insurance agents | 2.3M | $4.1B/yr |
+| Real estate agents | 1.5M | $2.7B/yr |
+| Financial advisors | 3.0M | $5.4B/yr |
+| Independent sales reps | 6.0M+ | $10.8B/yr |
+| **Total** | **~13M** | **~$23B TAM** |
+
+### The Gap All Competitors Miss
+
+| | Existing Products (Pipedrive, LACRM, Streak) | Echo for Business |
+|---|---|---|
+| **Platform** | Web-first, desktop mindset | iOS native, mobile-first |
+| **Mental model** | Pipeline → "which deal closes next?" | Relationship → "who should I talk to today?" |
+| **AI** | Workflow automation | Interaction signal analysis, smart prioritization |
+| **Onboarding** | Manual data entry | One-tap contacts import, auto-layering |
+| **Pricing** | $15-150/mo | $15/mo, mobile-native premium |
+| **Privacy** | Cloud SaaS | On-device processing |
+
+### Strategic Decision: B2C First, B2B Next
+
+| Phase | Product | Goal |
+|-------|---------|------|
+| **v1.0** (now) | Echo B2C — personal relationship tool, $4/mo | Product-market fit validation + press/word-of-mouth |
+| **v2.0** (3-6 months) | Echo Pro — business mode, $15/mo | Revenue engine, 13M US solo professionals |
+
+**Rationale:**
+- B2C is the storytelling wedge: "an app that reminds you to call your mom" gets App Store features, Product Hunt upvotes, and journalist coverage. B2B can't do that.
+- B2C forces the product DNA to be right (care-driven, not guilt-driven). If B2B comes first, Echo slides into being "another LACRM" — useful but soulless.
+- LACRM's 17-year survival at $15/mo is the insurance policy: if B2C growth is slow, B2B is a proven fallback with an existing customer base asking for exactly this.
+- ~90% code reuse between modes — difference is onboarding split, pricing tier, and reminder tone.
+
+---
+
+## 8. Technical Architecture
 
 ```
 ┌─────────────────────────────────────┐
@@ -170,7 +219,7 @@ ECHO LAYER      PEOPLE LIBRARY
 
 ---
 
-## 8. Design Principles
+## 9. Design Principles
 
 | Principle | What it means |
 |-----------|--------------|
@@ -183,7 +232,7 @@ ECHO LAYER      PEOPLE LIBRARY
 
 ---
 
-## 9. MVP Scope (v1.0)
+## 10. MVP Scope (v1.0)
 
 **Must have:**
 - [ ] Contacts permission → full import + dedup
@@ -213,7 +262,7 @@ ECHO LAYER      PEOPLE LIBRARY
 
 ---
 
-## 10. Success Metrics (v1.0 → 3 months)
+## 11. Success Metrics (v1.0 → 3 months)
 
 | Metric | Target | Why |
 |--------|--------|-----|
@@ -225,7 +274,7 @@ ECHO LAYER      PEOPLE LIBRARY
 
 ---
 
-## 11. Risks & Mitigations
+## 12. Risks & Mitigations
 
 | Risk | Likelihood | Mitigation |
 |------|-----------|------------|
@@ -234,7 +283,39 @@ ECHO LAYER      PEOPLE LIBRARY
 | Privacy backlash ("you're reading my contacts") | Low | All processing on-device. No network calls for contact data. Clear privacy label. |
 | Monica/Dex adds mobile AI | Medium | Our moat is on-device + iOS-native feel. They'd need a full rewrite. |
 | $4/mo too low for sustainability | Low | Zero server cost. Per-user marginal cost ~$0. Primary cost is App Store 15% cut. |
+| B2B competitors (LACRM, Pipedrive) add mobile AI | Medium | Our moat is on-device + relationship model. They're pipeline-first and would need full rewrite for relationship-first AI. |
 
 ---
 
-> **Status:** Framework locked. Ready for fake-door validation (landing page + waitlist) before build.
+## 13. Version Roadmap
+
+```
+v1.0 — B2C MVP (now)
+  ├── Phone Contacts import
+  ├── Echo Layer + People Library (manual)
+  ├── Reach actions (call/message/email)
+  ├── Notes + Interaction timeline
+  ├── StoreKit 2: Free / Pro ($4/mo)
+  └── Dark theme, iOS native
+        │
+        ▼
+v1.1 — AI + Intelligence (1-2 months post-launch)
+  ├── AI auto-layering (Core ML)
+  ├── Smart rhythm alerts
+  ├── Calendar integration (Pro)
+  ├── Widget + Dynamic Island
+  └── iCloud sync
+        │
+        ▼
+v2.0 — Echo for Business (3-6 months post-launch)
+  ├── Business mode onboarding (solo sales, realtor, insurance)
+  ├── Priority Contacts (expanded Echo Layer for 200+ clients)
+  ├── Business-grade reminders (renewal, follow-up, birthday)
+  ├── Pro tier: $15/mo
+  ├── CSV export for compliance
+  └── Shared team view (2-5 person teams)
+```
+
+---
+
+> **Status:** Framework locked. B2C MVP build plan complete (`build-plan.md`). B2B opportunity validated and deferred to v2.0. Interactive prototype live (`prototype.html`). Ready for Mac build.
