@@ -1934,6 +1934,291 @@ Echo/
 
 ---
 
+## Phase 9: Mac iMessage Helper — 竞品杀手功能 (3h)
+
+> 对标 Dex 的 iMessage Sync Utility。通过读取 macOS `chat.db`，自动同步 iMessage 互动数据到 iOS App。
+> 这是 Echo 对 Dex 最强的反击——Dex 有 iMessage Sync 但移动端弱，Echo 可以同时拥有两者。
+
+### 9.1 创建 Mac 菜单栏 App Target
+
+**Xcode → File → New → Target → macOS → App:**
+```
+Name: EchoHelper
+Interface: SwiftUI
+Lifecycle: SwiftUI App
+```
+
+在 `EchoHelperApp.swift` 中配置为菜单栏应用：
+
+```swift
+import SwiftUI
+import AppKit
+
+@main
+struct EchoHelperApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    
+    var body: some Scene {
+        Settings {
+            SettingsView()
+        }
+    }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    var statusItem: NSStatusItem?
+    var messageReader = MessageReader()
+    
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Create menu bar item
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem?.button?.title = "〰️"
+        
+        let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: "Sync Now", action: #selector(syncNow), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Last Sync: Never", action: nil, keyEquivalent: ""))
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Preferences...", action: #selector(openPreferences), keyEquivalent: ","))
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
+        statusItem?.menu = menu
+        
+        // Auto-sync every 30 minutes
+        Timer.scheduledTimer(withTimeInterval: 1800, repeats: true) { _ in
+            self.syncNow()
+        }
+    }
+    
+    @objc func syncNow() {
+        Task {
+            await messageReader.syncMessages()
+        }
+    }
+    
+    @objc func openPreferences() {
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+    }
+    
+    @objc func quit() {
+        NSApplication.shared.terminate(nil)
+    }
+}
+```
+
+### 9.2 MessageReader — 读取 chat.db
+
+```swift
+import Foundation
+import SQLite3
+
+final class MessageReader: ObservableObject {
+    private let chatDBPath = NSHomeDirectory() + "/Library/Messages/chat.db"
+    @Published var lastSyncDate: Date?
+    @Published var syncedInteractions = 0
+    
+    /// Extract recent iMessage interactions from chat.db
+    func syncMessages(daysBack: Int = 30) async {
+        // Check Full Disk Access
+        guard FileManager.default.isReadableFile(atPath: chatDBPath) else {
+            requestFullDiskAccess()
+            return
+        }
+        
+        var db: OpaquePointer?
+        guard sqlite3_open(chatDBPath, &db) == SQLITE_OK else { return }
+        defer { sqlite3_close(db) }
+        
+        // Query: get messages from last N days, grouped by contact
+        let query = """
+        SELECT 
+            h.id AS contact_id,
+            COUNT(m.ROWID) AS message_count,
+            MAX(m.date/1000000000 + 978307200) AS last_message_time,
+            m.text AS last_message_text,
+            m.is_from_me AS last_from_me
+        FROM message m
+        JOIN handle h ON m.handle_id = h.ROWID
+        JOIN chat_message_join cmj ON m.ROWID = cmj.message_id
+        JOIN chat c ON cmj.chat_id = c.ROWID
+        WHERE m.date/1000000000 + 978307200 > \(Int(Date().timeIntervalSince1970) - daysBack * 86400)
+        GROUP BY h.id
+        ORDER BY last_message_time DESC
+        """
+        
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(statement) }
+        
+        var interactions: [MessageInteractionData] = []
+        
+        while sqlite3_step(statement) == SQLITE_ROW {
+            let contactID = String(cString: sqlite3_column_text(statement, 0))
+            let count = Int(sqlite3_column_int(statement, 1))
+            let lastTime = sqlite3_column_double(statement, 2)
+            let lastText = sqlite3_column_text(statement, 3).map { String(cString: $0) }
+            let isFromMe = sqlite3_column_int(statement, 4) != 0
+            
+            interactions.append(MessageInteractionData(
+                contactIdentifier: contactID,  // phone number or email
+                messageCount: count,
+                lastMessageDate: Date(timeIntervalSince1970: lastTime),
+                lastMessagePreview: lastText ?? "",
+                isOutgoing: isFromMe
+            ))
+        }
+        
+        // Match to Echo contacts by phone/email
+        await matchAndSync(interactions)
+        
+        await MainActor.run {
+            syncedInteractions = interactions.count
+            lastSyncDate = Date()
+        }
+    }
+    
+    /// Match iMessage contacts to Echo contacts
+    private func matchAndSync(_ interactions: [MessageInteractionData]) async {
+        // Write to App Group shared container
+        let defaults = UserDefaults(suiteName: "group.com.echo.app")!
+        
+        // Filter: only sync contacts that exist in Echo
+        let echoContacts = await fetchEchoContacts()
+        let echoPhones = Set(echoContacts.compactMap { $0.phoneNumber?.filter { $0.isNumber } })
+        let echoEmails = Set(echoContacts.compactMap { $0.emailAddress?.lowercased() })
+        
+        let matched = interactions.filter { interaction in
+            let id = interaction.contactIdentifier.lowercased()
+            if id.contains("@") {
+                return echoEmails.contains(id)
+            } else {
+                let digits = id.filter { $0.isNumber }
+                return echoPhones.contains(digits)
+            }
+        }
+        
+        // Store matched interactions for iOS app to read
+        if let data = try? JSONEncoder().encode(matched) {
+            defaults.set(data, forKey: "imessage_interactions")
+            defaults.set(Date(), forKey: "imessage_last_sync")
+        }
+    }
+    
+    private func fetchEchoContacts() async -> [EchoContactStub] {
+        // Read from App Group shared container (written by iOS app)
+        let defaults = UserDefaults(suiteName: "group.com.echo.app")!
+        guard let data = defaults.data(forKey: "echo_contacts_snapshot") else { return [] }
+        return (try? JSONDecoder().decode([EchoContactStub].self, from: data)) ?? []
+    }
+    
+    private func requestFullDiskAccess() {
+        // Show alert guiding user to System Preferences
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "Full Disk Access Required"
+            alert.informativeText = "Echo needs Full Disk Access to read your iMessage history. This data stays on your Mac. Go to System Settings → Privacy & Security → Full Disk Access → enable EchoHelper."
+            alert.addButton(withTitle: "Open System Settings")
+            alert.addButton(withTitle: "Cancel")
+            
+            if alert.runModal() == .alertFirstButtonReturn {
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!)
+            }
+        }
+    }
+}
+
+// MARK: - Data Models
+
+struct MessageInteractionData: Codable {
+    let contactIdentifier: String  // phone number or email
+    let messageCount: Int
+    let lastMessageDate: Date
+    let lastMessagePreview: String
+    let isOutgoing: Bool
+}
+
+struct EchoContactStub: Codable {
+    let systemIdentifier: String
+    let phoneNumber: String?
+    let emailAddress: String?
+}
+```
+
+### 9.3 iOS App 端读取 iMessage 数据
+
+在 `EchoEngine` 中添加：
+
+```swift
+// EchoEngine.swift
+extension EchoEngine {
+    /// Read iMessage interactions synced from Mac Helper
+    func loadMessageInteractions() -> [MessageInteractionData] {
+        let defaults = UserDefaults(suiteName: "group.com.echo.app")!
+        guard let data = defaults.data(forKey: "imessage_interactions"),
+              let interactions = try? JSONDecoder().decode([MessageInteractionData].self, from: data) else {
+            return []
+        }
+        return interactions
+    }
+    
+    /// Apply iMessage data to contact timeline and AI analysis
+    func enrichContactsWithMessageData(in context: ModelContext) {
+        let interactions = loadMessageInteractions()
+        let allContacts = (try? context.fetch(FetchDescriptor<EchoContact>())) ?? []
+        
+        for interaction in interactions {
+            let id = interaction.contactIdentifier.lowercased()
+            let matched = allContacts.first { contact in
+                let phone = contact.phoneNumber?.filter { $0.isNumber } ?? ""
+                let email = contact.emailAddress?.lowercased() ?? ""
+                return phone.contains(id.filter { $0.isNumber }) || email == id
+            }
+            
+            guard let contact = matched else { continue }
+            
+            // Update interaction frequency (stored in metadata)
+            contact.aiInsight = "Last iMessage: \(formatDate(interaction.lastMessageDate)). \(interaction.messageCount) messages in 30 days."
+            contact.aiInsightDate = Date()
+        }
+        
+        try? context.save()
+    }
+}
+```
+
+### 9.4 Settings 中的 iMessage Sync 控制
+
+在 iOS SettingsView 中添加：
+
+```swift
+Section("iMessage Sync (via Mac Helper)") {
+    if let lastSync = UserDefaults(suiteName: "group.com.echo.app")?.object(forKey: "imessage_last_sync") as? Date {
+        LabeledContent("Last synced", value: lastSync, format: .relative(presentation: .numeric))
+        LabeledContent("Interactions", value: "\(loadMessageInteractions().count) contacts")
+    } else {
+        Text("Install Echo Helper on your Mac to sync iMessage interactions.")
+            .font(.subheadline).foregroundColor(.secondary)
+        Link("Download Echo Helper", destination: URL(string: "https://echo-app.com/helper")!)
+    }
+}
+```
+
+### 9.5 Mac Helper 分发
+
+- **不通过 Mac App Store**（chat.db 读取可能被拒）
+- **通过 echo-app.com/helper 提供 DMG 下载**
+- **开源 iMessage 读取代码**（GitHub）增强信任
+- **代码签名 + 公证**（Apple notarization）避免 Gatekeeper 警告
+
+### 🔨 验证
+
+- Mac Helper 安装 → 授权 Full Disk Access → 菜单栏显示 "〰️"
+- 点击 Sync Now → iOS App 的 Settings 中显示 "Last synced: X minutes ago"
+- Echo 联系人时间线自动显示 "iMessage: 47 messages in 30 days"
+- AI Insights 反映真实的互动频率："You and Sarah exchange 2-3 messages daily"
+- 关闭 Full Disk Access → Mac Helper 优雅降级（不崩溃，提示重新授权）
+
+---
+
 ## Git 提交建议
 
 ```
