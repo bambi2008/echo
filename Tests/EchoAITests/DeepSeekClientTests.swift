@@ -78,6 +78,39 @@ struct DeepSeekClientTests {
             )
         }
     }
+
+    @Test("API key can be supplied by a secure store")
+    func keyStore() async throws {
+        let recorder = RequestRecorder()
+        MockURLProtocol.install { request in
+            try recorder.capture(request)
+            let body = #"{"model":"test-model","choices":[{"message":{"content":"ok"}}]}"#.data(using: .utf8)!
+            return (200, body)
+        }
+        defer { MockURLProtocol.reset() }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [MockURLProtocol.self]
+        let client = DeepSeekClient(
+            session: URLSession(configuration: configuration),
+            apiKeyStore: FixedAPIKeyStore(value: "stored-key")
+        )
+
+        _ = try await client.complete(
+            messages: [AIMessage(role: .user, text: "hello")],
+            model: "test-model",
+            options: AICompletionOptions(temperature: 0, maxOutputTokens: 10)
+        )
+
+        #expect(recorder.snapshot?.authorization == "Bearer stored-key")
+    }
+}
+
+private struct FixedAPIKeyStore: AIAPIKeyStore {
+    let value: String
+    func readAPIKey() throws -> String? { value }
+    func saveAPIKey(_ apiKey: String) throws {}
+    func deleteAPIKey() throws {}
 }
 
 private final class RequestRecorder: @unchecked Sendable {

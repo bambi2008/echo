@@ -66,6 +66,16 @@ public struct DeepSeekClient: AIProviderClient {
         self.apiKeyProvider = apiKeyProvider
     }
 
+    public init(
+        baseURL: URL = URL(string: "https://api.deepseek.com")!,
+        session: URLSession = .shared,
+        apiKeyStore: any AIAPIKeyStore
+    ) {
+        self.init(baseURL: baseURL, session: session) {
+            try apiKeyStore.readAPIKey() ?? ""
+        }
+    }
+
     public func complete(
         messages: [AIMessage],
         model: AIModelID,

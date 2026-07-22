@@ -2,11 +2,17 @@ import Foundation
 
 public final class AIService: Sendable {
     private let client: any AIProviderClient
+    private let observer: any AIServiceObserver
     public let router: AIModelRouter
 
-    public init(client: any AIProviderClient, router: AIModelRouter = AIModelRouter()) {
+    public init(
+        client: any AIProviderClient,
+        router: AIModelRouter = AIModelRouter(),
+        observer: any AIServiceObserver = NoOpAIServiceObserver()
+    ) {
         self.client = client
         self.router = router
+        self.observer = observer
     }
 
     public func selectedModel(for task: AITask) async throws -> AIModelID {
@@ -86,18 +92,77 @@ public final class AIService: Sendable {
         )
         var attempts: [AIModelAttempt] = []
 
-        for model in candidates {
+        for (index, model) in candidates.enumerated() {
+            let startedAt = Date()
             do {
-                return try await client.complete(messages: messages, model: model, options: options)
+                let result = try await client.complete(messages: messages, model: model, options: options)
+                await observer.record(AIServiceEvent(
+                    task: task,
+                    requestedModel: model,
+                    actualModel: result.model,
+                    attempt: index + 1,
+                    usedFallback: index > 0,
+                    durationMilliseconds: Self.elapsedMilliseconds(since: startedAt),
+                    outcome: .success,
+                    usage: result.usage
+                ))
+                return result
             } catch let error as AIServiceError {
                 attempts.append(AIModelAttempt(model: model, reason: error.localizedDescription))
+                await observer.record(AIServiceEvent(
+                    task: task,
+                    requestedModel: model,
+                    actualModel: nil,
+                    attempt: index + 1,
+                    usedFallback: index > 0,
+                    durationMilliseconds: Self.elapsedMilliseconds(since: startedAt),
+                    outcome: Self.outcome(for: error),
+                    usage: nil
+                ))
                 guard error.allowsModelFallback else { throw error }
             } catch {
                 attempts.append(AIModelAttempt(model: model, reason: error.localizedDescription))
+                await observer.record(AIServiceEvent(
+                    task: task,
+                    requestedModel: model,
+                    actualModel: nil,
+                    attempt: index + 1,
+                    usedFallback: index > 0,
+                    durationMilliseconds: Self.elapsedMilliseconds(since: startedAt),
+                    outcome: .unknownFailure,
+                    usage: nil
+                ))
             }
         }
 
         throw AIServiceError.allModelsFailed(attempts)
+    }
+
+    private static func elapsedMilliseconds(since date: Date) -> Int {
+        max(0, Int(Date().timeIntervalSince(date) * 1_000))
+    }
+
+    private static func outcome(for error: AIServiceError) -> AIServiceOutcome {
+        switch error {
+        case .noAPIKey, .http(statusCode: 401, _), .http(statusCode: 403, _):
+            .authenticationFailure
+        case .http(statusCode: 429, _):
+            .rateLimited
+        case .http(statusCode: 404, _):
+            .modelUnavailable
+        case .http(statusCode: 500..., _):
+            .providerFailure
+        case .transport:
+            .transportFailure
+        case .invalidResponse, .decoding, .emptyResponse, .invalidStructuredResponse:
+            .invalidResponse
+        case .missingModelPolicy, .invalidConfiguration, .noPreviousConfiguration, .emptyImage:
+            .configurationFailure
+        case .allModelsFailed:
+            .providerFailure
+        case .http:
+            .providerFailure
+        }
     }
 }
 

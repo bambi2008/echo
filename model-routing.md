@@ -120,3 +120,26 @@ let opener = try await features.conversationOpener(
 ```
 
 传入 `personAlias` 等脱敏字段，真实姓名映射应在设备本地完成。OCR 返回强类型 `BusinessCardInfo` 或 `PolicyDocumentInfo`，不再由页面直接解析松散字典。
+
+## 隐私、密钥与观测
+
+使用 `AIPrivacyContext` 在设备上创建请求级别的别名映射。姓名和公司会替换为 `Person A`、`Company A`，邮箱与电话号码会被遮盖；模型返回内容只在本地恢复已知别名。
+
+```swift
+let privacy = AIPrivacyContext(
+    people: [contact.fullName],
+    companies: [contact.companyName]
+)
+let safeNote = privacy.anonymize(note)
+let restored = privacy.restoreAliases(in: result.text)
+```
+
+iOS 与 macOS 使用 Keychain 保存 DeepSeek 密钥：
+
+```swift
+let keyStore = KeychainAPIKeyStore()
+try keyStore.saveAPIKey(apiKey)
+let client = DeepSeekClient(apiKeyStore: keyStore)
+```
+
+可向 `AIService` 注入 `AIServiceObserver` 记录任务、模型、响应时间、fallback 和 Token 用量。事件结构刻意不包含 Prompt、回复、身份信息、API Key 或服务端错误正文。
