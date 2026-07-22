@@ -117,6 +117,7 @@ public enum AIServiceError: Error, Equatable, Sendable {
     case invalidConfiguration(String)
     case noPreviousConfiguration
     case emptyImage
+    case invalidStructuredResponse(AITask)
     case transport(String)
     case http(statusCode: Int, message: String)
     case invalidResponse
@@ -132,7 +133,7 @@ public enum AIServiceError: Error, Equatable, Sendable {
             return statusCode == 404 || statusCode == 408 || statusCode == 409 ||
                 statusCode == 429 || statusCode >= 500
         case .noAPIKey, .missingModelPolicy, .invalidConfiguration, .noPreviousConfiguration,
-             .emptyImage, .allModelsFailed:
+             .emptyImage, .invalidStructuredResponse, .allModelsFailed:
             return false
         }
     }
@@ -146,6 +147,8 @@ extension AIServiceError: LocalizedError {
         case .invalidConfiguration(let message): "Invalid model configuration: \(message)"
         case .noPreviousConfiguration: "No previous model configuration is available"
         case .emptyImage: "Image data is empty"
+        case .invalidStructuredResponse(let task):
+            "The model returned invalid structured data for \(task.rawValue)"
         case .transport(let message): "Network error: \(message)"
         case .http(let statusCode, let message): "DeepSeek API error \(statusCode): \(message)"
         case .invalidResponse: "The API returned an invalid response"

@@ -103,3 +103,20 @@ let result = try await ai.analyzeImage(
 ```
 
 模型是否接受图片取决于 DeepSeek 当前接口能力。可以单独调整 `.businessCardOCR` 与 `.policyOCR` 的模型，不影响文字任务。
+
+## 业务功能接入
+
+`EchoAIFeatures` 是现有页面和 `AIService` 之间的薄适配层，不改变 SwiftData、View 或 Service 架构。它提供开场白、关系洞察、关系健康度、名片 OCR、保单 OCR、销售教练和每日简报入口，并自动选择对应的 `AITask`。
+
+```swift
+let features = EchoAIFeatures(service: ai)
+
+let opener = try await features.conversationOpener(
+    personAlias: "Person A",
+    recentNote: anonymizedNote,
+    daysSinceContact: 19,
+    relationship: "friend"
+)
+```
+
+传入 `personAlias` 等脱敏字段，真实姓名映射应在设备本地完成。OCR 返回强类型 `BusinessCardInfo` 或 `PolicyDocumentInfo`，不再由页面直接解析松散字典。
