@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ContactDetailView: View {
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Deal.createdAt, order: .reverse) private var deals: [Deal]
     @Bindable var contact: EchoContact
     @State private var note = ""
     @State private var selectedType: InteractionType = .messaged
@@ -20,6 +21,82 @@ struct ContactDetailView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
+            }
+
+            Section("Profile") {
+                if let phoneNumber = contact.phoneNumber {
+                    LabeledContent("Phone", value: phoneNumber)
+                }
+                if let emailAddress = contact.emailAddress {
+                    LabeledContent("Email", value: emailAddress)
+                }
+                if let jobTitle = contact.jobTitle {
+                    LabeledContent("Role", value: jobTitle)
+                }
+                if let companyName = contact.companyName {
+                    LabeledContent("Company", value: companyName)
+                }
+                if !contact.tags.isEmpty {
+                    LabeledContent("Identity", value: contact.tags.joined(separator: " · "))
+                }
+            }
+
+            Section("Business") {
+                if businessDeals.isEmpty {
+                    Text("No business opportunity is linked yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(businessDeals) { deal in
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text(deal.title).font(.headline)
+                                Spacer()
+                                Text(deal.stage.title)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.indigo)
+                            }
+                            Text(deal.value, format: .currency(code: "USD").precision(.fractionLength(0)))
+                                .font(.subheadline.weight(.semibold))
+                            if let nextActionDate = deal.nextActionDate {
+                                Label {
+                                    Text(nextActionDate, format: .dateTime.month().day().year())
+                                } icon: {
+                                    Image(systemName: "calendar")
+                                }
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 3)
+                    }
+                }
+            }
+
+            Section("Contact history") {
+                if contact.interactions.isEmpty {
+                    Text("Past calls, messages, meetings, and emails will appear here.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(contact.interactions.sorted { $0.date > $1.date }) { interaction in
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: interaction.type.symbol)
+                                .frame(width: 24)
+                                .foregroundStyle(.indigo)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(interaction.type.title).font(.subheadline.weight(.semibold))
+                                if !interaction.summary.isEmpty {
+                                    Text(interaction.summary)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Text(interaction.date, format: .dateTime.month().day().year())
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .padding(.vertical, 3)
+                    }
+                }
             }
 
             Section("Log a moment") {
@@ -59,6 +136,10 @@ struct ContactDetailView: View {
 
     private var subtitle: String? {
         [contact.jobTitle, contact.companyName].compactMap { $0 }.joined(separator: " at ").nilIfEmpty
+    }
+
+    private var businessDeals: [Deal] {
+        deals.filter { $0.contact?.systemIdentifier == contact.systemIdentifier }
     }
 }
 
