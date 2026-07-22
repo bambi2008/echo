@@ -865,7 +865,20 @@ final class VoiceService: NSObject, ObservableObject {
 
 ---
 
-## Phase 3: UI — Onboarding + Personal Tab (3h)
+## Phase 3: UI — Onboarding + Personal Tab + 留存 + 首次体验 (4h)
+
+### 3.0 新增文件
+- `Services/StreakManager.swift` — Streak 系统
+- `Views/Personal/WeeklySummaryView.swift` — 每周回顾卡片
+- `Views/Onboarding/OnboardingTourView.swift` — 3 步引导
+- `Helpers/AnimationPresets.swift` — 统一动效系统
+- 修改 `EchoCardView` — 右滑/左滑手势 + 长按 Context Menu
+
+### 设计品质增量
+- 所有卡片添加弹簧动画 pop-in
+- Reach 成功后 ✓ 波纹扩散
+- SF Symbol `.symbolEffect(.bounce)` 用于交互按钮
+- `.matchedGeometryEffect` 用于卡片→详情的平滑过渡
 
 ### 3.1 EchoApp.swift + ContentView.swift
 
@@ -1049,7 +1062,14 @@ struct OnboardingView: View {
 
 ---
 
-## Phase 4: AI Tab (2h)
+## Phase 4: AI Tab + 主动智能 + 行为学习 (3h)
+
+### 4.0 新增文件
+- `Services/AIScheduler.swift` — AI 主动推送卡片调度
+- `Services/BehaviorLearner.swift` — 用户行为模式学习（纯本地）
+- `Views/AI/SurpriseCardView.swift` — AI 惊喜卡片
+- `Models/AICache.swift` — 离线 AI 缓存
+- 修改 `AIInsightsView` — 支持缓存 + 离线模式
 
 ### 4.1 AIInsightsView.swift
 
@@ -2228,7 +2248,14 @@ Phase 3: UI - Onboarding + Personal Tab (Echo Cards, People Library, Detail)
 Phase 4: AI Tab (AIInsightsView + DeepSeek integration)
 Phase 5: Business Tab (Pipeline Kanban + Deal management)
 Phase 6: Camera + Voice features (business card scan, voice notes)
-Phase 7: Settings + Widget + App Store Connect configuration
+## Phase 7: Settings + Widget + 分享裂变 + 系统集成 (3h)
+
+### 7.0 新增文件
+- `Views/Share/ShareCardView.swift` — 生成可分享的联系人卡片图片
+- `Services/MilestoneManager.swift` — 里程碑检测（50 次 Reach、3 个月等）
+- `EchoLiveActivity.swift` — Dynamic Island + Live Activity
+- 修改 `ContactDetailView` — 添加 "Share Card" 按钮
+- 修改 `EchoEngine.logReach()` — 触发 Streak + 里程碑 + 评分引导
 Phase 8: App Icon + smoke test + polish
 ```
 
