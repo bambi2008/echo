@@ -38,6 +38,20 @@ body{background:#111;display:flex;justify-content:center;align-items:center;min-
 .card-reach{width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
 .rhythm-tag{font-size:11px;color:var(--warm);background:rgba(245,158,11,.15);padding:2px 8px;border-radius:8px;display:inline-block;margin-bottom:8px}
 
+/* AI Card Type Badges */
+.card-type-badge{font-size:10px;font-weight:600;padding:3px 10px;border-radius:8px;display:inline-block;margin-bottom:8px;letter-spacing:.3px}
+.type-family{background:rgba(242,165,157,.15);color:#F2A59D}.type-family .card-avatar{background:rgba(242,165,157,.2)!important;color:#F2A59D!important}
+.type-friend{background:rgba(59,130,246,.15);color:var(--accent)}
+.type-business{background:rgba(255,69,58,.15);color:var(--hot)}.type-business .card-reach{background:var(--hot)}
+.type-mentor{background:rgba(16,185,129,.15);color:#10B981}.type-mentor .card-reach{background:#10B981}
+.type-network{background:rgba(139,92,246,.15);color:#8B5CF6}.type-network .card-reach{background:#8B5CF6}
+.type-default{background:rgba(99,99,102,.08);color:var(--text-muted)}
+
+/* iMessage sync bar */
+.imessage-bar{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.15);border-radius:10px;padding:6px 12px;margin-bottom:12px;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--accent)}
+.imessage-bar .dot{width:6px;height:6px;border-radius:50%;background:#34C759;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
 /* AI Cards */
 .ai-cards{padding:8px 16px 100px}
 .insight-card{background:var(--surface);border-radius:var(--radius);padding:16px;margin-bottom:12px}
@@ -221,19 +235,19 @@ body{background:#111;display:flex;justify-content:center;align-items:center;min-
 <script>
 // ============ DATA ============
 const contacts = [
-{id:'p1',given:'Sarah',family:'Chen',phone:'(415) 555-0182',avatarColor:'#3B82F6',initials:'SC',echoLayer:true,lastReachedOut:Date.now()-19*86400000,notes:[{content:'Her mom is recovering well from surgery. Check in next week.',date:Date.now()-12*86400000}],interactions:[{type:'called',note:'Caught up for 30min. She just got back from Tokyo. Mom doing better.',date:Date.now()-19*86400000}]},
-{id:'p2',given:'Mike',family:'Johnson',phone:'(650) 555-0191',avatarColor:'#8B5CF6',initials:'MJ',echoLayer:true,lastReachedOut:Date.now()-28*86400000,notes:[{content:'Leaving Stripe to join a seed-stage startup as CTO.',date:Date.now()-30*86400000}],interactions:[{type:'metInPerson',note:'Coffee at Blue Bottle. He is joining a startup.',date:Date.now()-28*86400000}]},
-{id:'p3',given:'Emma',family:'Williams',phone:'(510) 555-0123',avatarColor:'#EC4899',initials:'EW',echoLayer:true,lastReachedOut:Date.now()-6*86400000,notes:[{content:'Birthday: March 15. Loves modern art and hiking.',date:Date.now()-60*86400000}],interactions:[{type:'messaged',note:'Shared Point Reyes hiking recommendations',date:Date.now()-6*86400000}]},
-{id:'p4',given:'David',family:'Kim',phone:'(408) 555-0147',avatarColor:'#F59E0B',initials:'DK',echoLayer:true,lastReachedOut:Date.now()-42*86400000,notes:[],interactions:[{type:'called',note:'Long overdue catch-up. He has two kids now!',date:Date.now()-42*86400000}]},
-{id:'p5',given:'Lisa',family:'Park',phone:'(925) 555-0168',avatarColor:'#10B981',initials:'LP',echoLayer:true,lastReachedOut:Date.now()-8*86400000,notes:[{content:'Mentor since 2023. Monthly coffee ritual. Brilliant career coach.',date:Date.now()-100*86400000}],interactions:[{type:'metInPerson',note:'Monthly mentoring session. Discussed the Echo app idea.',date:Date.now()-8*86400000}]},
-{id:'p6',given:'Mom',family:'',phone:'(212) 555-0821',avatarColor:'#EF4444',initials:'M',echoLayer:true,lastReachedOut:Date.now()-7*86400000,notes:[{content:'Birthday: November 8. Retired teacher. Loves gardening.',date:Date.now()-200*86400000}],interactions:[{type:'called',note:'Sunday call. She is planting roses this season.',date:Date.now()-7*86400000}]},
-{id:'p7',given:'Chris',family:'Thompson',phone:'(562) 555-0612',avatarColor:'#06B6D4',initials:'CT',echoLayer:true,lastReachedOut:Date.now()-30*86400000,notes:[{content:'College roommate. Lives in LA.',date:Date.now()-365*86400000}],interactions:[{type:'messaged',note:'Happy birthday!',date:Date.now()-30*86400000}]},
-{id:'p8',given:'Alex',family:'Rivera',phone:'(415) 555-0289',avatarColor:'#A855F7',initials:'AR',echoLayer:true,lastReachedOut:Date.now()-16*86400000,notes:[{content:'Founder friend. Just closed Series A.',date:Date.now()-20*86400000}],interactions:[{type:'metInPerson',note:'Drinks in SoMa. His startup just raised $8M.',date:Date.now()-16*86400000}]},
-{id:'b1',given:'Tom',family:'Brown',phone:'(628) 555-0201',company:'Acme Insurance',avatarColor:'#FF453A',initials:'TB',priority:'hot',echoLayer:false,lastReachedOut:Date.now()-1*86400000,notes:[{content:'Key account. Annual premium $85K. Renewal Oct.',date:Date.now()-20*86400000}]},
-{id:'b2',given:'Robert',family:'Chen',phone:'(415) 555-0356',company:'Delta Tech',avatarColor:'#FF453A',initials:'RC',priority:'hot',echoLayer:false,lastReachedOut:Date.now()-2*86400000,notes:[{content:'Group health insurance. 150 employees. Needs board approval.',date:Date.now()-5*86400000}]},
-{id:'b3',given:'Jennifer',family:'Martinez',phone:'(831) 555-0234',company:'Beta Realty',avatarColor:'#F59E0B',initials:'JM',priority:'warm',echoLayer:false,lastReachedOut:Date.now()-11*86400000,notes:[{content:'Commercial property insurance. Budget $200K.',date:Date.now()-16*86400000}]},
-{id:'b4',given:'James',family:'Anderson',phone:'(310) 555-0934',company:'Gamma Financial',avatarColor:'#F59E0B',initials:'JA',priority:'warm',echoLayer:false,lastReachedOut:Date.now()-13*86400000,notes:[{content:'Referral partner. Sending 2 referrals.',date:Date.now()-15*86400000}]},
-{id:'b5',given:'Amanda',family:'Wilson',phone:'(650) 555-0478',company:'Epsilon Consulting',avatarColor:'#636366',initials:'AW',priority:'cold',echoLayer:false,lastReachedOut:Date.now()-50*86400000,notes:[{content:'Ghosted after initial interest. Might be talking to State Farm.',date:Date.now()-55*86400000}]},
+{id:'p1',given:'Sarah',family:'Chen',phone:'(415) 555-0182',avatarColor:'#3B82F6',initials:'SC',cardType:'friend',echoLayer:true,lastReachedOut:Date.now()-19*86400000,imessageCount:47,notes:[{content:'Her mom is recovering well from surgery. Check in next week.',date:Date.now()-12*86400000}],interactions:[{type:'called',note:'Caught up for 30min. She just got back from Tokyo. Mom doing better.',date:Date.now()-19*86400000}]},
+{id:'p2',given:'Mike',family:'Johnson',phone:'(650) 555-0191',avatarColor:'#8B5CF6',initials:'MJ',cardType:'friend',echoLayer:true,lastReachedOut:Date.now()-28*86400000,imessageCount:23,notes:[{content:'Leaving Stripe to join a seed-stage startup as CTO.',date:Date.now()-30*86400000}],interactions:[{type:'metInPerson',note:'Coffee at Blue Bottle. He is joining a startup.',date:Date.now()-28*86400000}]},
+{id:'p3',given:'Emma',family:'Williams',phone:'(510) 555-0123',avatarColor:'#EC4899',initials:'EW',cardType:'friend',echoLayer:true,lastReachedOut:Date.now()-6*86400000,imessageCount:12,notes:[{content:'Birthday: March 15. Loves modern art and hiking.',date:Date.now()-60*86400000}],interactions:[{type:'messaged',note:'Shared Point Reyes hiking recommendations',date:Date.now()-6*86400000}]},
+{id:'p4',given:'David',family:'Kim',phone:'(408) 555-0147',avatarColor:'#F59E0B',initials:'DK',cardType:'friend',echoLayer:true,lastReachedOut:Date.now()-42*86400000,imessageCount:8,notes:[],interactions:[{type:'called',note:'Long overdue catch-up. He has two kids now!',date:Date.now()-42*86400000}]},
+{id:'p5',given:'Lisa',family:'Park',phone:'(925) 555-0168',avatarColor:'#10B981',initials:'LP',cardType:'mentor',echoLayer:true,lastReachedOut:Date.now()-8*86400000,imessageCount:15,notes:[{content:'Mentor since 2023. Monthly coffee ritual. Brilliant career coach.',date:Date.now()-100*86400000}],interactions:[{type:'metInPerson',note:'Monthly mentoring session. Discussed the Echo app idea.',date:Date.now()-8*86400000}]},
+{id:'p6',given:'Mom',family:'',phone:'(212) 555-0821',avatarColor:'#EF4444',initials:'M',cardType:'family',echoLayer:true,lastReachedOut:Date.now()-7*86400000,imessageCount:31,notes:[{content:'Birthday: November 8. Retired teacher. Loves gardening.',date:Date.now()-200*86400000}],interactions:[{type:'called',note:'Sunday call. She is planting roses this season.',date:Date.now()-7*86400000}]},
+{id:'p7',given:'Chris',family:'Thompson',phone:'(562) 555-0612',avatarColor:'#06B6D4',initials:'CT',cardType:'default',echoLayer:true,lastReachedOut:Date.now()-30*86400000,imessageCount:2,notes:[{content:'College roommate. Lives in LA.',date:Date.now()-365*86400000}],interactions:[{type:'messaged',note:'Happy birthday!',date:Date.now()-30*86400000}]},
+{id:'p8',given:'Alex',family:'Rivera',phone:'(415) 555-0289',avatarColor:'#A855F7',initials:'AR',cardType:'network',echoLayer:true,lastReachedOut:Date.now()-16*86400000,imessageCount:5,notes:[{content:'Founder friend. Just closed Series A.',date:Date.now()-20*86400000}],interactions:[{type:'metInPerson',note:'Drinks in SoMa. His startup just raised $8M.',date:Date.now()-16*86400000}]},
+{id:'b1',given:'Tom',family:'Brown',phone:'(628) 555-0201',company:'Acme Insurance',avatarColor:'#FF453A',initials:'TB',cardType:'business',priority:'hot',echoLayer:false,lastReachedOut:Date.now()-1*86400000,imessageCount:3,notes:[{content:'Key account. Annual premium $85K. Renewal Oct.',date:Date.now()-20*86400000}]},
+{id:'b2',given:'Robert',family:'Chen',phone:'(415) 555-0356',company:'Delta Tech',avatarColor:'#FF453A',initials:'RC',cardType:'business',priority:'hot',echoLayer:false,lastReachedOut:Date.now()-2*86400000,imessageCount:9,notes:[{content:'Group health insurance. 150 employees. Needs board approval.',date:Date.now()-5*86400000}]},
+{id:'b3',given:'Jennifer',family:'Martinez',phone:'(831) 555-0234',company:'Beta Realty',avatarColor:'#F59E0B',initials:'JM',cardType:'business',priority:'warm',echoLayer:false,lastReachedOut:Date.now()-11*86400000,imessageCount:6,notes:[{content:'Commercial property insurance. Budget $200K.',date:Date.now()-16*86400000}]},
+{id:'b4',given:'James',family:'Anderson',phone:'(310) 555-0934',company:'Gamma Financial',avatarColor:'#F59E0B',initials:'JA',cardType:'business',priority:'warm',echoLayer:false,lastReachedOut:Date.now()-13*86400000,imessageCount:4,notes:[{content:'Referral partner. Sending 2 referrals.',date:Date.now()-15*86400000}]},
+{id:'b5',given:'Amanda',family:'Wilson',phone:'(650) 555-0478',company:'Epsilon Consulting',avatarColor:'#636366',initials:'AW',cardType:'business',priority:'cold',echoLayer:false,lastReachedOut:Date.now()-50*86400000,imessageCount:0,notes:[{content:'Ghosted after initial interest. Might be talking to State Farm.',date:Date.now()-55*86400000}]},
 ];
 
 const deals = [
@@ -265,17 +279,40 @@ switchToScreen(map[tab])}
 function startImport(){const p=document.getElementById('import-progress');const f=document.getElementById('progress-fill');const t=document.getElementById('progress-text');const d=document.getElementById('import-done');const b=document.querySelector('.onboard-btn');b.style.display='none';p.style.display='block';let pct=0;const iv=setInterval(()=>{pct+=Math.random()*25;if(pct>=100){pct=100;clearInterval(iv);f.style.width='100%';t.textContent='All contacts imported';d.style.display='block';setTimeout(()=>{switchToScreen('screen-personal');renderEchoCards();renderBusiness();renderAI();showToast('✓ 200 contacts imported')},600)}else{f.style.width=pct+'%';t.textContent='Importing...'}},120)}
 
 // ============ ECHO CARDS (Personal) ============
-function renderEchoCards(){const container=document.getElementById('echo-cards-container');const echoContacts=contacts.filter(c=>c.echoLayer).sort((a,b)=>{if(!a.lastReachedOut&&!b.lastReachedOut)return 0;if(!a.lastReachedOut)return-1;if(!b.lastReachedOut)return 1;return a.lastReachedOut-b.lastReachedOut});
-container.innerHTML=echoContacts.map(c=>`
-<div class="echo-card" onclick="openReachSheet('${c.id}')">
+const cardBadges={family:{emoji:'❤️',label:'Family',cls:'type-family'},friend:{emoji:'👥',label:'Friend',cls:'type-friend'},business:{emoji:'💼',label:'Business',cls:'type-business'},mentor:{emoji:'🎓',label:'Mentor',cls:'type-mentor'},network:{emoji:'🌐',label:'Network',cls:'type-network'},default:{emoji:'👤',label:'Contact',cls:'type-default'}};
+
+function renderEchoCards(){
+const container=document.getElementById('echo-cards-container');
+const echoContacts=contacts.filter(c=>c.echoLayer).sort((a,b)=>{const order={family:0,mentor:1,friend:2,network:3,default:4};const oa=order[a.cardType]||5;const ob=order[b.cardType]||5;if(oa!==ob)return oa-ob;if(!a.lastReachedOut&&!b.lastReachedOut)return 0;if(!a.lastReachedOut)return-1;if(!b.lastReachedOut)return 1;return a.lastReachedOut-b.lastReachedOut});
+
+// iMessage sync indicator
+const totalMsg=echoContacts.reduce((s,c)=>s+(c.imessageCount||0),0);
+const imsgBar=totalMsg>0?`<div class="imessage-bar"><span class="dot"></span>Mac Helper synced ${totalMsg} iMessages across ${echoContacts.filter(c=>c.imessageCount>0).length} contacts · 12 min ago</div>`:'';
+
+container.innerHTML=imsgBar+echoContacts.map(c=>{
+const badge=cardBadges[c.cardType]||cardBadges.default;
+const cardCls='echo-card '+(badge.cls||'');
+let extras='';
+if(c.cardType==='family'){
+extras=`<div style="font-size:12px;color:#F2A59D;margin-bottom:8px">🎂 Birthday: Nov 8 · ${Math.floor((new Date('2026-11-08')-Date.now())/86400000)} days</div>`;
+}else if(c.cardType==='mentor'){
+extras=`<div style="font-size:12px;color:#10B981;margin-bottom:8px">📅 Monthly coffee · Next: Aug 10</div>`;
+}else if(c.cardType==='network'){
+extras=`<div style="font-size:12px;color:#8B5CF6;margin-bottom:8px">⚡ Met Jul 5 at Config · Send follow-up this week</div>`;
+}
+const rhythmTag=c.lastReachedOut&&(Date.now()-c.lastReachedOut)>14*86400000&&c.cardType==='friend'?`<div class="rhythm-tag">⚠ It's been longer than usual</div>`:'';
+const msgInfo=c.imessageCount>0?`<span style="font-size:11px;color:var(--accent);margin-left:8px">💬 ${c.imessageCount} msgs</span>`:'';
+return`
+<div class="${cardCls}" onclick="openReachSheet('${c.id}')">
+<div class="card-type-badge">${badge.emoji} ${badge.label}</div>
 <div class="card-header">
 <div class="card-avatar" style="background:${c.avatarColor}22">${c.initials}</div>
-<div><div class="card-name">${c.given} ${c.family}</div><div class="card-time">${c.lastReachedOut?'Last reached out '+timeAgoShort(c.lastReachedOut):'Never contacted — say hi!'}</div></div>
+<div><div class="card-name">${c.given} ${c.family}${msgInfo}</div><div class="card-time">${c.lastReachedOut?'Last reached out '+timeAgoShort(c.lastReachedOut):'Never contacted — say hi!'}</div></div>
 </div>
-${c.lastReachedOut&&(Date.now()-c.lastReachedOut)>14*86400000?`<div class="rhythm-tag">⚠ It's been longer than usual</div>`:''}
+${rhythmTag}${extras}
 <div class="card-context">${c.notes.length>0?c.notes[c.notes.length-1].content:(c.interactions.length>0?c.interactions[0].note:'No notes yet.')}</div>
-<button class="card-reach" onclick="event.stopPropagation();openReachSheet('${c.id}')">👋 Reach out</button>
-</div>`).join('')}
+<button class="card-reach" onclick="event.stopPropagation();openReachSheet('${c.id}')">${c.cardType==='network'?'⚡ Send follow-up':c.cardType==='family'?'📞 Call Mom':'👋 Reach out'}</button>
+</div>`}).join('')}
 
 // ============ AI TAB ============
 function renderAI(){const container=document.getElementById('ai-cards-container');if(!container)return;
