@@ -2,6 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct PipelineView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Query(sort: \Deal.createdAt, order: .reverse) private var deals: [Deal]
     @State private var showingNewDeal = false
 
@@ -9,13 +10,28 @@ struct PipelineView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(.horizontal) {
-                HStack(alignment: .top, spacing: 14) {
-                    ForEach(visibleStages) { stage in
-                        PipelineColumn(stage: stage, deals: deals.filter { $0.stage == stage })
+            Group {
+                if horizontalSizeClass == .regular {
+                    ScrollView(.horizontal) {
+                        HStack(alignment: .top, spacing: 14) {
+                            ForEach(visibleStages) { stage in
+                                PipelineColumn(stage: stage, deals: deals(for: stage))
+                            }
+                        }
+                        .padding()
+                    }
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 18) {
+                            PipelineSummary(deals: deals)
+
+                            ForEach(visibleStages) { stage in
+                                PipelineStageSection(stage: stage, deals: deals(for: stage))
+                            }
+                        }
+                        .padding()
                     }
                 }
-                .padding()
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Pipeline")
@@ -26,6 +42,80 @@ struct PipelineView: View {
             }
             .sheet(isPresented: $showingNewDeal) { NewDealView() }
         }
+    }
+
+    private func deals(for stage: DealStage) -> [Deal] {
+        deals.filter { $0.stage == stage }
+    }
+}
+
+private struct PipelineSummary: View {
+    let deals: [Deal]
+
+    private var openDeals: [Deal] {
+        deals.filter { $0.stage != .closedWon && $0.stage != .closedLost }
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            summaryItem(title: "Open deals", value: "\(openDeals.count)", symbol: "chart.line.uptrend.xyaxis")
+            Divider().frame(height: 42)
+            summaryItem(
+                title: "Pipeline value",
+                value: openDeals.reduce(0) { $0 + $1.value }.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                symbol: "dollarsign.circle.fill"
+            )
+        }
+        .frame(maxWidth: .infinity)
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
+    }
+
+    private func summaryItem(title: String, value: String, symbol: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(title, systemImage: symbol)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.title3.bold())
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct PipelineStageSection: View {
+    let stage: DealStage
+    let deals: [Deal]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label(stage.title, systemImage: stage.symbol)
+                    .font(.headline)
+                Spacer()
+                Text("\(deals.count)")
+                    .font(.caption.bold())
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.quaternary, in: Capsule())
+            }
+            .padding(.horizontal, 4)
+
+            if deals.isEmpty {
+                Text("No deals")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 22)
+                    .foregroundStyle(.tertiary)
+                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+            } else {
+                ForEach(deals) { deal in
+                    DealCard(deal: deal)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
