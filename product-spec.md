@@ -162,14 +162,15 @@ enum DealStage: String, Codable, CaseIterable {
 ### AIService (DeepSeek API)
 
 ```
-Base URL: https://api.deepseek.com/v1
+Base URL: https://api.deepseek.com
 Models:
-  - deepseek-chat       (文字)
-  - deepseek-vision     (多模态)
+  - 由 AIModelRouter 按任务动态选择，不在业务代码中硬编码
+  - 默认：deepseek-v4-flash（高频/低延迟任务）
+  - 默认：deepseek-v4-pro（复杂推理/结构化提取）
+  - 支持任意未来模型 ID、任务级覆盖、单次请求覆盖和 fallback
 
 Endpoints:
-  POST /chat/completions → 文字生成
-  POST /vision/analyze  → 图片理解
+  POST /chat/completions → 文字生成 + 选定模型支持时的图片理解
 
 核心能力：
   ✅ 智能开场白生成
@@ -181,6 +182,8 @@ Endpoints:
 ```
 
 **隐私处理：** 发送到 DeepSeek 的数据中，人名替换为 "Person A"，公司名替换为 "Company X"。原始标识符不出设备。
+
+**模型迁移：** 以 `Sources/EchoAI` 为实现源，配置和切换方法见 `model-routing.md`。模型 ID 是开放字符串，DeepSeek 发布新模型后无需修改枚举或业务功能即可切换。
 
 ### VoiceService (火山引擎)
 

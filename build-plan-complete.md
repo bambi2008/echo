@@ -551,6 +551,8 @@ final class StoreKitManager: ObservableObject {
 
 ### 2.4 AIService.swift (DeepSeek)
 
+> **已实现：** 可编译、带测试的正式实现位于 `Sources/EchoAI/`，接入与热切换说明见 `model-routing.md`。以下代码块仅保留为早期设计参考，不再作为实现源；业务代码不得重新硬编码模型名。
+
 ```swift
 // Services/AIService.swift
 import Foundation
@@ -588,7 +590,7 @@ final class AIService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         let body: [String: Any] = [
-            "model": "deepseek-chat",
+            "model": "deepseek-v4-flash", // 早期示例；正式实现由 AIModelRouter 注入
             "messages": [
                 ["role": "system", "content": systemPrompt],
                 ["role": "user", "content": userMessage]
@@ -629,7 +631,7 @@ final class AIService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         let body: [String: Any] = [
-            "model": "deepseek-chat",
+            "model": "deepseek-v4-pro", // 早期示例；正式实现由 AIModelRouter 注入
             "messages": [[
                 "role": "user",
                 "content": [
