@@ -45,6 +45,7 @@ struct DeepSeekClientTests {
         #expect(snapshot.authorization == "Bearer test-key")
         #expect(json["model"] as? String == "deepseek-any-future-model")
         #expect(json["max_tokens"] as? Int == 321)
+        #expect((json["thinking"] as? [String: Any])?["type"] as? String == "disabled")
         #expect(result.text == "done")
         #expect(result.model == "deepseek-v4-pro-actual")
         #expect(result.usage?.totalTokens == 15)

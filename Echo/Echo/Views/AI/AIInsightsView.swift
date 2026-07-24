@@ -112,9 +112,28 @@ struct AIInsightsView: View {
                 insights = generated
             } catch AIServiceError.noAPIKey {
                 errorMessage = "Add your DeepSeek API key in Settings first. It stays in Keychain on this device."
+            } catch let error as AIServiceError {
+                errorMessage = userFacingMessage(for: error)
             } catch {
-                errorMessage = "AI insights are temporarily unavailable. Your contact data remains on this device."
+                errorMessage = "Unexpected error: \(error.localizedDescription)"
             }
+        }
+    }
+
+    private func userFacingMessage(for error: AIServiceError) -> String {
+        switch error {
+        case .http(statusCode: 401, _), .http(statusCode: 403, _):
+            "DeepSeek rejected the API key. Check the key in Settings and save it again."
+        case .http(statusCode: 402, _):
+            "Your DeepSeek account has insufficient balance. Add credit, then try again."
+        case .http(statusCode: 404, _):
+            "The selected DeepSeek model is unavailable. Use deepseek-v4-flash and deepseek-v4-pro in Settings."
+        case .http(statusCode: 429, _):
+            "DeepSeek is rate-limiting requests. Wait briefly and try again."
+        case .transport(let message):
+            "Could not reach DeepSeek: \(message)"
+        default:
+            error.localizedDescription
         }
     }
 }

@@ -34,10 +34,16 @@ public struct AIMessage: Sendable, Equatable {
 public struct AICompletionOptions: Sendable, Equatable {
     public var temperature: Double
     public var maxOutputTokens: Int
+    public var thinkingEnabled: Bool
 
-    public init(temperature: Double, maxOutputTokens: Int) {
+    public init(
+        temperature: Double,
+        maxOutputTokens: Int,
+        thinkingEnabled: Bool = false
+    ) {
         self.temperature = temperature
         self.maxOutputTokens = maxOutputTokens
+        self.thinkingEnabled = thinkingEnabled
     }
 }
 
@@ -98,7 +104,10 @@ public struct DeepSeekClient: AIProviderClient {
                 model: model.rawValue,
                 messages: messages.map(WireMessage.init),
                 temperature: options.temperature,
-                maxTokens: options.maxOutputTokens
+                maxTokens: options.maxOutputTokens,
+                thinking: Thinking(
+                    type: options.thinkingEnabled ? "enabled" : "disabled"
+                )
             )
         )
 
@@ -151,11 +160,16 @@ private extension DeepSeekClient {
         let messages: [WireMessage]
         let temperature: Double
         let maxTokens: Int
+        let thinking: Thinking
 
         enum CodingKeys: String, CodingKey {
-            case model, messages, temperature
+            case model, messages, temperature, thinking
             case maxTokens = "max_tokens"
         }
+    }
+
+    struct Thinking: Encodable {
+        let type: String
     }
 
     struct WireMessage: Encodable {
