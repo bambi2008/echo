@@ -57,61 +57,100 @@ enum RelationshipAnalysisMode {
 }
 
 private enum RelationshipSelectionRule: String, CaseIterable, Identifiable {
-    case attention
+    case opportunity
+    case contextRich
+    case cooling
     case overdue
     case priority
     case business
     case quiet
+    case active
     case all
 
     var id: String { rawValue }
 
+    static func options(for mode: RelationshipAnalysisMode) -> [Self] {
+        switch mode {
+        case .insight:
+            [.opportunity, .priority, .business, .contextRich, .all]
+        case .health:
+            [.cooling, .overdue, .quiet, .active, .all]
+        }
+    }
+
     var title: String {
         switch self {
-        case .attention: "Needs attention"
+        case .opportunity: "Best opportunities"
+        case .contextRich: "Enough context"
+        case .cooling: "Cooling unusually"
         case .overdue: "Long time no contact"
         case .priority: "Priority relationships"
         case .business: "Business relationships"
         case .quiet: "Low interaction"
-        case .all: "Everyone by urgency"
+        case .active: "Healthy momentum"
+        case .all: "Everyone"
         }
     }
 
-    var description: String {
+    func description(for mode: RelationshipAnalysisMode) -> String {
         switch self {
-        case .attention: "Ranks people by time since contact and your previous reach-outs."
+        case .opportunity: "Combines Hot/Warm priority, business relevance, saved context, and current attention."
+        case .contextRich: "People with at least three interactions or two notes, so the analysis has useful evidence."
+        case .cooling: "Ranks people whose current gap is unusually long compared with your past rhythm with them."
         case .overdue: "People you have not contacted for at least 60 days."
         case .priority: "People marked Hot or Warm, sorted by urgency."
         case .business: "Clients, prospects, partners, investors, and professional contacts."
         case .quiet: "Relationships with two or fewer recorded interactions."
-        case .all: "The full contact list, sorted by current attention score."
+        case .active: "Relationships with at least three interactions and contact within the last 30 days."
+        case .all:
+            mode == .insight
+                ? "The full contact list, ranked by relationship opportunity."
+                : "The full contact list, ranked by health risk relative to past cadence."
         }
     }
 
     func includes(_ contact: EchoContact) -> Bool {
         switch self {
-        case .attention, .all:
+        case .all:
             true
+        case .opportunity:
+            contact.priority == .hot
+                || contact.priority == .warm
+                || isBusiness(contact)
+                || !contact.notes.isEmpty
+        case .contextRich:
+            contact.interactions.count >= 3 || contact.notes.count >= 2
+        case .cooling:
+            RelationshipMetrics.averageCadenceDays(for: contact) != nil
+                && RelationshipMetrics.gapRatio(for: contact) >= 1.5
         case .overdue:
             (contact.daysSinceContact ?? 365) >= 60
         case .priority:
             contact.priority == .hot || contact.priority == .warm
         case .business:
-            contact.companyName != nil || !Set(contact.tags).isDisjoint(with: [
-                "Client", "Prospect", "Partner", "Investor", "Advisor", "Professional network",
-            ])
+            isBusiness(contact)
         case .quiet:
             contact.interactions.count <= 2
+        case .active:
+            contact.interactions.count >= 3 && (contact.daysSinceContact ?? 365) <= 30
         }
     }
 
-    func orders(_ left: EchoContact, before right: EchoContact) -> Bool {
+    func orders(_ left: EchoContact, before right: EchoContact, mode: RelationshipAnalysisMode) -> Bool {
         let leftDays = left.daysSinceContact ?? 365
         let rightDays = right.daysSinceContact ?? 365
         let leftAttention = EchoEngine.attentionScore(for: left)
         let rightAttention = EchoEngine.attentionScore(for: right)
 
         switch self {
+        case .opportunity, .contextRich:
+            let leftOpportunity = RelationshipMetrics.opportunityScore(for: left)
+            let rightOpportunity = RelationshipMetrics.opportunityScore(for: right)
+            if leftOpportunity != rightOpportunity { return leftOpportunity > rightOpportunity }
+        case .cooling:
+            let leftRisk = RelationshipMetrics.gapRatio(for: left)
+            let rightRisk = RelationshipMetrics.gapRatio(for: right)
+            if leftRisk != rightRisk { return leftRisk > rightRisk }
         case .overdue:
             if leftDays != rightDays { return leftDays > rightDays }
         case .priority:
@@ -132,16 +171,38 @@ private enum RelationshipSelectionRule: String, CaseIterable, Identifiable {
                 return left.interactions.count < right.interactions.count
             }
             if leftDays != rightDays { return leftDays > rightDays }
-        case .attention, .business, .all:
+        case .active:
+            if leftDays != rightDays { return leftDays < rightDays }
+            if left.interactions.count != right.interactions.count {
+                return left.interactions.count > right.interactions.count
+            }
+        case .business:
             if leftAttention != rightAttention { return leftAttention > rightAttention }
             if leftDays != rightDays { return leftDays > rightDays }
+        case .all:
+            switch mode {
+            case .insight:
+                let leftOpportunity = RelationshipMetrics.opportunityScore(for: left)
+                let rightOpportunity = RelationshipMetrics.opportunityScore(for: right)
+                if leftOpportunity != rightOpportunity { return leftOpportunity > rightOpportunity }
+            case .health:
+                let leftRisk = RelationshipMetrics.gapRatio(for: left)
+                let rightRisk = RelationshipMetrics.gapRatio(for: right)
+                if leftRisk != rightRisk { return leftRisk > rightRisk }
+            }
         }
         return left.fullName < right.fullName
     }
 
-    func metric(for contact: EchoContact) -> String {
+    func metric(for contact: EchoContact, mode: RelationshipAnalysisMode) -> String {
         switch self {
-        case .attention, .overdue, .all:
+        case .opportunity:
+            "Score \(RelationshipMetrics.opportunityScore(for: contact))"
+        case .contextRich:
+            "\(contact.interactions.count + contact.notes.count) records"
+        case .cooling:
+            RelationshipMetrics.cadenceLabel(for: contact)
+        case .overdue:
             contact.daysSinceContact.map { "\($0)d gap" } ?? "Unknown gap"
         case .priority:
             contact.priority?.title ?? "Not set"
@@ -149,7 +210,57 @@ private enum RelationshipSelectionRule: String, CaseIterable, Identifiable {
             contact.companyName ?? contact.tags.first ?? "Business"
         case .quiet:
             "\(contact.interactions.count) interactions"
+        case .active:
+            contact.daysSinceContact.map { "\($0)d recent" } ?? "Active"
+        case .all:
+            mode == .insight
+                ? "Score \(RelationshipMetrics.opportunityScore(for: contact))"
+                : RelationshipMetrics.cadenceLabel(for: contact)
         }
+    }
+
+    private func isBusiness(_ contact: EchoContact) -> Bool {
+        contact.companyName != nil || !Set(contact.tags).isDisjoint(with: [
+            "Client", "Prospect", "Partner", "Investor", "Advisor", "Professional network",
+        ])
+    }
+}
+
+private enum RelationshipMetrics {
+    static func opportunityScore(for contact: EchoContact) -> Int {
+        let priority: Int
+        switch contact.priority {
+        case .hot: priority = 40
+        case .warm: priority = 24
+        default: priority = 0
+        }
+        let businessTags = Set([
+            "Client", "Prospect", "Partner", "Investor", "Advisor", "Professional network",
+        ])
+        let business = contact.companyName != nil || !Set(contact.tags).isDisjoint(with: businessTags) ? 18 : 0
+        let context = min(contact.interactions.count * 3 + contact.notes.count * 4, 24)
+        return priority + business + context + min(EchoEngine.attentionScore(for: contact), 25)
+    }
+
+    static func averageCadenceDays(for contact: EchoContact) -> Double? {
+        let dates = contact.interactions.map(\.date).sorted(by: >)
+        guard dates.count >= 2 else { return nil }
+        let gaps = zip(dates, dates.dropFirst()).map {
+            Double(max(1, Calendar.current.dateComponents([.day], from: $1, to: $0).day ?? 1))
+        }
+        return gaps.reduce(0, +) / Double(gaps.count)
+    }
+
+    static func gapRatio(for contact: EchoContact) -> Double {
+        let gap = Double(contact.daysSinceContact ?? 365)
+        return gap / max(averageCadenceDays(for: contact) ?? 30, 7)
+    }
+
+    static func cadenceLabel(for contact: EchoContact) -> String {
+        guard averageCadenceDays(for: contact) != nil else {
+            return contact.daysSinceContact.map { "\($0)d gap" } ?? "Limited history"
+        }
+        return "\(gapRatio(for: contact).formatted(.number.precision(.fractionLength(1))))× cadence"
     }
 }
 
@@ -157,17 +268,23 @@ struct RelationshipAnalysisView: View {
     let mode: RelationshipAnalysisMode
     let contacts: [EchoContact]
 
-    @State private var rule: RelationshipSelectionRule = .attention
+    @State private var rule: RelationshipSelectionRule
     @State private var limit = 5
     @State private var result: String?
     @State private var model: String?
     @State private var isLoading = false
     @State private var errorMessage: String?
 
+    init(mode: RelationshipAnalysisMode, contacts: [EchoContact]) {
+        self.mode = mode
+        self.contacts = contacts
+        _rule = State(initialValue: mode == .insight ? .opportunity : .cooling)
+    }
+
     private var selectedContacts: [EchoContact] {
         Array(contacts
             .filter(rule.includes)
-            .sorted(by: rule.orders)
+            .sorted { rule.orders($0, before: $1, mode: mode) }
             .prefix(limit))
     }
 
@@ -175,11 +292,11 @@ struct RelationshipAnalysisView: View {
         Form {
             Section("Smart selection") {
                 Picker("Rule", selection: $rule) {
-                    ForEach(RelationshipSelectionRule.allCases) { option in
+                    ForEach(RelationshipSelectionRule.options(for: mode)) { option in
                         Text(option.title).tag(option)
                     }
                 }
-                Text(rule.description)
+                Text(rule.description(for: mode))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Picker("Batch size", selection: $limit) {
@@ -200,7 +317,7 @@ struct RelationshipAnalysisView: View {
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 3) {
-                            Text(rule.metric(for: contact))
+                            Text(rule.metric(for: contact, mode: mode))
                                 .font(.caption.bold())
                                 .foregroundStyle(.indigo)
                             Text("Attention \(EchoEngine.attentionScore(for: contact))")
@@ -270,8 +387,11 @@ struct RelationshipAnalysisView: View {
                         .prefix(2)
                         .map(\.content)
                         .joined(separator: "; ")
+                    let cadence = RelationshipMetrics.averageCadenceDays(for: contact)
+                        .map { "\($0.formatted(.number.precision(.fractionLength(0)))) days" }
+                        ?? "limited history"
                     return """
-                    \(alias) | role: \(contact.jobTitle ?? contact.tags.first ?? "contact") | priority: \(contact.priority?.title ?? "not set") | last contact: \(contact.daysSinceContact.map { "\($0) days ago" } ?? "unknown") | interactions: \(contact.interactions.count) | recent context: \(privacy.anonymize([interactions, notes].filter { !$0.isEmpty }.joined(separator: "; ")))
+                    \(alias) | role: \(contact.jobTitle ?? contact.tags.first ?? "contact") | priority: \(contact.priority?.title ?? "not set") | last contact: \(contact.daysSinceContact.map { "\($0) days ago" } ?? "unknown") | usual cadence: \(cadence) | gap vs cadence: \(RelationshipMetrics.cadenceLabel(for: contact)) | interactions: \(contact.interactions.count) | recent context: \(privacy.anonymize([interactions, notes].filter { !$0.isEmpty }.joined(separator: "; ")))
                     """
                 }.joined(separator: "\n")
 

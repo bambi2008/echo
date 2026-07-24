@@ -7,6 +7,7 @@ struct ContactDetailView: View {
     @Bindable var contact: EchoContact
     @State private var note = ""
     @State private var selectedType: InteractionType = .messaged
+    @State private var outreachChannel: OutreachChannel?
 
     var body: some View {
         List {
@@ -21,6 +22,36 @@ struct ContactDetailView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
+            }
+
+            if contact.phoneNumber != nil || contact.emailAddress != nil {
+                Section("Contact") {
+                    HStack(spacing: 12) {
+                        if contact.phoneNumber != nil {
+                            Button {
+                                outreachChannel = .message
+                            } label: {
+                                Label("Message", systemImage: "message.fill")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.indigo)
+                        }
+                        if contact.emailAddress != nil {
+                            Button {
+                                outreachChannel = .email
+                            } label: {
+                                Label("Email", systemImage: "envelope.fill")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.indigo)
+                        }
+                    }
+                    Text("Echo drafts a personalized opener only after you choose how to reach out.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section("Profile") {
@@ -132,6 +163,9 @@ struct ContactDetailView: View {
         }
         .navigationTitle(contact.givenName)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $outreachChannel) { channel in
+            OutreachComposerView(contact: contact, channel: channel)
+        }
     }
 
     private var subtitle: String? {

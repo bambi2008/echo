@@ -5,6 +5,7 @@ struct PersonalHomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \EchoContact.givenName) private var contacts: [EchoContact]
     @State private var showingNewContact = false
+    @State private var showingBusinessCard = false
     @State private var importMessage: String?
 
     private var prioritized: [EchoContact] {
@@ -55,11 +56,34 @@ struct PersonalHomeView: View {
                     .accessibilityLabel("Import contacts")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { showingNewContact = true } label: { Image(systemName: "plus") }
+                    Menu {
+                        Button {
+                            showingNewContact = true
+                        } label: {
+                            Label("Add manually", systemImage: "person.badge.plus")
+                        }
+                        Button {
+                            showingBusinessCard = true
+                        } label: {
+                            Label("Scan business card", systemImage: "person.crop.rectangle")
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                    }
                     .accessibilityLabel("Add person")
                 }
             }
             .sheet(isPresented: $showingNewContact) { NewContactView() }
+            .sheet(isPresented: $showingBusinessCard) {
+                NavigationStack {
+                    DocumentRecognitionView(kind: .businessCard)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Done") { showingBusinessCard = false }
+                            }
+                        }
+                }
+            }
             .alert("Contact import", isPresented: Binding(
                 get: { importMessage != nil },
                 set: { if !$0 { importMessage = nil } }
