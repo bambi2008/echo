@@ -52,6 +52,28 @@ struct EchoAIFeaturesTests {
         ])
     }
 
+    @Test("A prioritized group can be analyzed in one request")
+    func batchRelationshipReview() async throws {
+        let client = QueueClient(responses: [
+            AIResult(text: "- Person A: reconnect", model: "deepseek-v4-flash"),
+            AIResult(text: "- Person A: cooling", model: "deepseek-v4-pro"),
+        ])
+        let features = EchoAIFeatures(
+            service: AIService(client: client, router: AIModelRouter(defaults: nil))
+        )
+
+        let insight = try await features.relationshipInsights(
+            peopleSummary: "Person A | last contact: 80 days ago"
+        )
+        let health = try await features.relationshipHealthReview(
+            peopleSummary: "Person A | interactions: 2"
+        )
+
+        #expect(insight.text.contains("reconnect"))
+        #expect(health.text.contains("cooling"))
+        #expect(await client.models == ["deepseek-v4-flash", "deepseek-v4-pro"])
+    }
+
     @Test("Business card JSON is decoded with model metadata")
     func businessCardDecoding() async throws {
         let client = QueueClient(responses: [

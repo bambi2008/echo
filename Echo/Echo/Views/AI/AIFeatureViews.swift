@@ -56,39 +56,158 @@ enum RelationshipAnalysisMode {
     }
 }
 
+private enum RelationshipSelectionRule: String, CaseIterable, Identifiable {
+    case attention
+    case overdue
+    case priority
+    case business
+    case quiet
+    case all
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .attention: "Needs attention"
+        case .overdue: "Long time no contact"
+        case .priority: "Priority relationships"
+        case .business: "Business relationships"
+        case .quiet: "Low interaction"
+        case .all: "Everyone by urgency"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .attention: "Ranks people by time since contact and your previous reach-outs."
+        case .overdue: "People you have not contacted for at least 60 days."
+        case .priority: "People marked Hot or Warm, sorted by urgency."
+        case .business: "Clients, prospects, partners, investors, and professional contacts."
+        case .quiet: "Relationships with two or fewer recorded interactions."
+        case .all: "The full contact list, sorted by current attention score."
+        }
+    }
+
+    func includes(_ contact: EchoContact) -> Bool {
+        switch self {
+        case .attention, .all:
+            true
+        case .overdue:
+            (contact.daysSinceContact ?? 365) >= 60
+        case .priority:
+            contact.priority == .hot || contact.priority == .warm
+        case .business:
+            contact.companyName != nil || !Set(contact.tags).isDisjoint(with: [
+                "Client", "Prospect", "Partner", "Investor", "Advisor", "Professional network",
+            ])
+        case .quiet:
+            contact.interactions.count <= 2
+        }
+    }
+
+    func orders(_ left: EchoContact, before right: EchoContact) -> Bool {
+        let leftDays = left.daysSinceContact ?? 365
+        let rightDays = right.daysSinceContact ?? 365
+        let leftAttention = EchoEngine.attentionScore(for: left)
+        let rightAttention = EchoEngine.attentionScore(for: right)
+
+        switch self {
+        case .overdue:
+            if leftDays != rightDays { return leftDays > rightDays }
+        case .priority:
+            let priorityRank: (EchoContact) -> Int = {
+                switch $0.priority {
+                case .hot: 2
+                case .warm: 1
+                default: 0
+                }
+            }
+            let leftPriority = priorityRank(left)
+            let rightPriority = priorityRank(right)
+            if leftPriority != rightPriority { return leftPriority > rightPriority }
+            if leftAttention != rightAttention { return leftAttention > rightAttention }
+            if leftDays != rightDays { return leftDays > rightDays }
+        case .quiet:
+            if left.interactions.count != right.interactions.count {
+                return left.interactions.count < right.interactions.count
+            }
+            if leftDays != rightDays { return leftDays > rightDays }
+        case .attention, .business, .all:
+            if leftAttention != rightAttention { return leftAttention > rightAttention }
+            if leftDays != rightDays { return leftDays > rightDays }
+        }
+        return left.fullName < right.fullName
+    }
+
+    func metric(for contact: EchoContact) -> String {
+        switch self {
+        case .attention, .overdue, .all:
+            contact.daysSinceContact.map { "\($0)d gap" } ?? "Unknown gap"
+        case .priority:
+            contact.priority?.title ?? "Not set"
+        case .business:
+            contact.companyName ?? contact.tags.first ?? "Business"
+        case .quiet:
+            "\(contact.interactions.count) interactions"
+        }
+    }
+}
+
 struct RelationshipAnalysisView: View {
     let mode: RelationshipAnalysisMode
     let contacts: [EchoContact]
 
-    @State private var selectedContactID = ""
+    @State private var rule: RelationshipSelectionRule = .attention
+    @State private var limit = 5
     @State private var result: String?
     @State private var model: String?
     @State private var isLoading = false
     @State private var errorMessage: String?
 
-    private var selectedContact: EchoContact? {
-        contacts.first { $0.systemIdentifier == selectedContactID } ?? contacts.first
+    private var selectedContacts: [EchoContact] {
+        Array(contacts
+            .filter(rule.includes)
+            .sorted(by: rule.orders)
+            .prefix(limit))
     }
 
     var body: some View {
         Form {
-            Section("Person") {
-                Picker("Contact", selection: $selectedContactID) {
-                    ForEach(contacts.sorted { $0.fullName < $1.fullName }) { contact in
-                        Text(contact.fullName).tag(contact.systemIdentifier)
+            Section("Smart selection") {
+                Picker("Rule", selection: $rule) {
+                    ForEach(RelationshipSelectionRule.allCases) { option in
+                        Text(option.title).tag(option)
                     }
                 }
+                Text(rule.description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("Batch size", selection: $limit) {
+                    Text("Top 5").tag(5)
+                    Text("Top 10").tag(10)
+                }
+                .pickerStyle(.segmented)
             }
 
-            if let contact = selectedContact {
-                Section("Context") {
-                    LabeledContent("Role", value: contact.jobTitle ?? "Not set")
-                    LabeledContent("Company", value: contact.companyName ?? "Not set")
-                    LabeledContent(
-                        "Last contact",
-                        value: contact.daysSinceContact.map { "\($0) days ago" } ?? "Unknown"
-                    )
-                    LabeledContent("Interactions", value: "\(contact.interactions.count)")
+            Section("\(selectedContacts.count) people selected") {
+                ForEach(selectedContacts) { contact in
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(contact.fullName).font(.subheadline.bold())
+                            Text(contact.jobTitle ?? contact.tags.first ?? "Contact")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 3) {
+                            Text(rule.metric(for: contact))
+                                .font(.caption.bold())
+                                .foregroundStyle(.indigo)
+                            Text("Attention \(EchoEngine.attentionScore(for: contact))")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
 
@@ -98,10 +217,12 @@ struct RelationshipAnalysisView: View {
                 } label: {
                     HStack {
                         if isLoading { ProgressView() }
-                        Label("Generate \(mode.title.lowercased())", systemImage: "sparkles")
+                        Label("Analyze \(selectedContacts.count) people", systemImage: "sparkles")
                     }
                 }
-                .disabled(isLoading || selectedContact == nil)
+                .disabled(isLoading || selectedContacts.isEmpty)
+            } footer: {
+                Text("Echo analyzes the selected group in one DeepSeek request.")
             }
 
             if let result {
@@ -112,11 +233,9 @@ struct RelationshipAnalysisView: View {
         }
         .navigationTitle(mode.title)
         .navigationBarTitleDisplayMode(.inline)
-        .task {
-            if selectedContactID.isEmpty {
-                selectedContactID = contacts.first?.systemIdentifier ?? ""
-            }
-        }
+        .contentMargins(.bottom, 72, for: .scrollContent)
+        .onChange(of: rule) { _, _ in result = nil }
+        .onChange(of: limit) { _, _ in result = nil }
         .alert("Echo AI", isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
@@ -128,7 +247,7 @@ struct RelationshipAnalysisView: View {
     }
 
     private func generate() {
-        guard let contact = selectedContact else { return }
+        guard !selectedContacts.isEmpty else { return }
         isLoading = true
         result = nil
         Task {
@@ -136,37 +255,35 @@ struct RelationshipAnalysisView: View {
             do {
                 let features = try EchoAIEnvironment.features()
                 let privacy = AIPrivacyContext(
-                    people: [contact.fullName],
-                    companies: [contact.companyName ?? ""]
+                    people: selectedContacts.map(\.fullName),
+                    companies: selectedContacts.compactMap(\.companyName)
                 )
-                let alias = privacy.alias(for: contact.fullName) ?? "Person A"
-                let interactions = contact.interactions
-                    .sorted { $0.date > $1.date }
-                    .prefix(8)
-                    .map { "\($0.typeRawValue): \($0.summary)" }
-                    .joined(separator: "\n")
-                let notes = contact.notes
-                    .sorted { $0.createdAt > $1.createdAt }
-                    .prefix(4)
-                    .map(\.content)
-                    .joined(separator: "\n")
+                let peopleSummary = selectedContacts.map { contact in
+                    let alias = privacy.alias(for: contact.fullName) ?? "Person"
+                    let interactions = contact.interactions
+                        .sorted { $0.date > $1.date }
+                        .prefix(4)
+                        .map { "\($0.typeRawValue): \($0.summary)" }
+                        .joined(separator: "; ")
+                    let notes = contact.notes
+                        .sorted { $0.createdAt > $1.createdAt }
+                        .prefix(2)
+                        .map(\.content)
+                        .joined(separator: "; ")
+                    return """
+                    \(alias) | role: \(contact.jobTitle ?? contact.tags.first ?? "contact") | priority: \(contact.priority?.title ?? "not set") | last contact: \(contact.daysSinceContact.map { "\($0) days ago" } ?? "unknown") | interactions: \(contact.interactions.count) | recent context: \(privacy.anonymize([interactions, notes].filter { !$0.isEmpty }.joined(separator: "; ")))
+                    """
+                }.joined(separator: "\n")
 
                 let response: AIResult
                 switch mode {
                 case .insight:
-                    response = try await features.relationshipInsight(
-                        personAlias: alias,
-                        interactionSummary: privacy.anonymize(
-                            [interactions, notes].filter { !$0.isEmpty }.joined(separator: "\n")
-                        )
+                    response = try await features.relationshipInsights(
+                        peopleSummary: peopleSummary
                     )
                 case .health:
-                    let frequency = "\(contact.interactions.count) recorded interactions; last contact \(contact.daysSinceContact.map { "\($0) days ago" } ?? "unknown")."
-                    response = try await features.relationshipHealth(
-                        personAlias: alias,
-                        frequencyTrend: frequency,
-                        recentInteractions: privacy.anonymize(interactions.isEmpty ? "No recent interactions recorded." : interactions),
-                        notableChanges: privacy.anonymize(notes.isEmpty ? "No notable changes recorded." : notes)
+                    response = try await features.relationshipHealthReview(
+                        peopleSummary: peopleSummary
                     )
                 }
                 result = privacy.restoreAliases(in: response.text)

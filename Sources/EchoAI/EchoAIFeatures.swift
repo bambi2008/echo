@@ -51,6 +51,23 @@ public struct EchoAIFeatures: Sendable {
         )
     }
 
+    public func relationshipInsights(
+        peopleSummary: String,
+        modelOverride: AIModelID? = nil
+    ) async throws -> AIResult {
+        try await service.chat(
+            task: .relationshipInsight,
+            systemPrompt: """
+            Review a prioritized group of relationships. For every supplied person, write one concise bullet with a useful pattern and one specific next action. Keep the supplied order, use the supplied aliases exactly, stay under 45 words per person, and never invent facts.
+            """,
+            userMessage: """
+            Prioritized people:
+            \(peopleSummary)
+            """,
+            modelOverride: modelOverride
+        )
+    }
+
     public func relationshipHealth(
         personAlias: String,
         frequencyTrend: String,
@@ -68,6 +85,23 @@ public struct EchoAIFeatures: Sendable {
             Contact frequency trend: \(frequencyTrend)
             Recent interactions: \(recentInteractions)
             Notable gaps or changes: \(notableChanges)
+            """,
+            modelOverride: modelOverride
+        )
+    }
+
+    public func relationshipHealthReview(
+        peopleSummary: String,
+        modelOverride: AIModelID? = nil
+    ) async throws -> AIResult {
+        try await service.chat(
+            task: .relationshipHealth,
+            systemPrompt: """
+            Review relationship momentum for every supplied person. For each alias, label the momentum as active, cooling, or dormant, explain the evidence briefly, and suggest one gentle next action. Keep the supplied order, stay under 45 words per person, and never invent facts.
+            """,
+            userMessage: """
+            Prioritized people:
+            \(peopleSummary)
             """,
             modelOverride: modelOverride
         )
