@@ -4,34 +4,108 @@ import SwiftUI
 
 struct AIInsightsView: View {
     @Query private var contacts: [EchoContact]
+    @Query(sort: \Deal.createdAt, order: .reverse) private var deals: [Deal]
     @State private var insights: [InsightCardData] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
 
+    private let columns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12),
+    ]
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(spacing: 14) {
-                    if insights.isEmpty && !isLoading {
-                        intro
+                LazyVStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Your relationship copilot")
+                            .font(.title2.bold())
+                        Text("Turn your people, conversations, and pipeline into useful next actions.")
+                            .foregroundStyle(.secondary)
                     }
-                    ForEach(insights) { insight in
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack {
-                                Label(insight.kind, systemImage: "sparkles")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.indigo)
-                                Spacer()
-                                Text(insight.model)
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            Text(insight.person).font(.headline)
-                            Text(insight.message).font(.body)
+
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        NavigationLink {
+                            RelationshipAnalysisView(mode: .insight, contacts: contacts)
+                        } label: {
+                            AIFeatureCard(
+                                title: "Relationship insight",
+                                subtitle: "See patterns",
+                                symbol: "person.text.rectangle",
+                                color: .indigo
+                            )
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(16)
-                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
+                        NavigationLink {
+                            RelationshipAnalysisView(mode: .health, contacts: contacts)
+                        } label: {
+                            AIFeatureCard(
+                                title: "Relationship health",
+                                subtitle: "Check momentum",
+                                symbol: "heart.text.clipboard",
+                                color: .pink
+                            )
+                        }
+                        NavigationLink {
+                            DailyBriefingView(contacts: contacts)
+                        } label: {
+                            AIFeatureCard(
+                                title: "Daily briefing",
+                                subtitle: "Prioritize today",
+                                symbol: "sun.max.fill",
+                                color: .orange
+                            )
+                        }
+                        NavigationLink {
+                            SalesCoachingView(deals: deals)
+                        } label: {
+                            AIFeatureCard(
+                                title: "Sales follow-up",
+                                subtitle: "Move deals forward",
+                                symbol: "chart.line.uptrend.xyaxis",
+                                color: .green
+                            )
+                        }
+                        NavigationLink {
+                            DocumentRecognitionView(kind: .businessCard)
+                        } label: {
+                            AIFeatureCard(
+                                title: "Business card",
+                                subtitle: "Scan into People",
+                                symbol: "person.crop.rectangle",
+                                color: .blue
+                            )
+                        }
+                        NavigationLink {
+                            DocumentRecognitionView(kind: .policy)
+                        } label: {
+                            AIFeatureCard(
+                                title: "Policy scan",
+                                subtitle: "Extract key fields",
+                                symbol: "doc.text.viewfinder",
+                                color: .teal
+                            )
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    HStack {
+                        Text("Suggested outreach")
+                            .font(.title3.bold())
+                        Spacer()
+                        if !insights.isEmpty {
+                            Text("Top \(insights.count)")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    if insights.isEmpty && !isLoading {
+                        outreachIntro
+                    }
+
+                    ForEach(insights) { insight in
+                        InsightCard(insight: insight)
                     }
                 }
                 .padding()
@@ -40,37 +114,45 @@ struct AIInsightsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: generateInsights) {
-                        if isLoading { ProgressView() }
-                        else { Image(systemName: "arrow.clockwise") }
+                        if isLoading {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
                     }
                     .disabled(isLoading)
-                    .accessibilityLabel("Generate insights")
+                    .accessibilityLabel("Generate outreach suggestions")
                 }
             }
             .alert("Echo AI", isPresented: Binding(
                 get: { errorMessage != nil },
                 set: { if !$0 { errorMessage = nil } }
-            )) { Button("OK") { errorMessage = nil } } message: { Text(errorMessage ?? "") }
+            )) {
+                Button("OK") { errorMessage = nil }
+            } message: {
+                Text(errorMessage ?? "")
+            }
         }
     }
 
-    private var intro: some View {
-        VStack(spacing: 18) {
-            Image(systemName: "sparkles.rectangle.stack.fill")
-                .font(.system(size: 58))
+    private var outreachIntro: some View {
+        VStack(spacing: 15) {
+            Image(systemName: "message.badge.waveform.fill")
+                .font(.system(size: 38))
                 .foregroundStyle(.indigo)
-            Text("A little help finding the right words")
-                .font(.title2.bold())
-                .multilineTextAlignment(.center)
-            Text("Echo uses anonymized relationship context to suggest one warm, specific opening message.")
+            Text("Find the right words")
+                .font(.headline)
+            Text("Echo will choose three people who need attention and draft a warm, specific opening message.")
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Button("Generate today's insights", action: generateInsights)
+            Button("Generate suggestions", action: generateInsights)
                 .buttonStyle(.borderedProminent)
                 .tint(.indigo)
         }
-        .padding(.vertical, 60)
-        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity)
+        .padding(24)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
     }
 
     private func generateInsights() {
@@ -79,12 +161,7 @@ struct AIInsightsView: View {
         Task {
             defer { isLoading = false }
             do {
-                let keyStore = KeychainAPIKeyStore()
-                guard try keyStore.readAPIKey()?.isEmpty == false else {
-                    throw AIServiceError.noAPIKey
-                }
-                let service = AIService(client: DeepSeekClient(apiKeyStore: keyStore))
-                let features = EchoAIFeatures(service: service)
+                let features = try EchoAIEnvironment.features()
                 var generated: [InsightCardData] = []
 
                 for contact in contacts.sorted(by: {
@@ -100,7 +177,7 @@ struct AIInsightsView: View {
                         personAlias: alias,
                         recentNote: safeNote,
                         daysSinceContact: contact.daysSinceContact,
-                        relationship: contact.jobTitle ?? "personal relationship"
+                        relationship: contact.jobTitle ?? contact.tags.first ?? "personal relationship"
                     )
                     generated.append(InsightCardData(
                         person: contact.fullName,
@@ -110,31 +187,60 @@ struct AIInsightsView: View {
                     ))
                 }
                 insights = generated
-            } catch AIServiceError.noAPIKey {
-                errorMessage = "Add your DeepSeek API key in Settings first. It stays in Keychain on this device."
-            } catch let error as AIServiceError {
-                errorMessage = userFacingMessage(for: error)
             } catch {
-                errorMessage = "Unexpected error: \(error.localizedDescription)"
+                errorMessage = EchoAIEnvironment.message(for: error)
             }
         }
     }
+}
 
-    private func userFacingMessage(for error: AIServiceError) -> String {
-        switch error {
-        case .http(statusCode: 401, _), .http(statusCode: 403, _):
-            "DeepSeek rejected the API key. Check the key in Settings and save it again."
-        case .http(statusCode: 402, _):
-            "Your DeepSeek account has insufficient balance. Add credit, then try again."
-        case .http(statusCode: 404, _):
-            "The selected DeepSeek model is unavailable. Use deepseek-v4-flash and deepseek-v4-pro in Settings."
-        case .http(statusCode: 429, _):
-            "DeepSeek is rate-limiting requests. Wait briefly and try again."
-        case .transport(let message):
-            "Could not reach DeepSeek: \(message)"
-        default:
-            error.localizedDescription
+private struct AIFeatureCard: View {
+    let title: String
+    let subtitle: String
+    let symbol: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            Image(systemName: symbol)
+                .font(.title2)
+                .foregroundStyle(color)
+                .frame(width: 42, height: 42)
+                .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+            Text(title)
+                .font(.subheadline.bold())
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.leading)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity, minHeight: 130, alignment: .topLeading)
+        .padding(15)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
+    }
+}
+
+private struct InsightCard: View {
+    let insight: InsightCardData
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label(insight.kind, systemImage: "sparkles")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.indigo)
+                Spacer()
+                Text(insight.model)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            Text(insight.person).font(.headline)
+            Text(insight.message).font(.body)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
     }
 }
 

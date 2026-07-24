@@ -104,6 +104,47 @@ struct EchoAIFeaturesTests {
         #expect(result.value.coverageAmount == "1000")
     }
 
+    @Test("On-device OCR text can be structured as a business card")
+    func businessCardTextDecoding() async throws {
+        let client = QueueClient(responses: [
+            AIResult(
+                text: #"{"name":"Ada Lee","company":"Echo","title":"Founder","phone":"123","email":"ada@example.com","website":"echo.example"}"#,
+                model: "deepseek-v4-pro"
+            )
+        ])
+        let features = EchoAIFeatures(
+            service: AIService(client: client, router: AIModelRouter(defaults: nil))
+        )
+
+        let result = try await features.businessCard(
+            extractedText: "Ada Lee\nFounder\nEcho\nada@example.com"
+        )
+
+        #expect(result.value.name == "Ada Lee")
+        #expect(result.value.title == "Founder")
+        #expect(result.model == "deepseek-v4-pro")
+    }
+
+    @Test("On-device OCR text can be structured as a policy")
+    func policyTextDecoding() async throws {
+        let client = QueueClient(responses: [
+            AIResult(
+                text: #"{"policy_number":"E-42","insured_name":"Person A","insurance_type":"Life","premium_amount":"100","coverage_amount":"1000","effective_date":"2026-01-01","expiry_date":"2027-01-01","beneficiary":"Person B","notes":""}"#,
+                model: "deepseek-v4-pro"
+            )
+        ])
+        let features = EchoAIFeatures(
+            service: AIService(client: client, router: AIModelRouter(defaults: nil))
+        )
+
+        let result = try await features.policyDocument(
+            extractedText: "Policy E-42\nLife\nCoverage 1000"
+        )
+
+        #expect(result.value.policyNumber == "E-42")
+        #expect(result.value.insuranceType == "Life")
+    }
+
     @Test("Malformed OCR output is rejected")
     func malformedJSON() async throws {
         let client = QueueClient(responses: [

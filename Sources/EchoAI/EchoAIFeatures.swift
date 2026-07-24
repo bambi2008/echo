@@ -91,6 +91,22 @@ public struct EchoAIFeatures: Sendable {
         return try decode(BusinessCardInfo.self, from: result, task: .businessCardOCR)
     }
 
+    public func businessCard(
+        extractedText: String,
+        modelOverride: AIModelID? = nil
+    ) async throws -> AIStructuredResult<BusinessCardInfo> {
+        let result = try await service.chat(
+            task: .businessCardOCR,
+            systemPrompt: """
+            Extract business-card fields from OCR text. Return only valid JSON with exactly these keys. Use an empty string when a field is not visible and never guess:
+            {"name":"","company":"","title":"","phone":"","email":"","website":""}
+            """,
+            userMessage: "OCR text:\n\(extractedText)",
+            modelOverride: modelOverride
+        )
+        return try decode(BusinessCardInfo.self, from: result, task: .businessCardOCR)
+    }
+
     public func policyDocument(
         imageData: Data,
         mimeType: String = "image/jpeg",
@@ -104,6 +120,22 @@ public struct EchoAIFeatures: Sendable {
             {"policy_number":"","insured_name":"","insurance_type":"","premium_amount":"","coverage_amount":"","effective_date":"","expiry_date":"","beneficiary":"","notes":""}
             """,
             task: .policyOCR,
+            modelOverride: modelOverride
+        )
+        return try decode(PolicyDocumentInfo.self, from: result, task: .policyOCR)
+    }
+
+    public func policyDocument(
+        extractedText: String,
+        modelOverride: AIModelID? = nil
+    ) async throws -> AIStructuredResult<PolicyDocumentInfo> {
+        let result = try await service.chat(
+            task: .policyOCR,
+            systemPrompt: """
+            Extract insurance-policy fields from OCR text. Return only valid JSON with exactly these keys. Use an empty string when a field is missing and never guess:
+            {"policy_number":"","insured_name":"","insurance_type":"","premium_amount":"","coverage_amount":"","effective_date":"","expiry_date":"","beneficiary":"","notes":""}
+            """,
+            userMessage: "OCR text:\n\(extractedText)",
             modelOverride: modelOverride
         )
         return try decode(PolicyDocumentInfo.self, from: result, task: .policyOCR)
