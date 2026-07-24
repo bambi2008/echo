@@ -64,7 +64,8 @@ final class EchoContact {
     }
 
     var daysSinceContact: Int? {
-        guard let lastReachedOut else { return nil }
-        return Calendar.current.dateComponents([.day], from: lastReachedOut, to: .now).day
+        let latestInteraction = interactions.map(\.date).max()
+        guard let latest = [lastReachedOut, latestInteraction].compactMap({ $0 }).max() else { return nil }
+        return Calendar.current.dateComponents([.day], from: latest, to: .now).day
     }
 }

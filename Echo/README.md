@@ -23,6 +23,7 @@ Echo AI 当前提供：
 - 结合 Pipeline、互动记录和备注生成销售跟进建议
 - 从 People 首页的新增菜单识别名片并添加联系人；从 Echo AI 识别保单字段
 - 图片先在设备端使用 Apple Vision 识别文字，再由 DeepSeek 整理为结构化字段
+- 在 Settings 连接 Gmail，仅同步发件人、收件人、主题和时间，并把匹配到现有联系人的邮件写入互动记录
 
 ## 工程说明
 
@@ -31,3 +32,4 @@ Echo AI 当前提供：
 - 本地依赖根目录中的 `EchoAI` Swift Package
 - 联系人、互动记录、备注与交易管道保存在设备端
 - 名片与保单图片本身不上传；图片文字识别在设备端完成
+- Gmail OAuth Token 保存在 Apple Keychain；Echo 不下载邮件正文和附件
