@@ -8,9 +8,12 @@ struct PersonalHomeView: View {
     @State private var showingBusinessCard = false
     @State private var importMessage: String?
     @State private var searchText = ""
+    @State private var peopleFilter: PeopleFilter = .all
 
     private var prioritized: [EchoContact] {
-        contacts.filter(\.isInEchoLayer).sorted {
+        contacts.filter {
+            $0.isInEchoLayer && peopleFilter.includes($0)
+        }.sorted {
             EchoEngine.attentionScore(for: $0) > EchoEngine.attentionScore(for: $1)
         }
     }
@@ -29,6 +32,16 @@ struct PersonalHomeView: View {
         NavigationStack {
             List {
                 Section {
+                    Picker("People", selection: $peopleFilter) {
+                        ForEach(PeopleFilter.allCases) { filter in
+                            Text(filter.title).tag(filter)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityLabel("Relationship filter")
+                }
+
+                Section {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Today's echo", systemImage: "wave.3.right")
                             .font(.headline)
@@ -42,7 +55,7 @@ struct PersonalHomeView: View {
                     .padding(.vertical, 8)
                 }
 
-                Section("Your people") {
+                Section(peopleFilter.sectionTitle) {
                     ForEach(visibleContacts) { contact in
                         NavigationLink(value: contact) {
                             ContactRow(contact: contact)
@@ -125,6 +138,10 @@ private struct ContactRow: View {
                     .lineLimit(1)
             }
             Spacer()
+            Image(systemName: contact.relationshipDomain.symbol)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .accessibilityLabel(contact.relationshipDomain.title)
             if let priority = contact.priority, priority != .cold {
                 Image(systemName: priority.symbol)
                     .font(.caption)
@@ -156,7 +173,12 @@ private struct NewContactView: View {
     @State private var companyName = ""
     @State private var jobTitle = ""
     @State private var priority: PriorityLevel?
+    @State private var relationshipDomain: RelationshipDomain = .personal
     @State private var identity: ContactIdentity?
+
+    private var availableIdentities: [ContactIdentity] {
+        ContactIdentity.allCases.filter { relationshipDomain.includes($0.domain) }
+    }
 
     var body: some View {
         NavigationStack {
@@ -175,6 +197,11 @@ private struct NewContactView: View {
                     .textContentType(.organizationName)
                 TextField("Role", text: $jobTitle)
                     .textContentType(.jobTitle)
+                Picker("Relationship", selection: $relationshipDomain) {
+                    ForEach(RelationshipDomain.allCases) { domain in
+                        Label(domain.title, systemImage: domain.symbol).tag(domain)
+                    }
+                }
                 Picker("Priority", selection: $priority) {
                     Text("Not set").tag(PriorityLevel?.none)
                     ForEach(PriorityLevel.allCases) { level in
@@ -183,7 +210,7 @@ private struct NewContactView: View {
                 }
                 Picker("Identity", selection: $identity) {
                     Text("Not set").tag(ContactIdentity?.none)
-                    ForEach(ContactIdentity.allCases) { item in
+                    ForEach(availableIdentities) { item in
                         Text(item.rawValue).tag(Optional(item))
                     }
                 }
@@ -199,6 +226,7 @@ private struct NewContactView: View {
                             phoneNumber: phoneNumber.trimmed.nilIfEmpty,
                             emailAddress: emailAddress.trimmed.nilIfEmpty,
                             priority: priority,
+                            relationshipDomain: relationshipDomain,
                             companyName: companyName.trimmed.nilIfEmpty,
                             jobTitle: jobTitle.trimmed.nilIfEmpty
                         )
@@ -210,6 +238,43 @@ private struct NewContactView: View {
                     .disabled(givenName.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
+            .onChange(of: relationshipDomain) { _, newValue in
+                if let identity, !newValue.includes(identity.domain) {
+                    self.identity = nil
+                }
+            }
+        }
+    }
+}
+
+private enum PeopleFilter: String, CaseIterable, Identifiable {
+    case all
+    case personal
+    case business
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: "All"
+        case .personal: "Personal"
+        case .business: "Business"
+        }
+    }
+
+    var sectionTitle: String {
+        switch self {
+        case .all: "Your people"
+        case .personal: "Personal relationships"
+        case .business: "Business relationships"
+        }
+    }
+
+    func includes(_ contact: EchoContact) -> Bool {
+        switch self {
+        case .all: true
+        case .personal: contact.isPersonalRelationship
+        case .business: contact.isBusinessRelationship
         }
     }
 }

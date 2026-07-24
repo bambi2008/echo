@@ -15,6 +15,7 @@ struct EditContactView: View {
     @State private var companyName: String
     @State private var jobTitle: String
     @State private var priority: PriorityLevel?
+    @State private var relationshipDomain: RelationshipDomain
     @State private var selectedIdentities: Set<ContactIdentity>
     @State private var isInEchoLayer: Bool
     @State private var confirmingDelete = false
@@ -29,6 +30,7 @@ struct EditContactView: View {
         _companyName = State(initialValue: contact.companyName ?? "")
         _jobTitle = State(initialValue: contact.jobTitle ?? "")
         _priority = State(initialValue: contact.priority)
+        _relationshipDomain = State(initialValue: contact.relationshipDomain)
         _selectedIdentities = State(initialValue: Set(contact.tags.compactMap(ContactIdentity.init(rawValue:))))
         _isInEchoLayer = State(initialValue: contact.isInEchoLayer)
     }
@@ -62,6 +64,11 @@ struct EditContactView: View {
                 }
 
                 Section {
+                    Picker("Relationship", selection: $relationshipDomain) {
+                        ForEach(RelationshipDomain.allCases) { domain in
+                            Label(domain.title, systemImage: domain.symbol).tag(domain)
+                        }
+                    }
                     Picker("Priority", selection: $priority) {
                         Text("Not set").tag(PriorityLevel?.none)
                         ForEach(PriorityLevel.allCases) { level in
@@ -77,7 +84,7 @@ struct EditContactView: View {
                 }
 
                 Section("Identity") {
-                    ForEach(ContactIdentity.allCases) { identity in
+                    ForEach(availableIdentities) { identity in
                         Button {
                             toggle(identity)
                         } label: {
@@ -122,7 +129,14 @@ struct EditContactView: View {
             } message: {
                 Text("Its notes and interaction history will also be deleted. Linked deals will remain.")
             }
+            .onChange(of: relationshipDomain) { _, newValue in
+                selectedIdentities = selectedIdentities.filter { newValue.includes($0.domain) }
+            }
         }
+    }
+
+    private var availableIdentities: [ContactIdentity] {
+        ContactIdentity.allCases.filter { relationshipDomain.includes($0.domain) }
     }
 
     private func toggle(_ identity: ContactIdentity) {
@@ -143,6 +157,7 @@ struct EditContactView: View {
         contact.companyName = companyName.trimmed.nilIfEmpty
         contact.jobTitle = jobTitle.trimmed.nilIfEmpty
         contact.priority = priority
+        contact.relationshipDomain = relationshipDomain
         contact.isInEchoLayer = isInEchoLayer
         contact.tags = preservedTags + selectedIdentities.map(\.rawValue).sorted()
         try? modelContext.save()

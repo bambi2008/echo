@@ -58,6 +58,12 @@ struct ContactDetailView: View {
             }
 
             Section("Profile") {
+                LabeledContent {
+                    Label(contact.relationshipDomain.title, systemImage: contact.relationshipDomain.symbol)
+                        .foregroundStyle(.indigo)
+                } label: {
+                    Text("Relationship")
+                }
                 if let phoneNumber = contact.phoneNumber {
                     LabeledContent("Phone", value: phoneNumber)
                 }
@@ -83,39 +89,41 @@ struct ContactDetailView: View {
                 }
             }
 
-            Section("Business") {
-                if businessDeals.isEmpty {
-                    Text("No business opportunity is linked yet.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(businessDeals) { deal in
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text(deal.title).font(.headline)
-                                Spacer()
-                                Text(deal.stage.title)
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.indigo)
-                            }
-                            Text(deal.value, format: .currency(code: "USD").precision(.fractionLength(0)))
-                                .font(.subheadline.weight(.semibold))
-                            if let nextActionDate = deal.nextActionDate {
-                                Label {
-                                    Text(nextActionDate, format: .dateTime.month().day().year())
-                                } icon: {
-                                    Image(systemName: "calendar")
+            if contact.isBusinessRelationship || !businessDeals.isEmpty {
+                Section("Business") {
+                    if businessDeals.isEmpty {
+                        Text("No business opportunity is linked yet.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(businessDeals) { deal in
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text(deal.title).font(.headline)
+                                    Spacer()
+                                    Text(deal.stage.title)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.indigo)
                                 }
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                Text(deal.value, format: .currency(code: "USD").precision(.fractionLength(0)))
+                                    .font(.subheadline.weight(.semibold))
+                                if let nextActionDate = deal.nextActionDate {
+                                    Label {
+                                        Text(nextActionDate, format: .dateTime.month().day().year())
+                                    } icon: {
+                                        Image(systemName: "calendar")
+                                    }
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                }
                             }
+                            .padding(.vertical, 3)
                         }
-                        .padding(.vertical, 3)
                     }
-                }
-                Button {
-                    showingNewDeal = true
-                } label: {
-                    Label("Add opportunity", systemImage: "plus.circle.fill")
+                    Button {
+                        showingNewDeal = true
+                    } label: {
+                        Label("Add opportunity", systemImage: "plus.circle.fill")
+                    }
                 }
             }
 

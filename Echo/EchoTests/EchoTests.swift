@@ -26,6 +26,31 @@ final class EchoTests: XCTestCase {
         XCTAssertEqual(contact.priorityRawValue, PriorityLevel.hot.rawValue)
     }
 
+    func testRelationshipDomainSupportsPersonalBusinessAndBothWithoutDuplicatingContact() {
+        let personal = EchoContact(givenName: "Maya", relationshipDomain: .personal)
+        let business = EchoContact(givenName: "Noah", relationshipDomain: .business)
+        let both = EchoContact(givenName: "Ari", relationshipDomain: .both)
+
+        XCTAssertTrue(personal.isPersonalRelationship)
+        XCTAssertFalse(personal.isBusinessRelationship)
+        XCTAssertFalse(business.isPersonalRelationship)
+        XCTAssertTrue(business.isBusinessRelationship)
+        XCTAssertTrue(both.isPersonalRelationship)
+        XCTAssertTrue(both.isBusinessRelationship)
+    }
+
+    func testLegacyContactDomainIsInferredFromExistingProfile() {
+        let friend = EchoContact(givenName: "Leah")
+        friend.tags = [ContactIdentity.friend.rawValue]
+        let clientFriend = EchoContact(givenName: "Owen", companyName: "Acme")
+        clientFriend.tags = [ContactIdentity.friend.rawValue, ContactIdentity.client.rawValue]
+
+        XCTAssertEqual(friend.relationshipDomain, .personal)
+        XCTAssertEqual(clientFriend.relationshipDomain, .both)
+        XCTAssertNil(friend.relationshipDomainRawValue)
+        XCTAssertNil(clientFriend.relationshipDomainRawValue)
+    }
+
     func testNeverContactedPersonGetsMaximumAttentionScore() {
         let contact = EchoContact(givenName: "Mike", reachCount: 12)
 
@@ -76,6 +101,7 @@ final class EchoTests: XCTestCase {
             givenName: "Mina",
             familyName: "Chen",
             priority: .hot,
+            relationshipDomain: .business,
             companyName: "Northstar",
             jobTitle: "Founder"
         )
@@ -96,6 +122,7 @@ final class EchoTests: XCTestCase {
         let storedDeal = try XCTUnwrap(container.mainContext.fetch(FetchDescriptor<Deal>()).first)
         XCTAssertEqual(storedDeal.contact?.systemIdentifier, "test-contact")
         XCTAssertEqual(storedDeal.contact?.priority, .hot)
+        XCTAssertEqual(storedDeal.contact?.relationshipDomain, .business)
         XCTAssertEqual(storedDeal.contact?.tags, [ContactIdentity.prospect.rawValue])
         XCTAssertEqual(storedDeal.stage, .quoted)
         XCTAssertEqual(storedDeal.nextActionDate, nextActionDate)

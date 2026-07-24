@@ -11,6 +11,7 @@ final class EchoContact {
     var thumbnailData: Data?
     var isInEchoLayer: Bool
     var priorityRawValue: String?
+    var relationshipDomainRawValue: String?
     var lastReachedOut: Date?
     var reachCount: Int
     var tags: [String]
@@ -30,6 +31,7 @@ final class EchoContact {
         emailAddress: String? = nil,
         isInEchoLayer: Bool = true,
         priority: PriorityLevel? = nil,
+        relationshipDomain: RelationshipDomain? = nil,
         lastReachedOut: Date? = nil,
         reachCount: Int = 0,
         companyName: String? = nil,
@@ -42,6 +44,7 @@ final class EchoContact {
         self.emailAddress = emailAddress
         self.isInEchoLayer = isInEchoLayer
         self.priorityRawValue = priority?.rawValue
+        self.relationshipDomainRawValue = relationshipDomain?.rawValue
         self.lastReachedOut = lastReachedOut
         self.reachCount = reachCount
         self.tags = []
@@ -61,6 +64,35 @@ final class EchoContact {
     var priority: PriorityLevel? {
         get { priorityRawValue.flatMap(PriorityLevel.init(rawValue:)) }
         set { priorityRawValue = newValue?.rawValue }
+    }
+
+    var relationshipDomain: RelationshipDomain {
+        get {
+            relationshipDomainRawValue
+                .flatMap(RelationshipDomain.init(rawValue:))
+                ?? inferredRelationshipDomain
+        }
+        set { relationshipDomainRawValue = newValue.rawValue }
+    }
+
+    var isPersonalRelationship: Bool {
+        relationshipDomain.includes(.personal)
+    }
+
+    var isBusinessRelationship: Bool {
+        relationshipDomain.includes(.business)
+    }
+
+    private var inferredRelationshipDomain: RelationshipDomain {
+        let identities = tags.compactMap(ContactIdentity.init(rawValue:))
+        let hasPersonalIdentity = identities.contains { $0.domain == .personal }
+        let hasBusinessIdentity = identities.contains { $0.domain == .business }
+            || companyName != nil
+            || jobTitle != nil
+
+        if hasPersonalIdentity && hasBusinessIdentity { return .both }
+        if hasBusinessIdentity { return .business }
+        return .personal
     }
 
     var daysSinceContact: Int? {

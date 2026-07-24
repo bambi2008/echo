@@ -209,6 +209,10 @@ struct NewDealView: View {
         _selectedContactIdentifier = State(initialValue: contact?.systemIdentifier)
     }
 
+    private var businessContacts: [EchoContact] {
+        contacts.filter(\.isBusinessRelationship)
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -223,9 +227,14 @@ struct NewDealView: View {
                 Section("Relationship") {
                     Picker("Contact", selection: $selectedContactIdentifier) {
                         Text("No contact").tag(String?.none)
-                        ForEach(contacts) { contact in
+                        ForEach(businessContacts) { contact in
                             Text(contact.fullName).tag(Optional(contact.systemIdentifier))
                         }
+                    }
+                    if businessContacts.isEmpty {
+                        Text("Mark a person as Business or Both before linking an opportunity.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 Section("Next step") {
@@ -244,7 +253,7 @@ struct NewDealView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
-                        let contact = contacts.first {
+                        let contact = businessContacts.first {
                             $0.systemIdentifier == selectedContactIdentifier
                         }
                         modelContext.insert(Deal(
@@ -288,6 +297,13 @@ private struct EditDealView: View {
         _nextActionDate = State(initialValue: deal.nextActionDate ?? .now)
     }
 
+    private var eligibleContacts: [EchoContact] {
+        contacts.filter {
+            $0.isBusinessRelationship
+                || $0.systemIdentifier == deal.contact?.systemIdentifier
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -302,7 +318,7 @@ private struct EditDealView: View {
                 Section("Relationship") {
                     Picker("Contact", selection: $selectedContactIdentifier) {
                         Text("No contact").tag(String?.none)
-                        ForEach(contacts) { contact in
+                        ForEach(eligibleContacts) { contact in
                             Text(contact.fullName).tag(Optional(contact.systemIdentifier))
                         }
                     }
@@ -341,7 +357,7 @@ private struct EditDealView: View {
         deal.title = title.trimmed
         deal.value = value
         deal.stage = stage
-        deal.contact = contacts.first { $0.systemIdentifier == selectedContactIdentifier }
+        deal.contact = eligibleContacts.first { $0.systemIdentifier == selectedContactIdentifier }
         deal.nextActionDate = hasNextAction ? nextActionDate : nil
         try? modelContext.save()
         dismiss()

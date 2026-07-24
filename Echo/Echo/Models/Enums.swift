@@ -13,6 +13,34 @@ enum PriorityLevel: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum RelationshipDomain: String, Codable, CaseIterable, Identifiable {
+    case personal
+    case business
+    case both
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .personal: "Personal"
+        case .business: "Business"
+        case .both: "Both"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .personal: "heart.fill"
+        case .business: "briefcase.fill"
+        case .both: "person.crop.circle.badge.checkmark"
+        }
+    }
+
+    func includes(_ domain: RelationshipDomain) -> Bool {
+        self == .both || self == domain
+    }
+}
+
 enum ContactIdentity: String, CaseIterable, Identifiable {
     case client = "Client"
     case prospect = "Prospect"
@@ -29,6 +57,15 @@ enum ContactIdentity: String, CaseIterable, Identifiable {
     case community = "Community"
 
     var id: String { rawValue }
+
+    var domain: RelationshipDomain {
+        switch self {
+        case .client, .prospect, .partner, .investor, .advisor, .professionalNetwork:
+            .business
+        case .colleague, .mentor, .friend, .family, .classmate, .neighbor, .community:
+            .personal
+        }
+    }
 
     var symbol: String {
         switch self {

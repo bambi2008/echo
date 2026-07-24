@@ -56,6 +56,30 @@ enum RelationshipAnalysisMode {
     }
 }
 
+private enum RelationshipScope: String, CaseIterable, Identifiable {
+    case all
+    case personal
+    case business
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: "All"
+        case .personal: "Personal"
+        case .business: "Business"
+        }
+    }
+
+    func includes(_ contact: EchoContact) -> Bool {
+        switch self {
+        case .all: true
+        case .personal: contact.isPersonalRelationship
+        case .business: contact.isBusinessRelationship
+        }
+    }
+}
+
 private enum RelationshipSelectionRule: String, CaseIterable, Identifiable {
     case opportunity
     case contextRich
@@ -220,9 +244,7 @@ private enum RelationshipSelectionRule: String, CaseIterable, Identifiable {
     }
 
     private func isBusiness(_ contact: EchoContact) -> Bool {
-        contact.companyName != nil || !Set(contact.tags).isDisjoint(with: [
-            "Client", "Prospect", "Partner", "Investor", "Advisor", "Professional network",
-        ])
+        contact.isBusinessRelationship
     }
 }
 
@@ -234,10 +256,7 @@ private enum RelationshipMetrics {
         case .warm: priority = 24
         default: priority = 0
         }
-        let businessTags = Set([
-            "Client", "Prospect", "Partner", "Investor", "Advisor", "Professional network",
-        ])
-        let business = contact.companyName != nil || !Set(contact.tags).isDisjoint(with: businessTags) ? 18 : 0
+        let business = contact.isBusinessRelationship ? 18 : 0
         let context = min(contact.interactions.count * 3 + contact.notes.count * 4, 24)
         return priority + business + context + min(EchoEngine.attentionScore(for: contact), 25)
     }
@@ -269,6 +288,7 @@ struct RelationshipAnalysisView: View {
     let contacts: [EchoContact]
 
     @State private var rule: RelationshipSelectionRule
+    @State private var scope: RelationshipScope = .all
     @State private var limit = 5
     @State private var result: String?
     @State private var model: String?
@@ -283,7 +303,7 @@ struct RelationshipAnalysisView: View {
 
     private var selectedContacts: [EchoContact] {
         Array(contacts
-            .filter(rule.includes)
+            .filter { scope.includes($0) && rule.includes($0) }
             .sorted { rule.orders($0, before: $1, mode: mode) }
             .prefix(limit))
     }
@@ -291,6 +311,12 @@ struct RelationshipAnalysisView: View {
     var body: some View {
         Form {
             Section("Smart selection") {
+                Picker("People", selection: $scope) {
+                    ForEach(RelationshipScope.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
                 Picker("Rule", selection: $rule) {
                     ForEach(RelationshipSelectionRule.options(for: mode)) { option in
                         Text(option.title).tag(option)
@@ -351,6 +377,7 @@ struct RelationshipAnalysisView: View {
         .navigationTitle(mode.title)
         .navigationBarTitleDisplayMode(.inline)
         .contentMargins(.bottom, 72, for: .scrollContent)
+        .onChange(of: scope) { _, _ in result = nil }
         .onChange(of: rule) { _, _ in result = nil }
         .onChange(of: limit) { _, _ in result = nil }
         .alert("Echo AI", isPresented: Binding(
@@ -394,7 +421,7 @@ struct RelationshipAnalysisView: View {
                         .map { "\($0.formatted(.number.precision(.fractionLength(0)))) days" }
                         ?? "limited history"
                     return """
-                    \(alias) | role: \(contact.jobTitle ?? contact.tags.first ?? "contact") | priority: \(contact.priority?.title ?? "not set") | last contact: \(contact.daysSinceContact.map { "\($0) days ago" } ?? "unknown") | usual cadence: \(cadence) | gap vs cadence: \(RelationshipMetrics.cadenceLabel(for: contact)) | interactions: \(contact.interactions.count) | recent context: \(privacy.anonymize([interactions, notes].filter { !$0.isEmpty }.joined(separator: "; ")))
+                    \(alias) | relationship: \(contact.relationshipDomain.title) | role: \(contact.jobTitle ?? contact.tags.first ?? "contact") | priority: \(contact.priority?.title ?? "not set") | last contact: \(contact.daysSinceContact.map { "\($0) days ago" } ?? "unknown") | usual cadence: \(cadence) | gap vs cadence: \(RelationshipMetrics.cadenceLabel(for: contact)) | interactions: \(contact.interactions.count) | recent context: \(privacy.anonymize([interactions, notes].filter { !$0.isEmpty }.joined(separator: "; ")))
                     """
                 }.joined(separator: "\n")
 
@@ -426,10 +453,22 @@ struct DailyBriefingView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
 
-    private var priorityContacts: [EchoContact] {
-        Array(contacts.sorted {
+    private var personalPriorityContacts: [EchoContact] {
+        Array(contacts.filter {
+            $0.relationshipDomain == .personal
+        }.sorted {
             EchoEngine.attentionScore(for: $0) > EchoEngine.attentionScore(for: $1)
-        }.prefix(5))
+        }.prefix(3))
+    }
+
+    private var businessPriorityContacts: [EchoContact] {
+        Array(contacts.filter(\.isBusinessRelationship).sorted {
+            EchoEngine.attentionScore(for: $0) > EchoEngine.attentionScore(for: $1)
+        }.prefix(3))
+    }
+
+    private var priorityContacts: [EchoContact] {
+        personalPriorityContacts + businessPriorityContacts
     }
 
     var body: some View {
@@ -442,25 +481,16 @@ struct DailyBriefingView: View {
                     color: .orange
                 )
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Needs attention").font(.headline)
-                    ForEach(priorityContacts) { contact in
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(contact.fullName).font(.subheadline.bold())
-                                Text(contact.jobTitle ?? contact.tags.first ?? "Contact")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Text(contact.daysSinceContact.map { "\($0)d" } ?? "—")
-                                .font(.caption.bold())
-                                .foregroundStyle(.orange)
-                        }
-                    }
-                }
-                .padding(16)
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
+                briefingGroup(
+                    title: "Personal relationships",
+                    symbol: "heart.fill",
+                    contacts: personalPriorityContacts
+                )
+                briefingGroup(
+                    title: "Business follow-ups",
+                    symbol: "briefcase.fill",
+                    contacts: businessPriorityContacts
+                )
 
                 Button(action: generate) {
                     HStack {
@@ -491,6 +521,38 @@ struct DailyBriefingView: View {
         }
     }
 
+    private func briefingGroup(
+        title: String,
+        symbol: String,
+        contacts: [EchoContact]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(title, systemImage: symbol).font(.headline)
+            if contacts.isEmpty {
+                Text("No relationships need attention here today.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(contacts) { contact in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(contact.fullName).font(.subheadline.bold())
+                            Text(contact.jobTitle ?? contact.tags.first ?? "Contact")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text(contact.daysSinceContact.map { "\($0)d" } ?? "—")
+                            .font(.caption.bold())
+                            .foregroundStyle(.orange)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
+    }
+
     private func generate() {
         isLoading = true
         result = nil
@@ -510,7 +572,7 @@ struct DailyBriefingView: View {
                         let direction = $0.isIncoming.map { $0 ? "incoming" : "outgoing" } ?? "recorded"
                         return "\(direction) \($0.typeRawValue), \($0.summary)"
                     } ?? "No recorded interaction"
-                    return "\(alias): \(contact.jobTitle ?? "contact"), \(contact.daysSinceContact.map { "\($0) days since contact" } ?? "last contact unknown"), latest: \(privacy.anonymize(interactionContext)), note: \(privacy.anonymize(note))"
+                    return "\(alias): \(contact.relationshipDomain.title) relationship, \(contact.jobTitle ?? "contact"), \(contact.daysSinceContact.map { "\($0) days since contact" } ?? "last contact unknown"), latest: \(privacy.anonymize(interactionContext)), note: \(privacy.anonymize(note))"
                 }.joined(separator: "\n")
                 let response = try await features.dailyBriefing(
                     dateDescription: Date.now.formatted(date: .long, time: .omitted),
