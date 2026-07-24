@@ -8,6 +8,19 @@ import UIKit
 struct GmailConnectionStatus {
     let email: String
     let expiresAt: Date
+    let lastSyncAt: Date?
+}
+
+struct GmailSyncResult {
+    let importedInteractions: Int
+    let messagesScanned: Int
+    let matchedMessages: Int
+    let lastSyncAt: Date
+    let wasIncremental: Bool
+
+    var unmatchedMessages: Int {
+        max(0, messagesScanned - matchedMessages)
+    }
 }
 
 private struct GmailToken: Codable {
@@ -15,6 +28,8 @@ private struct GmailToken: Codable {
     var refreshToken: String
     var expiresAt: Date
     var email: String?
+    var historyID: String?
+    var lastSyncAt: Date?
 }
 
 private struct GmailTokenResponse: Decodable {
@@ -31,10 +46,17 @@ private struct GmailTokenResponse: Decodable {
 
 private struct GmailProfile: Decodable {
     let emailAddress: String
+    let historyID: String
+
+    enum CodingKeys: String, CodingKey {
+        case emailAddress
+        case historyID = "historyId"
+    }
 }
 
 private struct GmailMessageList: Decodable {
     let messages: [GmailMessageReference]?
+    let nextPageToken: String?
 }
 
 private struct GmailMessageReference: Decodable {
@@ -57,18 +79,49 @@ private struct GmailHeader: Decodable {
     let value: String
 }
 
+private struct GmailHistoryList: Decodable {
+    let history: [GmailHistoryRecord]?
+    let nextPageToken: String?
+}
+
+private struct GmailHistoryRecord: Decodable {
+    let messagesAdded: [GmailHistoryMessage]?
+}
+
+private struct GmailHistoryMessage: Decodable {
+    let message: GmailMessageReference
+}
+
+private struct GmailProviderErrorEnvelope: Decodable {
+    let error: GmailProviderErrorBody
+}
+
+private struct GmailProviderErrorBody: Decodable {
+    let message: String
+}
+
 enum GmailSyncError: LocalizedError {
     case notConnected
     case invalidConfiguration
     case authorizationFailed
-    case provider(String)
+    case provider(statusCode: Int, message: String)
 
     var errorDescription: String? {
         switch self {
         case .notConnected: "Connect Gmail before syncing."
         case .invalidConfiguration: "Gmail OAuth is not configured correctly."
         case .authorizationFailed: "Google authorization did not complete."
-        case .provider(let message): message
+        case .provider(let statusCode, let message):
+            switch statusCode {
+            case 401:
+                "Google access has expired. Disconnect Gmail and connect it again."
+            case 403:
+                "Google did not allow this Gmail request. Check the Gmail permission and try again."
+            case 429:
+                "Gmail is temporarily rate-limiting Echo. Wait a moment and try again."
+            default:
+                message
+            }
         }
     }
 }
@@ -85,7 +138,11 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
 
     func status() -> GmailConnectionStatus? {
         guard let token = try? tokenStore.read(), let email = token.email else { return nil }
-        return GmailConnectionStatus(email: email, expiresAt: token.expiresAt)
+        return GmailConnectionStatus(
+            email: email,
+            expiresAt: token.expiresAt,
+            lastSyncAt: token.lastSyncAt
+        )
     }
 
     func connect() async throws -> GmailConnectionStatus {
@@ -111,21 +168,33 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
         else { throw GmailSyncError.authorizationFailed }
 
         var token = try await exchange(code: code, verifier: verifier, redirectURI: redirectURI)
-        token.email = try await profileEmail(accessToken: token.accessToken)
+        let profile = try await profile(accessToken: token.accessToken)
+        token.email = profile.emailAddress
         try tokenStore.save(token)
-        return GmailConnectionStatus(email: token.email ?? "", expiresAt: token.expiresAt)
+        return GmailConnectionStatus(
+            email: token.email ?? "",
+            expiresAt: token.expiresAt,
+            lastSyncAt: token.lastSyncAt
+        )
     }
 
     func disconnect() throws {
         try tokenStore.delete()
     }
 
-    func sync(contacts: [EchoContact], in context: ModelContext) async throws -> Int {
+    func shouldSync(minimumInterval: TimeInterval = 15 * 60) -> Bool {
+        guard let token = try? tokenStore.read() else { return false }
+        guard let lastSyncAt = token.lastSyncAt else { return true }
+        return Date.now.timeIntervalSince(lastSyncAt) >= minimumInterval
+    }
+
+    func sync(contacts: [EchoContact], in context: ModelContext) async throws -> GmailSyncResult {
         var token = try await validToken()
-        if token.email == nil {
-            token.email = try await profileEmail(accessToken: token.accessToken)
-            try tokenStore.save(token)
-        }
+        // Capture the mailbox checkpoint before listing messages so anything arriving
+        // during this sync is picked up by the next incremental sync.
+        let syncStartProfile = try await profile(accessToken: token.accessToken)
+        token.email = syncStartProfile.emailAddress
+        try tokenStore.save(token)
         let ownEmail = Self.normalize(token.email ?? "")
         var existing = Set(try context.fetch(FetchDescriptor<Interaction>())
             .compactMap(\.externalIdentifier))
@@ -133,27 +202,30 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
             guard let address = contact.emailAddress.map(Self.normalize), !address.isEmpty else { return nil }
             return (address, contact)
         }, by: \.0).mapValues { $0.map(\.1) }
-        let references: GmailMessageList = try await request(
-            path: "users/me/messages",
-            query: [URLQueryItem(name: "maxResults", value: "100")],
-            accessToken: token.accessToken
-        )
+        let referenceResult = try await messageReferences(for: token)
+        let references = referenceResult.references
 
         var imported = 0
-        for reference in references.messages ?? [] {
-            let message: GmailMessage = try await request(
-                path: "users/me/messages/\(reference.id)",
-                query: [
-                    URLQueryItem(name: "format", value: "metadata"),
-                    URLQueryItem(name: "metadataHeaders", value: "From"),
-                    URLQueryItem(name: "metadataHeaders", value: "To"),
-                    URLQueryItem(name: "metadataHeaders", value: "Subject"),
-                ],
-                accessToken: token.accessToken
-            )
-            let headers = Dictionary(uniqueKeysWithValues: (message.payload?.headers ?? []).map {
-                ($0.name.lowercased(), $0.value)
-            })
+        var matchedMessages = 0
+        for reference in references {
+            let message: GmailMessage
+            do {
+                message = try await request(
+                    path: "users/me/messages/\(reference.id)",
+                    query: [
+                        URLQueryItem(name: "format", value: "metadata"),
+                        URLQueryItem(name: "metadataHeaders", value: "From"),
+                        URLQueryItem(name: "metadataHeaders", value: "To"),
+                        URLQueryItem(name: "metadataHeaders", value: "Subject"),
+                    ],
+                    accessToken: token.accessToken
+                )
+            } catch GmailSyncError.provider(statusCode: 404, message: _) {
+                continue
+            }
+            let headers = (message.payload?.headers ?? []).reduce(into: [String: String]()) {
+                $0[$1.name.lowercased()] = $1.value
+            }
             let from = Self.emails(in: headers["from"] ?? "")
             let to = Self.emails(in: headers["to"] ?? "")
             let outgoing = message.labelIds?.contains("SENT") == true || from.contains(ownEmail)
@@ -165,6 +237,7 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
                 }
                 .values
             guard !matchedContacts.isEmpty else { continue }
+            matchedMessages += 1
             let timestamp = (Double(message.internalDate ?? "") ?? 0) / 1000
             let subject = headers["subject"]?.trimmingCharacters(in: .whitespacesAndNewlines)
             let summary = "\(outgoing ? "Sent" : "Received") email\(subject?.isEmpty == false ? ": \(subject!)" : "")"
@@ -190,7 +263,17 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
             }
         }
         try context.save()
-        return imported
+        let finishedAt = Date.now
+        token.historyID = syncStartProfile.historyID
+        token.lastSyncAt = finishedAt
+        try tokenStore.save(token)
+        return GmailSyncResult(
+            importedInteractions: imported,
+            messagesScanned: references.count,
+            matchedMessages: matchedMessages,
+            lastSyncAt: finishedAt,
+            wasIncremental: referenceResult.wasIncremental
+        )
     }
 
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
@@ -235,7 +318,9 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
             accessToken: response.accessToken,
             refreshToken: refreshToken,
             expiresAt: .now.addingTimeInterval(response.expiresIn),
-            email: nil
+            email: nil,
+            historyID: nil,
+            lastSyncAt: nil
         )
     }
 
@@ -263,13 +348,67 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
         return try await decode(request)
     }
 
-    private func profileEmail(accessToken: String) async throws -> String {
-        let profile: GmailProfile = try await request(
+    private func profile(accessToken: String) async throws -> GmailProfile {
+        try await request(
             path: "users/me/profile",
             query: [],
             accessToken: accessToken
         )
-        return profile.emailAddress
+    }
+
+    private func messageReferences(
+        for token: GmailToken
+    ) async throws -> (references: [GmailMessageReference], wasIncremental: Bool) {
+        guard let historyID = token.historyID else {
+            return (try await recentMessageReferences(accessToken: token.accessToken), false)
+        }
+        do {
+            return (try await incrementalMessageReferences(
+                since: historyID,
+                accessToken: token.accessToken
+            ), true)
+        } catch GmailSyncError.provider(statusCode: 404, message: _) {
+            return (try await recentMessageReferences(accessToken: token.accessToken), false)
+        }
+    }
+
+    private func recentMessageReferences(accessToken: String) async throws -> [GmailMessageReference] {
+        let response: GmailMessageList = try await request(
+            path: "users/me/messages",
+            query: [URLQueryItem(name: "maxResults", value: "200")],
+            accessToken: accessToken
+        )
+        return response.messages ?? []
+    }
+
+    private func incrementalMessageReferences(
+        since historyID: String,
+        accessToken: String
+    ) async throws -> [GmailMessageReference] {
+        var pageToken: String?
+        var messageIDs = Set<String>()
+        repeat {
+            var query = [
+                URLQueryItem(name: "startHistoryId", value: historyID),
+                URLQueryItem(name: "historyTypes", value: "messageAdded"),
+                URLQueryItem(name: "maxResults", value: "500"),
+            ]
+            if let pageToken {
+                query.append(URLQueryItem(name: "pageToken", value: pageToken))
+            }
+            let response: GmailHistoryList = try await request(
+                path: "users/me/history",
+                query: query,
+                accessToken: accessToken
+            )
+            for record in response.history ?? [] {
+                for added in record.messagesAdded ?? [] {
+                    messageIDs.insert(added.message.id)
+                }
+            }
+            pageToken = response.nextPageToken
+        } while pageToken != nil
+        return messageIDs.sorted().map(GmailMessageReference.init(id:))
     }
 
     private func request<T: Decodable>(
@@ -287,8 +426,9 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
     private func decode<T: Decodable>(_ request: URLRequest) async throws -> T {
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode else {
-            let message = String(data: data, encoding: .utf8) ?? "Gmail request failed."
-            throw GmailSyncError.provider(message)
+            let providerMessage = try? JSONDecoder().decode(GmailProviderErrorEnvelope.self, from: data)
+            let message = providerMessage?.error.message ?? "Gmail request failed."
+            throw GmailSyncError.provider(statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0, message: message)
         }
         return try JSONDecoder().decode(T.self, from: data)
     }

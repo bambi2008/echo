@@ -7,10 +7,21 @@ struct PersonalHomeView: View {
     @State private var showingNewContact = false
     @State private var showingBusinessCard = false
     @State private var importMessage: String?
+    @State private var searchText = ""
 
     private var prioritized: [EchoContact] {
         contacts.filter(\.isInEchoLayer).sorted {
             EchoEngine.attentionScore(for: $0) > EchoEngine.attentionScore(for: $1)
+        }
+    }
+
+    private var visibleContacts: [EchoContact] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return prioritized }
+        return prioritized.filter {
+            [$0.fullName, $0.emailAddress, $0.phoneNumber, $0.companyName, $0.jobTitle]
+                .compactMap { $0 }
+                .contains { $0.localizedCaseInsensitiveContains(query) }
         }
     }
 
@@ -32,7 +43,7 @@ struct PersonalHomeView: View {
                 }
 
                 Section("Your people") {
-                    ForEach(prioritized) { contact in
+                    ForEach(visibleContacts) { contact in
                         NavigationLink(value: contact) {
                             ContactRow(contact: contact)
                         }
@@ -40,14 +51,19 @@ struct PersonalHomeView: View {
                 }
             }
             .navigationTitle("Echo")
+            .searchable(text: $searchText, prompt: "Name, company, email, or phone")
             .navigationDestination(for: EchoContact.self) { ContactDetailView(contact: $0) }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         Task {
                             do {
-                                let count = try await ContactImportService().importContacts(into: modelContext)
-                                importMessage = count == 0 ? "No new contacts were added." : "Imported \(count) contacts."
+                                let result = try await ContactImportService().importContacts(into: modelContext)
+                                if result.added == 0 && result.updated == 0 {
+                                    importMessage = "Your contacts are already up to date."
+                                } else {
+                                    importMessage = "Added \(result.added) and updated \(result.updated) contacts."
+                                }
                             } catch {
                                 importMessage = "Contacts could not be imported."
                             }
@@ -129,19 +145,42 @@ private struct NewContactView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var givenName = ""
     @State private var familyName = ""
+    @State private var phoneNumber = ""
+    @State private var emailAddress = ""
+    @State private var companyName = ""
+    @State private var jobTitle = ""
 
     var body: some View {
         NavigationStack {
             Form {
                 TextField("First name", text: $givenName)
                 TextField("Last name", text: $familyName)
+                TextField("Phone", text: $phoneNumber)
+                    .keyboardType(.phonePad)
+                    .textContentType(.telephoneNumber)
+                TextField("Email", text: $emailAddress)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .textContentType(.emailAddress)
+                TextField("Company", text: $companyName)
+                    .textContentType(.organizationName)
+                TextField("Role", text: $jobTitle)
+                    .textContentType(.jobTitle)
             }
             .navigationTitle("New person")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
-                        modelContext.insert(EchoContact(givenName: givenName, familyName: familyName))
+                        modelContext.insert(EchoContact(
+                            givenName: givenName.trimmed,
+                            familyName: familyName.trimmed,
+                            phoneNumber: phoneNumber.trimmed.nilIfEmpty,
+                            emailAddress: emailAddress.trimmed.nilIfEmpty,
+                            companyName: companyName.trimmed.nilIfEmpty,
+                            jobTitle: jobTitle.trimmed.nilIfEmpty
+                        ))
                         try? modelContext.save()
                         dismiss()
                     }
@@ -150,4 +189,9 @@ private struct NewContactView: View {
             }
         }
     }
+}
+
+private extension String {
+    var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

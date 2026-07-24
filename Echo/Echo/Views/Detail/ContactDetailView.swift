@@ -114,13 +114,24 @@ struct ContactDetailView: View {
                                 .frame(width: 24)
                                 .foregroundStyle(.indigo)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(interaction.type.title).font(.subheadline.weight(.semibold))
+                                HStack(spacing: 6) {
+                                    Text(interactionTitle(interaction))
+                                        .font(.subheadline.weight(.semibold))
+                                    if interaction.sourceRawValue == "gmail" {
+                                        Text("Gmail")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(.indigo)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.indigo.opacity(0.1), in: Capsule())
+                                    }
+                                }
                                 if !interaction.summary.isEmpty {
                                     Text(interaction.summary)
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
                                 }
-                                Text(interaction.date, format: .dateTime.month().day().year())
+                                Text(interaction.date, format: .dateTime.month().day().year().hour().minute())
                                     .font(.caption)
                                     .foregroundStyle(.tertiary)
                             }
@@ -174,6 +185,13 @@ struct ContactDetailView: View {
 
     private var businessDeals: [Deal] {
         deals.filter { $0.contact?.systemIdentifier == contact.systemIdentifier }
+    }
+
+    private func interactionTitle(_ interaction: Interaction) -> String {
+        guard interaction.type == .emailed, let isIncoming = interaction.isIncoming else {
+            return interaction.type.title
+        }
+        return isIncoming ? "Received email" : "Sent email"
     }
 }
 

@@ -32,6 +32,39 @@ final class EchoTests: XCTestCase {
         XCTAssertEqual(EchoEngine.attentionScore(for: contact), 100)
     }
 
+    func testIncomingEmailRefreshesRelationshipRecency() {
+        let contact = EchoContact(
+            givenName: "Ava",
+            lastReachedOut: Calendar.current.date(byAdding: .day, value: -90, to: .now)
+        )
+        contact.interactions.append(Interaction(
+            date: Calendar.current.date(byAdding: .day, value: -2, to: .now)!,
+            type: .emailed,
+            summary: "Received email",
+            contact: contact,
+            externalIdentifier: "gmail:test:Ava",
+            source: "gmail",
+            isIncoming: true
+        ))
+
+        XCTAssertEqual(contact.daysSinceContact, 2)
+        XCTAssertEqual(contact.interactions.first?.sourceRawValue, "gmail")
+        XCTAssertEqual(contact.interactions.first?.isIncoming, true)
+    }
+
+    func testGmailSyncResultReportsUnmatchedMessages() {
+        let result = GmailSyncResult(
+            importedInteractions: 3,
+            messagesScanned: 10,
+            matchedMessages: 2,
+            lastSyncAt: .now,
+            wasIncremental: true
+        )
+
+        XCTAssertEqual(result.unmatchedMessages, 8)
+        XCTAssertTrue(result.wasIncremental)
+    }
+
     func testDemoDataSeedsTwoHundredRichContacts() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(

@@ -141,7 +141,17 @@ struct OutreachComposerView: View {
                     companies: contact.companyName.map { [$0] } ?? []
                 )
                 let alias = privacy.alias(for: contact.fullName) ?? "Person A"
-                let context = (contact.notes.sorted { $0.createdAt > $1.createdAt }.first?.content)
+                let recentNote = contact.notes.sorted { $0.createdAt > $1.createdAt }.first?.content
+                let recentInteraction = contact.interactions.sorted { $0.date > $1.date }.first.map {
+                    let direction = $0.isIncoming.map { $0 ? "They contacted me" : "I contacted them" }
+                        ?? "We interacted"
+                    return "\(direction) via \($0.type.title.lowercased()): \($0.summary)"
+                }
+                let context = [recentInteraction, recentNote]
+                    .compactMap { $0 }
+                    .filter { !$0.isEmpty }
+                    .joined(separator: " ")
+                    .nilIfEmpty
                     .map(privacy.anonymize)
                 let response = try await features.conversationOpener(
                     personAlias: alias,
@@ -173,4 +183,8 @@ struct OutreachComposerView: View {
         }
         openURL(url)
     }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

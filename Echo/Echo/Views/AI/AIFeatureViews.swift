@@ -380,7 +380,10 @@ struct RelationshipAnalysisView: View {
                     let interactions = contact.interactions
                         .sorted { $0.date > $1.date }
                         .prefix(4)
-                        .map { "\($0.typeRawValue): \($0.summary)" }
+                        .map {
+                            let direction = $0.isIncoming.map { $0 ? "incoming" : "outgoing" } ?? "recorded"
+                            return "\($0.typeRawValue) (\(direction)): \($0.summary)"
+                        }
                         .joined(separator: "; ")
                     let notes = contact.notes
                         .sorted { $0.createdAt > $1.createdAt }
@@ -502,7 +505,12 @@ struct DailyBriefingView: View {
                 let summary = priorityContacts.map { contact in
                     let alias = privacy.alias(for: contact.fullName) ?? "Person"
                     let note = contact.notes.sorted { $0.createdAt > $1.createdAt }.first?.content ?? "No recent note"
-                    return "\(alias): \(contact.jobTitle ?? "contact"), \(contact.daysSinceContact.map { "\($0) days since contact" } ?? "last contact unknown"), note: \(privacy.anonymize(note))"
+                    let latestInteraction = contact.interactions.sorted { $0.date > $1.date }.first
+                    let interactionContext = latestInteraction.map {
+                        let direction = $0.isIncoming.map { $0 ? "incoming" : "outgoing" } ?? "recorded"
+                        return "\(direction) \($0.typeRawValue), \($0.summary)"
+                    } ?? "No recorded interaction"
+                    return "\(alias): \(contact.jobTitle ?? "contact"), \(contact.daysSinceContact.map { "\($0) days since contact" } ?? "last contact unknown"), latest: \(privacy.anonymize(interactionContext)), note: \(privacy.anonymize(note))"
                 }.joined(separator: "\n")
                 let response = try await features.dailyBriefing(
                     dateDescription: Date.now.formatted(date: .long, time: .omitted),

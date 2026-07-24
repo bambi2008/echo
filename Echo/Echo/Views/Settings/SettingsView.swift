@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var advancedModel = "deepseek-v4-pro"
     @State private var statusMessage: String?
     @State private var gmailAccount: String?
+    @State private var gmailLastSync: Date?
     @State private var isWorkingWithGmail = false
 
     var body: some View {
@@ -50,6 +51,12 @@ struct SettingsView: View {
                         } label: {
                             Label("Connected", systemImage: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
+                        }
+                        if let gmailLastSync {
+                            LabeledContent("Last synced") {
+                                Text(gmailLastSync, format: .relative(presentation: .named))
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         Button {
                             syncGmail()
@@ -98,7 +105,9 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .task {
                 await loadModels()
-                gmailAccount = GmailSyncService.shared.status()?.email
+                let gmailStatus = GmailSyncService.shared.status()
+                gmailAccount = gmailStatus?.email
+                gmailLastSync = gmailStatus?.lastSyncAt
             }
             .alert("Echo", isPresented: Binding(
                 get: { statusMessage != nil },
@@ -157,8 +166,9 @@ struct SettingsView: View {
             do {
                 let status = try await GmailSyncService.shared.connect()
                 gmailAccount = status.email
-                let count = try await GmailSyncService.shared.sync(contacts: contacts, in: modelContext)
-                statusMessage = "Gmail connected. Imported \(count) matched email interactions."
+                let result = try await GmailSyncService.shared.sync(contacts: contacts, in: modelContext)
+                gmailLastSync = result.lastSyncAt
+                statusMessage = syncMessage(for: result, connected: true)
             } catch {
                 statusMessage = error.localizedDescription
             }
@@ -170,10 +180,9 @@ struct SettingsView: View {
         Task {
             defer { isWorkingWithGmail = false }
             do {
-                let count = try await GmailSyncService.shared.sync(contacts: contacts, in: modelContext)
-                statusMessage = count == 0
-                    ? "Gmail is up to date. No new matched interactions were found."
-                    : "Imported \(count) new matched email interactions."
+                let result = try await GmailSyncService.shared.sync(contacts: contacts, in: modelContext)
+                gmailLastSync = result.lastSyncAt
+                statusMessage = syncMessage(for: result, connected: false)
             } catch {
                 statusMessage = error.localizedDescription
             }
@@ -184,9 +193,22 @@ struct SettingsView: View {
         do {
             try GmailSyncService.shared.disconnect()
             gmailAccount = nil
+            gmailLastSync = nil
             statusMessage = "Gmail disconnected. Existing interaction history remains on this device."
         } catch {
             statusMessage = error.localizedDescription
         }
+    }
+
+    private func syncMessage(for result: GmailSyncResult, connected: Bool) -> String {
+        let prefix = connected ? "Gmail connected. " : ""
+        if result.messagesScanned == 0 {
+            return prefix + "Gmail is up to date—there are no new messages to check."
+        }
+        if result.importedInteractions == 0 {
+            return prefix + "Checked \(result.messagesScanned) messages, but none matched an email address saved in People."
+        }
+        let mode = result.wasIncremental ? "new" : "recent"
+        return prefix + "Checked \(result.messagesScanned) \(mode) messages and added \(result.importedInteractions) contact interactions."
     }
 }
