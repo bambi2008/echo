@@ -13,6 +13,42 @@ enum PriorityLevel: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum ContactIdentity: String, CaseIterable, Identifiable {
+    case client = "Client"
+    case prospect = "Prospect"
+    case partner = "Partner"
+    case investor = "Investor"
+    case advisor = "Advisor"
+    case professionalNetwork = "Professional network"
+    case colleague = "Former colleague"
+    case mentor = "Mentor"
+    case friend = "Friend"
+    case family = "Family friend"
+    case classmate = "Classmate"
+    case neighbor = "Neighbor"
+    case community = "Community"
+
+    var id: String { rawValue }
+
+    var symbol: String {
+        switch self {
+        case .client: "person.crop.circle.badge.checkmark"
+        case .prospect: "scope"
+        case .partner: "person.2.fill"
+        case .investor: "chart.line.uptrend.xyaxis"
+        case .advisor: "lightbulb.fill"
+        case .professionalNetwork: "network"
+        case .colleague: "briefcase.fill"
+        case .mentor: "graduationcap.fill"
+        case .friend: "heart.fill"
+        case .family: "house.fill"
+        case .classmate: "books.vertical.fill"
+        case .neighbor: "building.2.fill"
+        case .community: "person.3.fill"
+        }
+    }
+}
+
 enum DealStage: String, Codable, CaseIterable, Identifiable {
     case lead, contacted, quoted, negotiating, closedWon, closedLost
     var id: String { rawValue }

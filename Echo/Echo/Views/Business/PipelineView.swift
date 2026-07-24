@@ -148,7 +148,9 @@ private struct PipelineColumn: View {
 }
 
 private struct DealCard: View {
+    @Environment(\.modelContext) private var modelContext
     @Bindable var deal: Deal
+    @State private var showingEditor = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -156,35 +158,85 @@ private struct DealCard: View {
             if let contact = deal.contact { Text(contact.fullName).font(.subheadline).foregroundStyle(.secondary) }
             Text(deal.value, format: .currency(code: "USD").precision(.fractionLength(0)))
                 .font(.title3.weight(.semibold))
+            if let nextActionDate = deal.nextActionDate {
+                Label {
+                    Text(nextActionDate, format: .dateTime.month().day())
+                } icon: {
+                    Image(systemName: "calendar")
+                }
+                .font(.caption)
+                .foregroundStyle(nextActionDate < .now ? .red : .secondary)
+            }
             Menu {
+                Button {
+                    showingEditor = true
+                } label: {
+                    Label("Edit details", systemImage: "pencil")
+                }
+                Divider()
                 ForEach(DealStage.allCases) { stage in
-                    Button(stage.title) { deal.stage = stage }
+                    Button(stage.title) {
+                        deal.stage = stage
+                        try? modelContext.save()
+                    }
                 }
             } label: {
-                Label("Move", systemImage: "arrow.right.circle")
+                Label("Manage", systemImage: "ellipsis.circle")
                     .font(.caption.weight(.semibold))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        .sheet(isPresented: $showingEditor) {
+            EditDealView(deal: deal)
+        }
     }
 }
 
-private struct NewDealView: View {
+struct NewDealView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: \EchoContact.givenName) private var contacts: [EchoContact]
     @State private var title = ""
     @State private var value = 0.0
     @State private var stage: DealStage = .lead
+    @State private var selectedContactIdentifier: String?
+    @State private var hasNextAction = true
+    @State private var nextActionDate = Calendar.current.date(byAdding: .day, value: 3, to: .now) ?? .now
+
+    init(contact: EchoContact? = nil) {
+        _selectedContactIdentifier = State(initialValue: contact?.systemIdentifier)
+    }
 
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Deal name", text: $title)
-                TextField("Value", value: $value, format: .number).keyboardType(.decimalPad)
-                Picker("Stage", selection: $stage) {
-                    ForEach(DealStage.allCases) { Text($0.title).tag($0) }
+                Section("Opportunity") {
+                    TextField("Deal name", text: $title)
+                    TextField("Value", value: $value, format: .number)
+                        .keyboardType(.decimalPad)
+                    Picker("Stage", selection: $stage) {
+                        ForEach(DealStage.allCases) { Text($0.title).tag($0) }
+                    }
+                }
+                Section("Relationship") {
+                    Picker("Contact", selection: $selectedContactIdentifier) {
+                        Text("No contact").tag(String?.none)
+                        ForEach(contacts) { contact in
+                            Text(contact.fullName).tag(Optional(contact.systemIdentifier))
+                        }
+                    }
+                }
+                Section("Next step") {
+                    Toggle("Set next action", isOn: $hasNextAction)
+                    if hasNextAction {
+                        DatePicker(
+                            "Date",
+                            selection: $nextActionDate,
+                            displayedComponents: [.date]
+                        )
+                    }
                 }
             }
             .navigationTitle("New deal")
@@ -192,7 +244,16 @@ private struct NewDealView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
-                        modelContext.insert(Deal(title: title, value: value, stage: stage))
+                        let contact = contacts.first {
+                            $0.systemIdentifier == selectedContactIdentifier
+                        }
+                        modelContext.insert(Deal(
+                            title: title.trimmed,
+                            value: value,
+                            stage: stage,
+                            nextActionDate: hasNextAction ? nextActionDate : nil,
+                            contact: contact
+                        ))
                         try? modelContext.save()
                         dismiss()
                     }
@@ -201,4 +262,98 @@ private struct NewDealView: View {
             }
         }
     }
+}
+
+private struct EditDealView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \EchoContact.givenName) private var contacts: [EchoContact]
+
+    let deal: Deal
+    @State private var title: String
+    @State private var value: Double
+    @State private var stage: DealStage
+    @State private var selectedContactIdentifier: String?
+    @State private var hasNextAction: Bool
+    @State private var nextActionDate: Date
+    @State private var confirmingDelete = false
+
+    init(deal: Deal) {
+        self.deal = deal
+        _title = State(initialValue: deal.title)
+        _value = State(initialValue: deal.value)
+        _stage = State(initialValue: deal.stage)
+        _selectedContactIdentifier = State(initialValue: deal.contact?.systemIdentifier)
+        _hasNextAction = State(initialValue: deal.nextActionDate != nil)
+        _nextActionDate = State(initialValue: deal.nextActionDate ?? .now)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Opportunity") {
+                    TextField("Deal name", text: $title)
+                    TextField("Value", value: $value, format: .number)
+                        .keyboardType(.decimalPad)
+                    Picker("Stage", selection: $stage) {
+                        ForEach(DealStage.allCases) { Text($0.title).tag($0) }
+                    }
+                }
+                Section("Relationship") {
+                    Picker("Contact", selection: $selectedContactIdentifier) {
+                        Text("No contact").tag(String?.none)
+                        ForEach(contacts) { contact in
+                            Text(contact.fullName).tag(Optional(contact.systemIdentifier))
+                        }
+                    }
+                }
+                Section("Next step") {
+                    Toggle("Set next action", isOn: $hasNextAction)
+                    if hasNextAction {
+                        DatePicker("Date", selection: $nextActionDate, displayedComponents: [.date])
+                    }
+                }
+                Section {
+                    Button("Delete deal", role: .destructive) {
+                        confirmingDelete = true
+                    }
+                }
+            }
+            .navigationTitle("Edit deal")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save", action: save)
+                        .disabled(title.trimmed.isEmpty)
+                }
+            }
+            .confirmationDialog("Delete this deal?", isPresented: $confirmingDelete) {
+                Button("Delete deal", role: .destructive, action: deleteDeal)
+                Button("Cancel", role: .cancel) {}
+            }
+        }
+    }
+
+    private func save() {
+        deal.title = title.trimmed
+        deal.value = value
+        deal.stage = stage
+        deal.contact = contacts.first { $0.systemIdentifier == selectedContactIdentifier }
+        deal.nextActionDate = hasNextAction ? nextActionDate : nil
+        try? modelContext.save()
+        dismiss()
+    }
+
+    private func deleteDeal() {
+        modelContext.delete(deal)
+        try? modelContext.save()
+        dismiss()
+    }
+}
+
+private extension String {
+    var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
 }

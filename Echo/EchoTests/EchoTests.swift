@@ -65,6 +65,42 @@ final class EchoTests: XCTestCase {
         XCTAssertTrue(result.wasIncremental)
     }
 
+    func testContactIdentityAndLinkedDealPersistTogether() throws {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self,
+            configurations: configuration
+        )
+        let contact = EchoContact(
+            systemIdentifier: "test-contact",
+            givenName: "Mina",
+            familyName: "Chen",
+            priority: .hot,
+            companyName: "Northstar",
+            jobTitle: "Founder"
+        )
+        contact.tags = [ContactIdentity.prospect.rawValue]
+        let nextActionDate = Date(timeIntervalSince1970: 1_800_000_000)
+        let deal = Deal(
+            title: "Northstar renewal",
+            value: 25_000,
+            stage: .quoted,
+            nextActionDate: nextActionDate,
+            contact: contact
+        )
+
+        container.mainContext.insert(contact)
+        container.mainContext.insert(deal)
+        try container.mainContext.save()
+
+        let storedDeal = try XCTUnwrap(container.mainContext.fetch(FetchDescriptor<Deal>()).first)
+        XCTAssertEqual(storedDeal.contact?.systemIdentifier, "test-contact")
+        XCTAssertEqual(storedDeal.contact?.priority, .hot)
+        XCTAssertEqual(storedDeal.contact?.tags, [ContactIdentity.prospect.rawValue])
+        XCTAssertEqual(storedDeal.stage, .quoted)
+        XCTAssertEqual(storedDeal.nextActionDate, nextActionDate)
+    }
+
     func testDemoDataSeedsTwoHundredRichContacts() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(

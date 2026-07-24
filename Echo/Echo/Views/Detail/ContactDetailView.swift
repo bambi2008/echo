@@ -2,12 +2,15 @@ import SwiftData
 import SwiftUI
 
 struct ContactDetailView: View {
+    @Environment(\.dismiss) private var dismissDetail
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Deal.createdAt, order: .reverse) private var deals: [Deal]
     @Bindable var contact: EchoContact
     @State private var note = ""
     @State private var selectedType: InteractionType = .messaged
     @State private var outreachChannel: OutreachChannel?
+    @State private var showingEditContact = false
+    @State private var showingNewDeal = false
 
     var body: some View {
         List {
@@ -70,6 +73,14 @@ struct ContactDetailView: View {
                 if !contact.tags.isEmpty {
                     LabeledContent("Identity", value: contact.tags.joined(separator: " · "))
                 }
+                if let priority = contact.priority {
+                    LabeledContent {
+                        Label(priority.title, systemImage: priority.symbol)
+                            .foregroundStyle(priority == .hot ? .orange : .indigo)
+                    } label: {
+                        Text("Priority")
+                    }
+                }
             }
 
             Section("Business") {
@@ -100,6 +111,11 @@ struct ContactDetailView: View {
                         }
                         .padding(.vertical, 3)
                     }
+                }
+                Button {
+                    showingNewDeal = true
+                } label: {
+                    Label("Add opportunity", systemImage: "plus.circle.fill")
                 }
             }
 
@@ -174,8 +190,21 @@ struct ContactDetailView: View {
         }
         .navigationTitle(contact.givenName)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Edit") { showingEditContact = true }
+            }
+        }
         .sheet(item: $outreachChannel) { channel in
             OutreachComposerView(contact: contact, channel: channel)
+        }
+        .sheet(isPresented: $showingEditContact) {
+            EditContactView(contact: contact) {
+                dismissDetail()
+            }
+        }
+        .sheet(isPresented: $showingNewDeal) {
+            NewDealView(contact: contact)
         }
     }
 

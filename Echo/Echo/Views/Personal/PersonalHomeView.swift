@@ -125,6 +125,12 @@ private struct ContactRow: View {
                     .lineLimit(1)
             }
             Spacer()
+            if let priority = contact.priority, priority != .cold {
+                Image(systemName: priority.symbol)
+                    .font(.caption)
+                    .foregroundStyle(priority == .hot ? .orange : .indigo)
+                    .accessibilityLabel("\(priority.title) priority")
+            }
             if let days = contact.daysSinceContact {
                 Text("\(days)d")
                     .font(.caption.weight(.semibold))
@@ -149,6 +155,8 @@ private struct NewContactView: View {
     @State private var emailAddress = ""
     @State private var companyName = ""
     @State private var jobTitle = ""
+    @State private var priority: PriorityLevel?
+    @State private var identity: ContactIdentity?
 
     var body: some View {
         NavigationStack {
@@ -167,20 +175,35 @@ private struct NewContactView: View {
                     .textContentType(.organizationName)
                 TextField("Role", text: $jobTitle)
                     .textContentType(.jobTitle)
+                Picker("Priority", selection: $priority) {
+                    Text("Not set").tag(PriorityLevel?.none)
+                    ForEach(PriorityLevel.allCases) { level in
+                        Text(level.title).tag(Optional(level))
+                    }
+                }
+                Picker("Identity", selection: $identity) {
+                    Text("Not set").tag(ContactIdentity?.none)
+                    ForEach(ContactIdentity.allCases) { item in
+                        Text(item.rawValue).tag(Optional(item))
+                    }
+                }
             }
             .navigationTitle("New person")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
-                        modelContext.insert(EchoContact(
+                        let contact = EchoContact(
                             givenName: givenName.trimmed,
                             familyName: familyName.trimmed,
                             phoneNumber: phoneNumber.trimmed.nilIfEmpty,
                             emailAddress: emailAddress.trimmed.nilIfEmpty,
+                            priority: priority,
                             companyName: companyName.trimmed.nilIfEmpty,
                             jobTitle: jobTitle.trimmed.nilIfEmpty
-                        ))
+                        )
+                        contact.tags = identity.map { [$0.rawValue] } ?? []
+                        modelContext.insert(contact)
                         try? modelContext.save()
                         dismiss()
                     }
