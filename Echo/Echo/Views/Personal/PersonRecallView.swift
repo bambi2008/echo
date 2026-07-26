@@ -4,7 +4,9 @@ import SwiftUI
 struct PersonRecallView: View {
     let contacts: [EchoContact]
 
+    @StateObject private var speech = SpeechRecognitionService()
     @State private var memoryDescription = ""
+    @State private var textBeforeDictation = ""
     @State private var localCandidates: [RecallCandidate] = []
     @State private var aiOrder: [String] = []
     @State private var aiMatches: [String: PersonRecallMatch] = [:]
@@ -51,6 +53,25 @@ struct PersonRecallView: View {
                 )
                 .lineLimit(4...8)
 
+                Button(action: toggleVoiceInput) {
+                    HStack(spacing: 8) {
+                        Image(systemName: speech.isRecording ? "stop.fill" : "mic.fill")
+                        Text(speech.isRecording ? "Stop listening" : "Describe by voice")
+                        if speech.isRecording {
+                            Spacer()
+                            RecordingIndicator()
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(speech.isRecording ? .red : .indigo)
+                .accessibilityHint(
+                    speech.isRecording
+                        ? "Stops voice transcription"
+                        : "Starts live voice transcription in the memory field"
+                )
+
                 Button(action: findPeople) {
                     HStack {
                         if isRefining {
@@ -68,7 +89,11 @@ struct PersonRecallView: View {
             } header: {
                 Text("What do you remember?")
             } footer: {
-                Text("You can also use the microphone on the iPhone keyboard to describe the person.")
+                Text(
+                    speech.isRecording
+                        ? "Listening… Speak naturally. Your words appear above as you talk."
+                        : "Voice is transcribed into this field. You can review or edit it before searching."
+                )
             }
 
             Section("Try an example") {
@@ -111,13 +136,51 @@ struct PersonRecallView: View {
         }
         .navigationTitle("Memory search")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: speech.transcript) { _, transcript in
+            memoryDescription = VoiceTranscriptComposer.combine(
+                existing: textBeforeDictation,
+                spoken: transcript
+            )
+        }
+        .onDisappear {
+            speech.stop()
+        }
+        .alert(
+            "Voice input",
+            isPresented: Binding(
+                get: { speech.errorMessage != nil },
+                set: { isPresented in
+                    if !isPresented { speech.errorMessage = nil }
+                }
+            )
+        ) {
+            Button("OK", role: .cancel) {
+                speech.errorMessage = nil
+            }
+        } message: {
+            Text(speech.errorMessage ?? "")
+        }
     }
 
     private var trimmedDescription: String {
         memoryDescription.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private func toggleVoiceInput() {
+        if speech.isRecording {
+            speech.stop()
+            return
+        }
+        textBeforeDictation = trimmedDescription
+        Task {
+            await speech.start()
+        }
+    }
+
     private func findPeople() {
+        if speech.isRecording {
+            speech.stop()
+        }
         let description = trimmedDescription
         guard description.count >= 3 else { return }
 
@@ -212,6 +275,26 @@ struct PersonRecallView: View {
                 ? "\(EchoAIEnvironment.message(for: error)) Showing private on-device matches."
                 : "Echo AI is unavailable. Showing private on-device matches."
         }
+    }
+}
+
+private struct RecordingIndicator: View {
+    @State private var isPulsing = false
+
+    var body: some View {
+        Circle()
+            .fill(.red)
+            .frame(width: 9, height: 9)
+            .scaleEffect(isPulsing ? 1.35 : 0.8)
+            .opacity(isPulsing ? 0.55 : 1)
+            .animation(
+                .easeInOut(duration: 0.75).repeatForever(autoreverses: true),
+                value: isPulsing
+            )
+            .onAppear {
+                isPulsing = true
+            }
+            .accessibilityHidden(true)
     }
 }
 

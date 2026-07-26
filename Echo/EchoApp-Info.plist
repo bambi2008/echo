@@ -35,6 +35,10 @@
 	<true/>
 	<key>NSContactsUsageDescription</key>
 	<string>Echo imports contacts you choose so it can help you remember and strengthen relationships.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Echo uses the microphone only while you dictate a memory to help find a contact.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Echo converts your spoken memory into text so you can search for a contact.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

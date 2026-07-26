@@ -123,6 +123,19 @@ final class EchoTests: XCTestCase {
         XCTAssertTrue(matches.first?.matchedKeywords.contains("colleague") == true)
     }
 
+    func testVoiceTranscriptKeepsExistingMemoryText() {
+        let combined = VoiceTranscriptComposer.combine(
+            existing: "去年在上海",
+            spoken: "保险活动认识"
+        )
+
+        XCTAssertEqual(combined, "去年在上海 保险活动认识")
+        XCTAssertEqual(
+            VoiceTranscriptComposer.combine(existing: "", spoken: "王总介绍"),
+            "王总介绍"
+        )
+    }
+
     func testNeverContactedPersonGetsMaximumAttentionScore() {
         let contact = EchoContact(givenName: "Mike", reachCount: 12)
 
