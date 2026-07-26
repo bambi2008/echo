@@ -103,6 +103,17 @@ struct AIModelRouterTests {
         #expect(migrated.policies[.dailyBriefing]?.primary == "my-custom-model")
     }
 
+    @Test("New task policies are added to an older saved configuration")
+    func newTaskPolicyMigration() throws {
+        var legacy = AIModelConfiguration.deepSeekV4
+        legacy.policies[.personRecall] = nil
+
+        let migrated = AIModelRouter.migrateRetiredAliases(in: legacy)
+
+        #expect(migrated.policies[.personRecall]?.primary == "deepseek-v4-flash")
+        #expect(migrated.policies.count == AITask.allCases.count)
+    }
+
     @Test("A complete configuration replacement can be rolled back")
     func rollback() async throws {
         let suite = "EchoAITests.\(UUID().uuidString)"

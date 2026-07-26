@@ -159,9 +159,12 @@ public actor AIModelRouter {
         var changed = false
 
         for task in AITask.allCases {
-            guard var policy = migrated.policies[task],
-                  let replacement = defaults.policies[task]
-            else { continue }
+            guard let replacement = defaults.policies[task] else { continue }
+            guard var policy = migrated.policies[task] else {
+                migrated.policies[task] = replacement
+                changed = true
+                continue
+            }
 
             if retired.contains(policy.primary.rawValue) {
                 policy.primary = replacement.primary

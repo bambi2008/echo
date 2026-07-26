@@ -42,6 +42,28 @@ struct PersonalHomeView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        PersonRecallView(contacts: contacts)
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "person.fill.questionmark")
+                                .font(.title2)
+                                .foregroundStyle(.indigo)
+                                .frame(width: 40, height: 40)
+                                .background(Color.indigo.opacity(0.12), in: Circle())
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Can't remember their name?")
+                                    .font(.headline)
+                                Text("Describe what you remember and let Echo find them.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+
+                Section {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Today's echo", systemImage: "wave.3.right")
                             .font(.headline)

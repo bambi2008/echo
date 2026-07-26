@@ -74,6 +74,32 @@ struct EchoAIFeaturesTests {
         #expect(await client.models == ["deepseek-v4-flash", "deepseek-v4-pro"])
     }
 
+    @Test("Incomplete memories produce typed person recall matches")
+    func personRecallDecoding() async throws {
+        let client = QueueClient(responses: [
+            AIResult(
+                text: """
+                {"matches":[{"alias":"Person B","confidence":84,"reason":"Matches the event and introduction note."}]}
+                """,
+                model: "deepseek-v4-flash"
+            )
+        ])
+        let features = EchoAIFeatures(
+            service: AIService(client: client, router: AIModelRouter(defaults: nil))
+        )
+
+        let result = try await features.personRecall(
+            memoryDescription: "Met at an insurance event",
+            candidateSummaries: "Person A: finance\nPerson B: insurance event"
+        )
+
+        #expect(result.value.matches.count == 1)
+        #expect(result.value.matches.first?.alias == "Person B")
+        #expect(result.value.matches.first?.confidence == 84)
+        #expect(result.model == "deepseek-v4-flash")
+        #expect(await client.models == ["deepseek-v4-flash"])
+    }
+
     @Test("Business card JSON is decoded with model metadata")
     func businessCardDecoding() async throws {
         let client = QueueClient(responses: [

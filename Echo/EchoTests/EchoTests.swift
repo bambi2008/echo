@@ -51,6 +51,78 @@ final class EchoTests: XCTestCase {
         XCTAssertNil(clientFriend.relationshipDomainRawValue)
     }
 
+    func testMemorySearchFindsAPersonWithoutUsingTheirName() {
+        let calendar = Calendar.current
+        let lastYear = calendar.date(byAdding: .year, value: -1, to: .now)!
+        let target = EchoContact(
+            givenName: "Jing",
+            familyName: "Chen",
+            companyName: "Harbor Insurance",
+            jobTitle: "Enterprise Advisor"
+        )
+        target.tags = [ContactIdentity.client.rawValue, "Insurance"]
+        target.notes.append(EchoNote(
+            createdAt: lastYear,
+            content: "去年在上海保险活动认识，王总介绍，负责企业客户。",
+            contact: target
+        ))
+        let distractor = EchoContact(
+            givenName: "Leo",
+            familyName: "Wu",
+            companyName: "Northstar Design",
+            jobTitle: "Designer"
+        )
+        distractor.notes.append(EchoNote(
+            content: "Discussed a new product design.",
+            contact: distractor
+        ))
+
+        let matches = RecallSearchEngine.search(
+            description: "去年上海保险活动认识，王总介绍，做企业客户",
+            contacts: [distractor, target],
+            now: .now
+        )
+
+        XCTAssertEqual(matches.first?.contact.systemIdentifier, target.systemIdentifier)
+        XCTAssertTrue(matches.first?.matchedKeywords.contains("上海") == true)
+        XCTAssertTrue(matches.first?.evidence.contains("a saved note") == true)
+    }
+
+    func testMemorySearchReturnsNoGuessWithoutMatchingEvidence() {
+        let contact = EchoContact(givenName: "Mina", companyName: "Echo")
+
+        let matches = RecallSearchEngine.search(
+            description: "在南极科考站认识的天文学家",
+            contacts: [contact]
+        )
+
+        XCTAssertTrue(matches.isEmpty)
+    }
+
+    func testMemorySearchBridgesChineseCluesToEnglishContactData() {
+        let financeColleague = EchoContact(
+            givenName: "Kevin",
+            companyName: "Evergreen Wealth",
+            jobTitle: "Financial Advisor"
+        )
+        financeColleague.tags = ["Former colleague", "Finance"]
+        let designer = EchoContact(
+            givenName: "Nora",
+            companyName: "Canvas",
+            jobTitle: "Design Lead"
+        )
+        designer.tags = ["Friend", "Design"]
+
+        let matches = RecallSearchEngine.search(
+            description: "以前的同事，后来去了金融行业",
+            contacts: [designer, financeColleague]
+        )
+
+        XCTAssertEqual(matches.first?.contact.systemIdentifier, financeColleague.systemIdentifier)
+        XCTAssertTrue(matches.first?.matchedKeywords.contains("finance") == true)
+        XCTAssertTrue(matches.first?.matchedKeywords.contains("colleague") == true)
+    }
+
     func testNeverContactedPersonGetsMaximumAttentionScore() {
         let contact = EchoContact(givenName: "Mike", reachCount: 12)
 

@@ -107,6 +107,29 @@ public struct EchoAIFeatures: Sendable {
         )
     }
 
+    public func personRecall(
+        memoryDescription: String,
+        candidateSummaries: String,
+        modelOverride: AIModelID? = nil
+    ) async throws -> AIStructuredResult<PersonRecallResponse> {
+        let result = try await service.chat(
+            task: .personRecall,
+            systemPrompt: """
+            Help identify a person from incomplete memory. Rank only the supplied aliases using only supplied evidence. Return at most five matches. Confidence is an integer from 0 to 100 and must reflect ambiguity. Explain the matching clues briefly. Never infer sensitive traits or invent facts. Return only valid JSON:
+            {"matches":[{"alias":"Person A","confidence":80,"reason":"Matches the event, industry, and introduction note."}]}
+            """,
+            userMessage: """
+            Memory:
+            \(memoryDescription)
+
+            Candidates:
+            \(candidateSummaries)
+            """,
+            modelOverride: modelOverride
+        )
+        return try decode(PersonRecallResponse.self, from: result, task: .personRecall)
+    }
+
     public func businessCard(
         imageData: Data,
         mimeType: String = "image/jpeg",
@@ -262,6 +285,26 @@ public struct BusinessCardInfo: Codable, Equatable, Sendable {
     public let phone: String
     public let email: String
     public let website: String
+}
+
+public struct PersonRecallResponse: Codable, Equatable, Sendable {
+    public let matches: [PersonRecallMatch]
+
+    public init(matches: [PersonRecallMatch]) {
+        self.matches = matches
+    }
+}
+
+public struct PersonRecallMatch: Codable, Equatable, Sendable {
+    public let alias: String
+    public let confidence: Int
+    public let reason: String
+
+    public init(alias: String, confidence: Int, reason: String) {
+        self.alias = alias
+        self.confidence = confidence
+        self.reason = reason
+    }
 }
 
 public struct PolicyDocumentInfo: Codable, Equatable, Sendable {

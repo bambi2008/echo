@@ -23,6 +23,7 @@ public enum AITask: String, Codable, CaseIterable, Sendable {
     case conversationOpener = "conversation_opener"
     case relationshipInsight = "relationship_insight"
     case relationshipHealth = "relationship_health"
+    case personRecall = "person_recall"
     case businessCardOCR = "business_card_ocr"
     case policyOCR = "policy_ocr"
     case salesCoach = "sales_coach"
@@ -75,6 +76,7 @@ public struct AIModelConfiguration: Codable, Equatable, Sendable {
         .conversationOpener: .init(primary: "deepseek-v4-flash", fallbacks: ["deepseek-v4-pro"], maxOutputTokens: 200),
         .relationshipInsight: .init(primary: "deepseek-v4-flash", fallbacks: ["deepseek-v4-pro"]),
         .relationshipHealth: .init(primary: "deepseek-v4-pro", fallbacks: ["deepseek-v4-flash"]),
+        .personRecall: .init(primary: "deepseek-v4-flash", fallbacks: ["deepseek-v4-pro"], temperature: 0.2, maxOutputTokens: 800),
         .businessCardOCR: .init(primary: "deepseek-v4-pro", fallbacks: ["deepseek-v4-flash"], temperature: 0, maxOutputTokens: 1_000),
         .policyOCR: .init(primary: "deepseek-v4-pro", fallbacks: ["deepseek-v4-flash"], temperature: 0, maxOutputTokens: 1_500),
         .salesCoach: .init(primary: "deepseek-v4-pro", fallbacks: ["deepseek-v4-flash"], temperature: 0.4, maxOutputTokens: 1_200),
