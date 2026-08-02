@@ -1,7 +1,7 @@
 import SwiftUI
 import StoreKit
 struct SettingsView: View {
-    @State private var showAbout = false; @State private var showPaywall = false; @State private var showYearInReview = false; @State private var showFoundersNote = false; @State private var showAIChat = false
+    @State private var showAbout = false; @State private var showPaywall = false; @State private var showYearInReview = false; @State private var showAIChat = false
     @EnvironmentObject private var store: StoreManager; @EnvironmentObject private var auth: AuthManager; @EnvironmentObject private var trial: TrialManager
     @Query private var contacts: [EchoContact]
     var body: some View {
@@ -16,7 +16,7 @@ struct SettingsView: View {
                             settingRow("wave.3.right", "Chat with Echo AI", .cyan) { showAIChat = true }
                             settingRow("link", "GitHub Repository", .blue) { if let u = URL(string: "https://github.com/bambi2008/echo") { UIApplication.shared.open(u) } }
                             settingRow("envelope", "Send Feedback", .orange) { if let u = URL(string: "mailto:bambi2008@users.noreply.github.com") { UIApplication.shared.open(u) } }
-                            settingRow("person.crop.circle.badge.questionmark", "About Echo", .gray) { showAbout = true }
+                            settingRow("info.circle", "About Echo", .gray) { showAbout = true }
                         }.padding(8).background(EchoTheme.bgCard).clipShape(RoundedRectangle(cornerRadius: 16))
                         VStack(alignment: .leading, spacing: 12) {
                             HStack(spacing: 8) { Image(systemName: "lock.fill").foregroundStyle(EchoTheme.success); Text("Your contacts stay on your device.").font(.subheadline).foregroundStyle(EchoTheme.textSecondary) }
@@ -27,8 +27,7 @@ struct SettingsView: View {
                 }
             }.navigationTitle("Settings").navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showYearInReview) { YearInReviewView(contacts: contacts) }
-            .sheet(isPresented: $showAIChat) { AIChatView(contacts: contacts) }
-            .sheet(isPresented: $showFoundersNote) { FoundersNoteView() }
+            .sheet(isPresented: $showAIChat) { AIChatView() }
             .alert("About Echo", isPresented: $showAbout) { Button("OK", role: .cancel) {} } message: { Text("Echo helps you stay in touch with the people who matter. All data stays on your device. v1.0") }
             .sheet(isPresented: $showPaywall) { PaywallView { } }
         }
