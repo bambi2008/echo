@@ -4,45 +4,52 @@
 	classes = {};
 	objectVersion = 56;
 	objects = {
-
 /* PBXBuildFile */
-		AA000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001001 /* ContentView.swift */; };
-		AA000002 /* EchoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001002 /* EchoApp.swift */; };
-		AA000003 /* Deal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001003 /* Deal.swift */; };
-		AA000004 /* EchoContact.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001004 /* EchoContact.swift */; };
-		AA000005 /* Enums.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001005 /* Enums.swift */; };
-		AA000006 /* Interaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001006 /* Interaction.swift */; };
-		AA000007 /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001007 /* Note.swift */; };
-		AA000008 /* ContactImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001008 /* ContactImportService.swift */; };
-		AA000009 /* EchoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001009 /* EchoEngine.swift */; };
-		AA000010 /* FreeTierManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001010 /* FreeTierManager.swift */; };
-		AA000011 /* StreakManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001011 /* StreakManager.swift */; };
-		AA000012 /* ContactDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001012 /* ContactDetailView.swift */; };
-		AA000013 /* ReachSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001013 /* ReachSheetView.swift */; };
-		AA000014 /* EchoCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001014 /* EchoCardView.swift */; };
-		AA000015 /* EchoLayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001015 /* EchoLayerView.swift */; };
-		AA000016 /* PeopleLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001016 /* PeopleLibraryView.swift */; };
-		AA000017 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001017 /* SettingsView.swift */; };
-		AA000018 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001018 /* PaywallView.swift */; };
-		AA000019 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001019 /* OnboardingView.swift */; };
-		AA000020 /* OnboardingTour.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001020 /* OnboardingTour.swift */; };
-		AA000021 /* MilestoneSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001021 /* MilestoneSheet.swift */; };
-		AA000022 /* WeeklyReviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001022 /* WeeklyReviewCard.swift */; };
-		AA000023 /* EchoTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001023 /* EchoTheme.swift */; };
-		AA000024 /* AIPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001024 /* AIPanelView.swift */; };
-		AA000025 /* AIEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001025 /* AIEngine.swift */; };
-		AA000026 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001026 /* StoreManager.swift */; };
-		AA000027 /* SurveyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001027 /* SurveyView.swift */; };
-		AA000028 /* RegistrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001028 /* RegistrationView.swift */; };
-		AA000029 /* ValuePropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001029 /* ValuePropView.swift */; };
-		AA000030 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001030 /* AuthManager.swift */; };
-		AA000031 /* AIChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001031 /* AIChatView.swift */; };
-		AA000032 /* NotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001032 /* NotificationScheduler.swift */; };
-		AA000033 /* RelationshipTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001033 /* RelationshipTimelineView.swift */; };
-		AA000034 /* BatchReachView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001034 /* BatchReachView.swift */; };
-		AA000035 /* AISettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001035 /* AISettingsView.swift */; };
-		AA000036 /* AIWeeklyReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001036 /* AIWeeklyReportView.swift */; };
-
+		AA000001 /* ContentView.swift */ = {isa = PBXBuildFile; fileRef = AA001001; };
+		AA000002 /* EchoApp.swift */ = {isa = PBXBuildFile; fileRef = AA001002; };
+		AA000003 /* Deal.swift */ = {isa = PBXBuildFile; fileRef = AA001003; };
+		AA000004 /* EchoContact.swift */ = {isa = PBXBuildFile; fileRef = AA001004; };
+		AA000005 /* Enums.swift */ = {isa = PBXBuildFile; fileRef = AA001005; };
+		AA000006 /* Interaction.swift */ = {isa = PBXBuildFile; fileRef = AA001006; };
+		AA000007 /* Note.swift */ = {isa = PBXBuildFile; fileRef = AA001007; };
+		AA000008 /* ContactImportService.swift */ = {isa = PBXBuildFile; fileRef = AA001008; };
+		AA000009 /* EchoEngine.swift */ = {isa = PBXBuildFile; fileRef = AA001009; };
+		AA000010 /* FreeTierManager.swift */ = {isa = PBXBuildFile; fileRef = AA001010; };
+		AA000011 /* StreakManager.swift */ = {isa = PBXBuildFile; fileRef = AA001011; };
+		AA000012 /* ContactDetailView.swift */ = {isa = PBXBuildFile; fileRef = AA001012; };
+		AA000013 /* ReachSheetView.swift */ = {isa = PBXBuildFile; fileRef = AA001013; };
+		AA000014 /* EchoCardView.swift */ = {isa = PBXBuildFile; fileRef = AA001014; };
+		AA000015 /* EchoLayerView.swift */ = {isa = PBXBuildFile; fileRef = AA001015; };
+		AA000016 /* PeopleLibraryView.swift */ = {isa = PBXBuildFile; fileRef = AA001016; };
+		AA000017 /* SettingsView.swift */ = {isa = PBXBuildFile; fileRef = AA001017; };
+		AA000018 /* PaywallView.swift */ = {isa = PBXBuildFile; fileRef = AA001018; };
+		AA000019 /* OnboardingView.swift */ = {isa = PBXBuildFile; fileRef = AA001019; };
+		AA000020 /* OnboardingTour.swift */ = {isa = PBXBuildFile; fileRef = AA001020; };
+		AA000021 /* MilestoneSheet.swift */ = {isa = PBXBuildFile; fileRef = AA001021; };
+		AA000022 /* WeeklyReviewCard.swift */ = {isa = PBXBuildFile; fileRef = AA001022; };
+		AA000023 /* EchoTheme.swift */ = {isa = PBXBuildFile; fileRef = AA001023; };
+		AA000024 /* AIPanelView.swift */ = {isa = PBXBuildFile; fileRef = AA001024; };
+		AA000025 /* AIEngine.swift */ = {isa = PBXBuildFile; fileRef = AA001025; };
+		AA000026 /* StoreManager.swift */ = {isa = PBXBuildFile; fileRef = AA001026; };
+		AA000027 /* SurveyView.swift */ = {isa = PBXBuildFile; fileRef = AA001027; };
+		AA000028 /* RegistrationView.swift */ = {isa = PBXBuildFile; fileRef = AA001028; };
+		AA000029 /* ValuePropView.swift */ = {isa = PBXBuildFile; fileRef = AA001029; };
+		AA000030 /* AuthManager.swift */ = {isa = PBXBuildFile; fileRef = AA001030; };
+		AA000031 /* AIChatView.swift */ = {isa = PBXBuildFile; fileRef = AA001031; };
+		AA000032 /* NotificationScheduler.swift */ = {isa = PBXBuildFile; fileRef = AA001032; };
+		AA000033 /* RelationshipTimelineView.swift */ = {isa = PBXBuildFile; fileRef = AA001033; };
+		AA000034 /* BatchReachView.swift */ = {isa = PBXBuildFile; fileRef = AA001034; };
+		AA000035 /* AISettingsView.swift */ = {isa = PBXBuildFile; fileRef = AA001035; };
+		AA000036 /* AIWeeklyReportView.swift */ = {isa = PBXBuildFile; fileRef = AA001036; };
+		AA000037 /* EchoLayerComponents.swift */ = {isa = PBXBuildFile; fileRef = AA001037; };
+		AA000038 /* LaunchView.swift */ = {isa = PBXBuildFile; fileRef = AA001038; };
+		AA000039 /* DemoDataManager.swift */ = {isa = PBXBuildFile; fileRef = AA001039; };
+		AA000040 /* MilestoneShareCard.swift */ = {isa = PBXBuildFile; fileRef = AA001040; };
+		AA000041 /* AchievementSystem.swift */ = {isa = PBXBuildFile; fileRef = AA001041; };
+		AA000042 /* StreakCalendarView.swift */ = {isa = PBXBuildFile; fileRef = AA001042; };
+		AA000043 /* EmptyStateView.swift */ = {isa = PBXBuildFile; fileRef = AA001043; };
+		AA000044 /* EchoWidget.swift */ = {isa = PBXBuildFile; fileRef = AA001044; };
+		AA000045 /* FoundersNoteView.swift */ = {isa = PBXBuildFile; fileRef = AA001045; };
 /* PBXFileReference */
 		AA001001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AA001002 /* EchoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EchoApp.swift; sourceTree = "<group>"; };
@@ -80,53 +87,45 @@
 		AA001034 /* BatchReachView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchReachView.swift; sourceTree = "<group>"; };
 		AA001035 /* AISettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISettingsView.swift; sourceTree = "<group>"; };
 		AA001036 /* AIWeeklyReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIWeeklyReportView.swift; sourceTree = "<group>"; };
+		AA001037 /* EchoLayerComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EchoLayerComponents.swift; sourceTree = "<group>"; };
+		AA001038 /* LaunchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchView.swift; sourceTree = "<group>"; };
+		AA001039 /* DemoDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoDataManager.swift; sourceTree = "<group>"; };
+		AA001040 /* MilestoneShareCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneShareCard.swift; sourceTree = "<group>"; };
+		AA001041 /* AchievementSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementSystem.swift; sourceTree = "<group>"; };
+		AA001042 /* StreakCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakCalendarView.swift; sourceTree = "<group>"; };
+		AA001043 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
+		AA001044 /* EchoWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EchoWidget.swift; sourceTree = "<group>"; };
+		AA001045 /* FoundersNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoundersNoteView.swift; sourceTree = "<group>"; };
 		AA002001 /* Echo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Echo.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		AA002002 /* EchoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-
 /* PBXFrameworksBuildPhase */
-		AA003001 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-
+		AA003001 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); };
 /* PBXResourcesBuildPhase */
-		AA003003 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-
+		AA003003 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); };
 /* PBXGroups */
-		AA004001 = {isa = PBXGroup; children = (AA004002, AA004010, AA002001, AA002002); sourceTree = "<group>"; };
-		AA004002 = {isa = PBXGroup; children = (AA004003, AA004006, AA004007, AA004008, AA004009, AA004011); path = Echo; sourceTree = "<group>"; };
-		AA004003 = {isa = PBXGroup; children = (AA001001, AA001002, AA001023); path = ""; sourceTree = "<group>"; };
-		AA004006 = {isa = PBXGroup; children = (AA004004, AA004005); path = Views; sourceTree = "<group>"; };
-		AA004004 = {isa = PBXGroup; children = (AA001012, AA001013, AA001033); path = Detail; sourceTree = "<group>"; };
-		AA004005 = {isa = PBXGroup; children = (AA001014, AA001015, AA001016, AA001022, AA001024, AA001031, AA001034, AA001036); path = Personal; sourceTree = "<group>"; };
-		AA004007 = {isa = PBXGroup; children = (AA001008, AA001009, AA001010, AA001011, AA001026, AA001025, AA001030, AA001032); path = Services; sourceTree = "<group>"; };
-		AA004008 = {isa = PBXGroup; children = (AA001017, AA001018, AA001035); path = Settings; sourceTree = "<group>"; };
-		AA004009 = {isa = PBXGroup; children = (AA001019, AA001020, AA001027, AA001028, AA001029); path = Onboarding; sourceTree = "<group>"; };
-		AA004010 = {isa = PBXGroup; children = (AA004012); path = EchoTests; sourceTree = "<group>"; };
-		AA004011 = {isa = PBXGroup; children = (AA001003, AA001004, AA001005, AA001006, AA001007); path = Models; sourceTree = "<group>"; };
-		AA004012 = {isa = PBXGroup; children = (AA001021, AA004013); path = ""; sourceTree = "<group>"; };
-		AA004013 = {isa = PBXGroup; children = (); name = ""; sourceTree = "<group>"; };
-
+		AA004001 = {isa = PBXGroup; children = (AA004002, AA002001); };
+		AA004002 = {isa = PBXGroup; children = (AA004003, AA004006, AA004007, AA004008, AA004009, AA004011); path = Echo; };
+		AA004003 = {isa = PBXGroup; children = (AA001001, AA001002, AA001023); };
+		AA004006 = {isa = PBXGroup; children = (AA004004, AA004005); path = Views; };
+		AA004004 = {isa = PBXGroup; children = (AA001012, AA001013, AA001033); path = Detail; };
+		AA004005 = {isa = PBXGroup; children = (AA001014, AA001015, AA001016, AA001022, AA001024, AA001031, AA001034, AA001036, AA001037, AA001040, AA001041, AA001042, AA001043, AA001044); path = Personal; };
+		AA004007 = {isa = PBXGroup; children = (AA001008, AA001009, AA001010, AA001011, AA001026, AA001025, AA001030, AA001032, AA001039); path = Services; };
+		AA004008 = {isa = PBXGroup; children = (AA001017, AA001018, AA001035, AA001045); path = Settings; };
+		AA004009 = {isa = PBXGroup; children = (AA001019, AA001020, AA001027, AA001028, AA001029, AA001038); path = Onboarding; };
+		AA004011 = {isa = PBXGroup; children = (AA001003, AA001004, AA001005, AA001006, AA001007); path = Models; };
 /* PBXNativeTarget */
-		AA005001 = {isa = PBXNativeTarget; buildConfigurationList = AA006001; buildPhases = (AA003002, AA003001, AA003003); buildRules = (); dependencies = (); name = Echo; productName = Echo; productReference = AA002001; productType = "com.apple.product-type.application"; };
-		AA005002 = {isa = PBXNativeTarget; buildConfigurationList = AA006003; buildPhases = (AA003004); buildRules = (); dependencies = (); name = EchoTests; productName = EchoTests; productReference = AA002002; productType = "com.apple.product-type.bundle.unit-test"; };
-
+		AA005001 = {isa = PBXNativeTarget; buildConfigurationList = AA006001; buildPhases = (AA003002, AA003001, AA003003); productName = Echo; productReference = AA002001; productType = "com.apple.product-type.application"; };
 /* PBXProject */
-		AA007001 = {isa = PBXProject; attributes = { LastSwiftUpdateCheck = 1500; LastUpgradeCheck = 1500; TargetAttributes = { AA005001 = { CreatedOnToolsVersion = 15.0; }; AA005002 = { CreatedOnToolsVersion = 15.0; TestTargetID = AA005001; }; }; }; buildConfigurationList = AA006005; compatibilityVersion = "Xcode 14.0"; developmentRegion = "en"; hasScannedForEncodings = 0; knownRegions = ("en", Base); mainGroup = AA004001; packageReferences = (); productRefGroup = AA004001; projectDirPath = ""; projectRoot = ""; targets = (AA005001, AA005002); };
-
+		AA007001 = {isa = PBXProject; attributes = {TargetAttributes = {AA005001 = {CreatedOnToolsVersion = 15.0;};};}; buildConfigurationList = AA006005; compatibilityVersion = "Xcode 14.0"; developmentRegion = "en"; knownRegions = ("en", Base); mainGroup = AA004001; productRefGroup = AA004001; targets = (AA005001); };
 /* PBXSourcesBuildPhase */
-		AA003002 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (AA000001, AA000002, AA000003, AA000004, AA000005, AA000006, AA000007, AA000008, AA000009, AA000010, AA000011, AA000012, AA000013, AA000014, AA000015, AA000016, AA000017, AA000018, AA000019, AA000020, AA000021, AA000022, AA000023, AA000024, AA000025, AA000026, AA000027, AA000028, AA000029, AA000030, AA000031, AA000032, AA000033, AA000034, AA000035, AA000036); runOnlyForDeploymentPostprocessing = 0; };
-		AA003004 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-
+		AA003002 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (AA000001, AA000002, AA000003, AA000004, AA000005, AA000006, AA000007, AA000008, AA000009, AA000010, AA000011, AA000012, AA000013, AA000014, AA000015, AA000016, AA000017, AA000018, AA000019, AA000020, AA000021, AA000022, AA000023, AA000024, AA000025, AA000026, AA000027, AA000028, AA000029, AA000030, AA000031, AA000032, AA000033, AA000034, AA000035, AA000036, AA000037, AA000038, AA000039, AA000040, AA000041, AA000042, AA000043, AA000044, AA000045); };
 /* XCBuildConfiguration */
-		AA006002 = {isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = Echo; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES; INFOPLIST_KEY_UILaunchScreen_Generation = YES; INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait"; IPHONEOS_DEPLOYMENT_TARGET = 17.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.echo.app; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; }; name = Debug; };
-		AA006004 = {isa = XCBuildConfiguration; buildSettings = { BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.echo.tests; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Echo.app/Echo"; }; name = Debug; };
-		AA006006 = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ANALYZER_NONNULL = YES; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_STRICT_OBJC_MSGSEND = YES; ENABLE_TESTABILITY = YES; GCC_OPTIMIZATION_LEVEL = 0; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE; MTL_FAST_MATH = YES; ONLY_ACTIVE_ARCH = YES; SDKROOT = iphoneos; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
-		AA006007 = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ANALYZER_NONNULL = YES; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_NS_ASSERTIONS = NO; ENABLE_STRICT_OBJC_MSGSEND = YES; MTL_ENABLE_DEBUG_INFO = NO; MTL_FAST_MATH = YES; SDKROOT = iphoneos; SWIFT_ACTIVE_COMPILATION_CONDITIONS = ""; SWIFT_OPTIMIZATION_LEVEL = "-O"; }; name = Release; };
-		AA006002b = {isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = Echo; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES; INFOPLIST_KEY_UILaunchScreen_Generation = YES; INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait"; IPHONEOS_DEPLOYMENT_TARGET = 17.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.echo.app; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; }; name = Release; };
-		AA006004b = {isa = XCBuildConfiguration; buildSettings = { BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.echo.tests; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Echo.app/Echo"; }; name = Release; };
-
+		AA006002 = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = Echo; IPHONEOS_DEPLOYMENT_TARGET = 17.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.echo.app; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; }; name = Debug; };
+		AA006002b = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = Echo; IPHONEOS_DEPLOYMENT_TARGET = 17.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.echo.app; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; }; name = Release; };
+		AA006006 = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_TESTABILITY = YES; GCC_OPTIMIZATION_LEVEL = 0; IPHONEOS_DEPLOYMENT_TARGET = 17.0; ONLY_ACTIVE_ARCH = YES; SDKROOT = iphoneos; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
+		AA006007 = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_OPTIMIZATION_LEVEL = "-O"; }; name = Release; };
 /* XCConfigurationList */
-		AA006001 = {isa = XCConfigurationList; buildConfigurations = (AA006002, AA006002b); defaultConfigurationName = Release; defaultConfigurationIsVisible = 0; };
-		AA006003 = {isa = XCConfigurationList; buildConfigurations = (AA006004, AA006004b); defaultConfigurationName = Release; defaultConfigurationIsVisible = 0; };
-		AA006005 = {isa = XCConfigurationList; buildConfigurations = (AA006006, AA006007); defaultConfigurationName = Release; defaultConfigurationIsVisible = 0; };
+		AA006001 = {isa = XCConfigurationList; buildConfigurations = (AA006002, AA006002b); defaultConfigurationName = Release; };
+		AA006005 = {isa = XCConfigurationList; buildConfigurations = (AA006006, AA006007); defaultConfigurationName = Release; };
 	};
 	rootObject = AA007001;
 }
