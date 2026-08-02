@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 struct ContentView: View {
-    @State private var selectedTab = 0; @State private var showTour = false; @State private var ahaContact: EchoContact?; @State private var surveyResult: SurveyResult?
+    @State private var selectedTab = 0; @State private var showTour = false; @State private var surveyResult: SurveyResult?
     @AppStorage("hasLaunched") private var hasLaunchedStored = false; @AppStorage("hasSeenConstellation") private var hasSeenConstellation = false
     @StateObject private var storeManager = StoreManager.shared; @StateObject private var authManager = AuthManager.shared; @StateObject private var trialManager = TrialManager.shared
     @Environment(\.modelContext) private var modelContext
@@ -19,13 +19,13 @@ struct ContentView: View {
         ZStack {
             EchoBackground()
             switch selectedTab {
-            case 0: EchoLayerView(ahaContact: $ahaContact)
+            case 0: EchoLayerView()
             case 1: PeopleLibraryView()
-            case 2: AnyView(AchievementsView(contacts: echoContacts))
+            case 2: AchievementsView(contacts: echoContacts)
             case 3: SettingsView()
-            default: EchoLayerView(ahaContact: $ahaContact)
+            default: EchoLayerView()
             }
-            FloatingTabBar(selectedTab: $selectedTab) { if selectedTab == 0 { ahaContact = nil } }
+            FloatingTabBar(selectedTab: $selectedTab) { EchoHaptics.selection() }
         }.overlay { if showTour { OnboardingTour(isActive: $showTour).transition(.opacity) } }.animation(.easeInOut(duration: 0.25), value: showTour).onAppear { loadDemoIfNeeded() }
     }
     private func loadDemoIfNeeded() { let desc = FetchDescriptor<EchoContact>(); let existing = (try? modelContext.fetch(desc)) ?? []; if existing.isEmpty { DemoDataManager.loadDemoData(context: modelContext) } }
@@ -36,7 +36,7 @@ struct ContentView: View {
             case .registration: RegistrationView { p in AuthManager.shared.saveUser(p); OnboardingState.complete(.registration) }
             case .valueProp: ValuePropView { OnboardingState.complete(.valueProp) }
             case .paywall: PaywallView { OnboardingState.complete(.paywall) }
-            case .importContacts: OnboardingView(hasImported: .constant(false)) { c in ahaContact = c; OnboardingState.complete(.importContacts); OnboardingState.complete(.done); DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { showTour = true } }
+            case .importContacts: OnboardingView(hasImported: .constant(false)) { _ in OnboardingState.complete(.importContacts); OnboardingState.complete(.done); DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { showTour = true } }
             case .done: mainApp
             }
         }
