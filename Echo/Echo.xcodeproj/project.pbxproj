@@ -1,0 +1,115 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* PBXBuildFile */
+		AA000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001001 /* ContentView.swift */; };
+		AA000002 /* EchoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001002 /* EchoApp.swift */; };
+		AA000003 /* Deal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001003 /* Deal.swift */; };
+		AA000004 /* EchoContact.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001004 /* EchoContact.swift */; };
+		AA000005 /* Enums.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001005 /* Enums.swift */; };
+		AA000006 /* Interaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001006 /* Interaction.swift */; };
+		AA000007 /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001007 /* Note.swift */; };
+		AA000008 /* ContactImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001008 /* ContactImportService.swift */; };
+		AA000009 /* EchoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001009 /* EchoEngine.swift */; };
+		AA000010 /* FreeTierManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001010 /* FreeTierManager.swift */; };
+		AA000011 /* StreakManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001011 /* StreakManager.swift */; };
+		AA000012 /* ContactDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001012 /* ContactDetailView.swift */; };
+		AA000013 /* ReachSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001013 /* ReachSheetView.swift */; };
+		AA000014 /* OnboardingTour.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001014 /* OnboardingTour.swift */; };
+		AA000015 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001015 /* OnboardingView.swift */; };
+		AA000016 /* EchoCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001016 /* EchoCardView.swift */; };
+		AA000017 /* EchoLayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001017 /* EchoLayerView.swift */; };
+		AA000018 /* MilestoneSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001018 /* MilestoneSheet.swift */; };
+		AA000019 /* WeeklyReviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001019 /* WeeklyReviewCard.swift */; };
+		AA000020 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001020 /* SettingsView.swift */; };
+		AA000021 /* EchoEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001021 /* EchoEngineTests.swift */; };
+		AA000022 /* ContactImportServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001022 /* ContactImportServiceTests.swift */; };
+		AA000023 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA001023 /* Assets.xcassets */; };
+		AA000024 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001024 /* StoreManager.swift */; };
+		AA000025 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001025 /* PaywallView.swift */; };
+		AA000026 /* EchoTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001026 /* EchoTheme.swift */; };
+
+/* PBXFileReference */
+		AA001001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		AA001002 /* EchoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EchoApp.swift; sourceTree = "<group>"; };
+		AA001003 /* Deal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Deal.swift; sourceTree = "<group>"; };
+		AA001004 /* EchoContact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EchoContact.swift; sourceTree = "<group>"; };
+		AA001005 /* Enums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Enums.swift; sourceTree = "<group>"; };
+		AA001006 /* Interaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Interaction.swift; sourceTree = "<group>"; };
+		AA001007 /* Note.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Note.swift; sourceTree = "<group>"; };
+		AA001008 /* ContactImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactImportService.swift; sourceTree = "<group>"; };
+		AA001009 /* EchoEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EchoEngine.swift; sourceTree = "<group>"; };
+		AA001010 /* FreeTierManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeTierManager.swift; sourceTree = "<group>"; };
+		AA001011 /* StreakManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakManager.swift; sourceTree = "<group>"; };
+		AA001012 /* ContactDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactDetailView.swift; sourceTree = "<group>"; };
+		AA001013 /* ReachSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReachSheetView.swift; sourceTree = "<group>"; };
+		AA001014 /* OnboardingTour.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingTour.swift; sourceTree = "<group>"; };
+		AA001015 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		AA001016 /* EchoCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EchoCardView.swift; sourceTree = "<group>"; };
+		AA001017 /* EchoLayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EchoLayerView.swift; sourceTree = "<group>"; };
+		AA001018 /* MilestoneSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneSheet.swift; sourceTree = "<group>"; };
+		AA001019 /* WeeklyReviewCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReviewCard.swift; sourceTree = "<group>"; };
+		AA001020 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		AA001021 /* EchoEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EchoEngineTests.swift; sourceTree = "<group>"; };
+		AA001022 /* ContactImportServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactImportServiceTests.swift; sourceTree = "<group>"; };
+		AA001023 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AA001024 /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
+		AA001025 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		AA001026 /* EchoTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EchoTheme.swift; sourceTree = "<group>"; };
+		AA002001 /* Echo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Echo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA002002 /* EchoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+
+/* PBXFrameworksBuildPhase */
+		AA003001 /* Frameworks */ = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		AA003002 /* Frameworks */ = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+
+/* PBXResourcesBuildPhase */
+		AA003003 /* Resources */ = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = ( AA000023 /* Assets.xcassets in Resources */, ); runOnlyForDeploymentPostprocessing = 0; };
+
+/* PBXGroups */
+		AA004001 /* Echo */ = { isa = PBXGroup; children = ( AA004002 /* Echo */, AA004010 /* EchoTests */, AA004011 /* Products */, ); sourceTree = "<group>"; };
+		AA004011 /* Products */ = { isa = PBXGroup; children = ( AA002001 /* Echo.app */, AA002002 /* EchoTests.xctest */, ); name = Products; sourceTree = "<group>"; };
+		AA004002 /* Echo */ = { isa = PBXGroup; children = ( AA004003 /* Models */, AA004004 /* Services */, AA004005 /* Views */, AA001023 /* Assets.xcassets */, AA001001 /* ContentView.swift */, AA001002 /* EchoApp.swift */, AA001026 /* EchoTheme.swift */, ); path = Echo; sourceTree = "<group>"; };
+		AA004003 /* Models */ = { isa = PBXGroup; children = ( AA001003 /* Deal.swift */, AA001004 /* EchoContact.swift */, AA001005 /* Enums.swift */, AA001006 /* Interaction.swift */, AA001007 /* Note.swift */, ); path = Models; sourceTree = "<group>"; };
+		AA004004 /* Services */ = { isa = PBXGroup; children = ( AA001008 /* ContactImportService.swift */, AA001009 /* EchoEngine.swift */, AA001010 /* FreeTierManager.swift */, AA001011 /* StreakManager.swift */, AA001024 /* StoreManager.swift */, ); path = Services; sourceTree = "<group>"; };
+		AA004005 /* Views */ = { isa = PBXGroup; children = ( AA004006 /* Detail */, AA004007 /* Onboarding */, AA004008 /* Personal */, AA004009 /* Settings */, ); path = Views; sourceTree = "<group>"; };
+		AA004006 /* Detail */ = { isa = PBXGroup; children = ( AA001012 /* ContactDetailView.swift */, AA001013 /* ReachSheetView.swift */, ); path = Detail; sourceTree = "<group>"; };
+		AA004007 /* Onboarding */ = { isa = PBXGroup; children = ( AA001014 /* OnboardingTour.swift */, AA001015 /* OnboardingView.swift */, ); path = Onboarding; sourceTree = "<group>"; };
+		AA004008 /* Personal */ = { isa = PBXGroup; children = ( AA001016 /* EchoCardView.swift */, AA001017 /* EchoLayerView.swift */, AA001018 /* MilestoneSheet.swift */, AA001019 /* WeeklyReviewCard.swift */, ); path = Personal; sourceTree = "<group>"; };
+		AA004009 /* Settings */ = { isa = PBXGroup; children = ( AA001020 /* SettingsView.swift */, AA001025 /* PaywallView.swift */, ); path = Settings; sourceTree = "<group>"; };
+		AA004010 /* EchoTests */ = { isa = PBXGroup; children = ( AA001021 /* EchoEngineTests.swift */, AA001022 /* ContactImportServiceTests.swift */, ); path = EchoTests; sourceTree = "<group>"; };
+
+/* PBXNativeTarget */
+		AA005001 /* Echo */ = { isa = PBXNativeTarget; buildConfigurationList = AA007001; buildPhases = ( AA006001 /* Sources */, AA003001 /* Frameworks */, AA003003 /* Resources */, ); buildRules = (); dependencies = (); name = Echo; productName = Echo; productReference = AA002001 /* Echo.app */; productType = "com.apple.product-type.application"; };
+		AA005002 /* EchoTests */ = { isa = PBXNativeTarget; buildConfigurationList = AA007003; buildPhases = ( AA006002 /* Sources */, AA003002 /* Frameworks */, ); buildRules = (); dependencies = ( AA008001 /* PBXTargetDependency */, ); name = EchoTests; productName = EchoTests; productReference = AA002002 /* EchoTests.xctest */; productType = "com.apple.product-type.bundle.unit-test"; };
+
+/* PBXProject */
+		AA009001 /* Project object */ = { isa = PBXProject; attributes = { LastSwiftUpdateCheck = 1500; LastUpgradeCheck = 1500; TargetAttributes = { AA005001 = { CreatedOnToolsVersion = 15.0; }; AA005002 = { CreatedOnToolsVersion = 15.0; TestTargetID = AA005001; }; }; }; buildConfigurationList = AA007004; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = AA004001; productRefGroup = AA004011 /* Products */; projectDirPath = ""; projectRoot = ""; targets = ( AA005001 /* Echo */, AA005002 /* EchoTests */, ); };
+
+/* PBXSourcesBuildPhase */
+		AA006001 /* Sources */ = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = ( AA000001, AA000002, AA000003, AA000004, AA000005, AA000006, AA000007, AA000008, AA000009, AA000010, AA000011, AA000012, AA000013, AA000014, AA000015, AA000016, AA000017, AA000018, AA000019, AA000020, AA000024, AA000025, AA000026, ); runOnlyForDeploymentPostprocessing = 0; };
+		AA006002 /* Sources */ = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = ( AA000021, AA000022, ); runOnlyForDeploymentPostprocessing = 0; };
+
+/* PBXTargetDependency */
+		AA008001 /* PBXTargetDependency */ = { isa = PBXTargetDependency; target = AA005001 /* Echo */; targetProxy = AA008002 /* PBXContainerItemProxy */; };
+		AA008002 /* PBXContainerItemProxy */ = { isa = PBXContainerItemProxy; containerPortal = AA009001; proxyType = 1; remoteGlobalIDString = AA005001; remoteInfo = Echo; };
+
+/* XCBuildConfiguration */
+		AA00A001 /* Debug */ = { isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; "CODE_SIGN_IDENTITY[sdk=macosx*]" = "-"; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_STRICT_OBJC_MSGSEND = YES; ENABLE_TESTABILITY = YES; GCC_C_LANGUAGE_STANDARD = gnu17; GCC_DYNAMIC_NO_PIC = NO; GCC_NO_COMMON_BLOCKS = YES; GCC_OPTIMIZATION_LEVEL = 0; GCC_PREPROCESSOR_DEFINITIONS = ("DEBUG=1", "$(inherited)"); GCC_WARN_64_TO_32_BIT_CONVERSION = YES; GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR; IPHONEOS_DEPLOYMENT_TARGET = 17.0; ONLY_ACTIVE_ARCH = YES; SDKROOT = iphoneos; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)"; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
+		AA00A002 /* Release */ = { isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; "CODE_SIGN_IDENTITY[sdk=macosx*]" = "-"; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_NS_ASSERTIONS = NO; GCC_C_LANGUAGE_STANDARD = gnu17; GCC_NO_COMMON_BLOCKS = YES; GCC_WARN_64_TO_32_BIT_CONVERSION = YES; GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule; VALIDATE_PRODUCT = YES; }; name = Release; };
+		AA00A003 /* Debug */ = { isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; ENABLE_PREVIEWS = YES; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = Echo; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES; INFOPLIST_KEY_UILaunchScreen_Generation = YES; INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait"; INFOPLIST_KEY_NSContactsUsageDescription = "Echo needs access to your contacts to help you stay in touch. Your contacts never leave your device."; IPHONEOS_DEPLOYMENT_TARGET = 17.0; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks"); MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = "com.bambi2008.Echo"; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+		AA00A004 /* Release */ = { isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; ENABLE_PREVIEWS = YES; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = Echo; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES; INFOPLIST_KEY_UILaunchScreen_Generation = YES; INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait"; INFOPLIST_KEY_NSContactsUsageDescription = "Echo needs access to your contacts to help you stay in touch. Your contacts never leave your device."; IPHONEOS_DEPLOYMENT_TARGET = 17.0; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks"); MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = "com.bambi2008.Echo"; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
+		AA00A005 /* Debug */ = { isa = XCBuildConfiguration; buildSettings = { BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = "com.bambi2008.EchoTests"; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = NO; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Echo.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Echo"; }; name = Debug; };
+		AA00A006 /* Release */ = { isa = XCBuildConfiguration; buildSettings = { BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = "com.bambi2008.EchoTests"; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = NO; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Echo.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Echo"; }; name = Release; };
+
+/* XCConfigurationList */
+		AA007001 /* Build configuration list for PBXNativeTarget "Echo" */ = { isa = XCConfigurationList; buildConfigurations = ( AA00A003 /* Debug */, AA00A004 /* Release */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		AA007003 /* Build configuration list for PBXNativeTarget "EchoTests" */ = { isa = XCConfigurationList; buildConfigurations = ( AA00A005 /* Debug */, AA00A006 /* Release */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		AA007004 /* Build configuration list for PBXProject "Echo" */ = { isa = XCConfigurationList; buildConfigurations = ( AA00A001 /* Debug */, AA00A002 /* Release */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+	};
+	rootObject = AA009001 /* Project object */;
+}
