@@ -1,0 +1,17 @@
+# Xcode
+*.xcuserdata
+*.xcworkspace/xcuserdata
+DerivedData/
+*.xcuserstate
+*.xcbkptlist
+
+# SwiftPM
+.build/
+
+# macOS
+.DS_Store
+
+# Secrets
+*.env
+*.pem
+*.key
