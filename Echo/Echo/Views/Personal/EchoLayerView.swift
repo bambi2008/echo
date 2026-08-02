@@ -3,87 +3,144 @@ import SwiftData
 
 struct EchoLayerView: View {
     @Query(filter: #Predicate<EchoContact> { $0.isInEchoLayer }, sort: [SortDescriptor(\.lastReachedOut, order: .reverse)]) private var contacts: [EchoContact]
-    @State private var selectedTab = 0
     @State private var ahaContact: EchoContact?
-    @State private var pullDistance: CGFloat = 0
-    @State private var aiSuggestion: String?
 
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("", selection: $selectedTab) {
-                Text("Echo Layer").tag(0)
-                Text("AI 洞察").tag(1)
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 8)
-
-            if selectedTab == 0 {
-                echoLayerTab
-            } else {
-                aiInsightsTab
-            }
-        }
-        .background(EchoTheme.bgPrimary)
-    }
-
-    private var echoLayerTab: some View {
         ScrollView {
-            PullReachHint(pullDistance: pullDistance, suggestion: aiSuggestion).padding(.top, 8)
-            if !filteredContacts.isEmpty { 
-                SmartContextCards(contacts: filteredContacts, onReach: { c in ahaContact = c }, onCompose: { c in ahaContact = c })
-                    .padding(.horizontal, 16).padding(.top, 8)
-            }
-            if filteredContacts.isEmpty { emptyState } else {
-                let urgentCount = filteredContacts.filter { AIEngine.smartReminder(for: $0)?.priority == .urgent }.count
-                if urgentCount > 0 {
-                    HStack(spacing: 10) {
-                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
-                        Text("\(urgentCount) 位联系人超过30天未联系").font(.system(size: 13, weight: .medium))
-                        Spacer()
+            VStack(alignment: .leading, spacing: 0) {
+                if contacts.isEmpty {
+                    emptyState
+                } else {
+                    // Urgent reminders
+                    let urgent = contacts.filter {
+                        if let r = AIEngine.smartReminder(for: $0) { return r.priority == .urgent }
+                        return false
                     }
-                    .padding(12).background(Color.red.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .padding(.horizontal, 16).padding(.top, 8)
-                }
-                LazyVStack(spacing: 12) {
-                    ForEach(EchoEngine.sortedEchoLayer(from: filteredContacts)) { contact in
-                        NavigationLink {
-                            ContactDetailView(contact: contact)
-                        } label: {
-                            AIContactCard(contact: contact)
+                    if !urgent.isEmpty {
+                        Text("需要关注")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 12)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(urgent) { contact in
+                                    urgentCard(contact)
+                                }
+                            }
+                            .padding(.horizontal, 20)
                         }
-                        .buttonStyle(.plain)
+                        .padding(.bottom, 32)
+                    }
+
+                    // All contacts
+                    Text("联系人")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 12)
+
+                    LazyVStack(spacing: 2) {
+                        ForEach(contacts) { contact in
+                            contactRow(contact)
+                        }
+                    }
+                    .padding(.bottom, 100)
+                }
+            }
+            .padding(.top, 12)
+        }
+        .background(Color.black)
+    }
+
+    // MARK: - Urgent Card
+    private func urgentCard(_ contact: EchoContact) -> some View {
+        let gap = daysSince(contact.lastReachedOut)
+        return VStack(alignment: .leading, spacing: 12) {
+            Circle()
+                .fill(Color.white.opacity(0.08))
+                .frame(width: 56, height: 56)
+                .overlay(
+                    Text(contact.givenName.prefix(1).uppercased())
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundStyle(.white)
+                )
+            VStack(alignment: .leading, spacing: 4) {
+                Text(contact.givenName)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text("\(gap) 天")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 120)
+        .padding(16)
+        .background(Color.white.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    // MARK: - Contact Row
+    private func contactRow(_ contact: EchoContact) -> some View {
+        let gap = daysSince(contact.lastReachedOut)
+        return NavigationLink {
+            ContactDetailView(contact: contact)
+        } label: {
+            HStack(spacing: 14) {
+                Circle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 44, height: 44)
+                    .overlay(
+                        Text(contact.givenName.prefix(1).uppercased())
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(.white)
+                    )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(contact.fullName)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white)
+                    if let last = contact.lastReachedOut {
+                        Text("\(gap) 天前")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
                     }
                 }
-                .padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 100)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary.opacity(0.5))
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
         }
+        .buttonStyle(.plain)
     }
 
-    private var aiInsightsTab: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                RelationshipWeatherView(contacts: contacts)
-                StreakCalendarView(interactions: contacts.flatMap { $0.interactions })
-                WeeklySummaryCard()
-                SmartRemindersSection(contacts: contacts)
-                HealthDistributionCard(contacts: contacts)
-            }
-            .padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 100)
-        }
-    }
-
+    // MARK: - Empty State
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: "person.2.slash").font(.system(size: 48)).foregroundStyle(.secondary)
-            Text("还没有联系人在 Echo Layer").font(.system(size: 16, weight: .medium)).foregroundStyle(.secondary)
+            Spacer().frame(height: 120)
+            Circle()
+                .fill(Color.white.opacity(0.06))
+                .frame(width: 80, height: 80)
+                .overlay(
+                    Image(systemName: "person.2")
+                        .font(.system(size: 32, weight: .light))
+                        .foregroundStyle(.secondary)
+                )
+            Text("还没有联系人")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(.white)
+            Text("从通讯录导入联系人开始使用")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
         }
-        .padding(.top, 80)
+        .frame(maxWidth: .infinity)
     }
 
-    private var filteredContacts: [EchoContact] {
-        contacts
+    private func daysSince(_ date: Date?) -> Int {
+        guard let date = date else { return 999 }
+        return Calendar.current.dateComponents([.day], from: date, to: Date()).day ?? 0
     }
 }
