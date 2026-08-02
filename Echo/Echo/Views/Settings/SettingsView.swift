@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import StoreKit
 struct SettingsView: View {
     @State private var showAbout = false; @State private var showPaywall = false; @State private var showYearInReview = false; @State private var showAIChat = false

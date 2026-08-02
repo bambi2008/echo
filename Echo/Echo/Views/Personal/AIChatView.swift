@@ -17,7 +17,7 @@ struct AIChatView: View {
                         if isThinking { ThinkingBubble().id("thinking") }
                     }.padding(.horizontal, 16).padding(.top, 16)
                 }
-                .onChange(of: messages.count) { _ in withAnimation { proxy.scrollTo(messages.last?.id ?? "thinking", anchor: .bottom) } }
+                .onChange(of: messages.count) { _ in withAnimation { proxy.scrollTo(messages.last?.id.uuidString ?? "thinking", anchor: .bottom) } }
             }
             if messages.count <= 2 { quickQuestions.transition(.move(edge: .bottom).combined(with: .opacity)) }
             inputBar
@@ -101,7 +101,7 @@ struct ChatCardView: View {
             if let c = card.contact { Circle().fill(EchoTheme.accentColor.opacity(0.2)).frame(width: 36, height: 36).overlay(Text(c.givenName.prefix(1)).font(.system(size: 16, weight: .bold)).foregroundStyle(EchoTheme.accentColor)) }
             VStack(alignment: .leading, spacing: 2) { Text(card.title).font(.system(size: 14, weight: .semibold)); Text(card.detail).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2) }
             Spacer()
-            if let score = card.score { ScoreRing(score: score, size: 40) }
+            if let score = card.score { Text("—") }
         }.padding(12).background(EchoTheme.cardBackground).clipShape(RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(EchoTheme.accentColor.opacity(0.2), lineWidth: 1))
     }
 }
@@ -132,7 +132,7 @@ struct AIChatEngine {
         return ("我可以帮你：\n- 今天该联系谁？\n- 我和谁正在失去联系？\n- 本周关系总结\n- 帮我写条消息\n- 某某的关系怎么样？", [])
     }
     static func todayRecommendation(_ c: [EchoContact]) -> (String, [ChatMessage.ChatCard]) {
-        let r = AIEngine.generateSmartNotifications(for: c).prefix(5)
+        let r = AIEngine.generateSmartNotifications(contacts: c).prefix(5)
         if r.isEmpty { return ("太棒了！所有关系都在健康范围内", []) }
         let cards = r.map { ChatMessage.ChatCard(type: .contactCard, contact: $0.contact, title: $0.contact.givenName, detail: $0.reason, score: AIEngine.healthScore(for: $0.contact).score) }
         return ("今天建议联系这 " + String(r.count) + " 个人", cards)
@@ -169,7 +169,7 @@ struct AIChatEngine {
         return ("关系网络\n- 联系人：" + String(c.count) + "\n- 互动：" + String(c.flatMap { $0.interactions }.count) + " 次\n- 平均健康分：" + String(avg) + "/100", [])
     }
     static func reminderHelp(_ c: [EchoContact]) -> (String, [ChatMessage.ChatCard]) {
-        let r = AIEngine.generateSmartNotifications(for: c).prefix(5)
+        let r = AIEngine.generateSmartNotifications(contacts: c).prefix(5)
         if r.isEmpty { return ("没有待处理提醒", []) }
         return (String(r.count) + " 条智能提醒", r.map { ChatMessage.ChatCard(type: .contactCard, contact: $0.contact, title: $0.contact.givenName, detail: $0.reason, score: AIEngine.healthScore(for: $0.contact).score) })
     }

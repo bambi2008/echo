@@ -69,19 +69,19 @@ private struct TimelineRow: View {
     private var node: some View { Circle().fill(EchoTheme.gradient).frame(width: 12, height: 12).shadow(color: EchoTheme.accentColor.opacity(0.4), radius: 4) }
     private var dateText: String { let f = DateFormatter(); f.dateFormat = "M月d日 HH:mm"; return f.string(from: item.date) }
     private func interactionContent(_ i: Interaction) -> some View {
-        HStack(spacing: 8) { Image(systemName: i.type.icon).font(.system(size: 14)).foregroundStyle(EchoTheme.accentColor); Text(i.type.label).font(.system(size: 14, weight: .medium)); Spacer(); if let s = i.summary { Text(s).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1) } }
+        HStack(spacing: 8) { Image(systemName: (InteractionType(rawValue: i.type)?.icon ?? "circle")).font(.system(size: 14)).foregroundStyle(EchoTheme.accentColor); Text((InteractionType(rawValue: i.type)?.label ?? "")).font(.system(size: 14, weight: .medium)); Spacer(); if !i.note.isEmpty { Text(i.note).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1) } }
     }
     private func noteContent(_ n: Note) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack { Image(systemName: "note.text").font(.system(size: 12)).foregroundStyle(.secondary); Text("笔记").font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary) }
-            Text(n.text).font(.system(size: 14)).foregroundStyle(.primary).lineLimit(3)
+            Text(n.content).font(.system(size: 14)).foregroundStyle(.primary).lineLimit(3)
         }
     }
 }
 
 private struct SentimentChartView: View {
     let notes: [Note]
-    private var dataPoints: [(date: Date, score: Double)] { notes.sorted { $0.createdAt < $1.createdAt }.map { ($0.createdAt, sentimentScore($0.text)) } }
+    private var dataPoints: [(date: Date, score: Double)] { notes.sorted { $0.createdAt < $1.createdAt }.map { ($0.createdAt, sentimentScore($0.content)) } }
     var body: some View {
         GeometryReader { geo in
             ZStack {

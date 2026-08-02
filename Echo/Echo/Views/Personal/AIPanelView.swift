@@ -29,7 +29,7 @@ struct AIPanelView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) { ForEach(InteractionType.allCases.filter { $0 != .reachedOut }, id: \.self) { type in ChannelChip(type: type, isSelected: selectedChannel == type, action: { selectedChannel = type; refreshOpeningLines() }) } }
                 }
-                if showOpeningLines && !openingLines.isEmpty { ForEach(openingLines) { line in OpeningLineCard(line: line) }.transition(.asymmetric(insertion: .scale(scale: 0.95).combined(with: .opacity), removal: .opacity)) }
+                if showOpeningLines && !openingLines.isEmpty { ForEach(Array(openingLines.enumerated()), id: \.offset) { _, line in Text(line.text).padding(8).background(Color.white.opacity(0.05)).clipShape(RoundedRectangle(cornerRadius: 8)) }.transition(.asymmetric(insertion: .scale(scale: 0.95).combined(with: .opacity), removal: .opacity)) }
             }
         }
         .padding(.vertical, 8)
@@ -88,16 +88,6 @@ private struct InsightCard: View {
         }.padding(12).background(severityColor.opacity(0.08)).clipShape(RoundedRectangle(cornerRadius: 10))
     }
     private var severityColor: Color { switch insight.severity { case .critical: return Color(hex: "#FF453A"); case .warning: return Color(hex: "#FF9F0A"); case .positive: return Color(hex: "#30D158"); case .info: return Color(hex: "#0A84FF") } }
-}
-
-private struct OpeningLineCard: View {
-    let line: AIOpeningLine
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(line.text).font(.system(size: 15)).foregroundStyle(.primary).lineSpacing(4)
-            HStack(spacing: 4) { Image(systemName: "info.circle").font(.system(size: 11)); Text(line.context).font(.system(size: 11)) }.foregroundStyle(.secondary)
-        }.padding(12).background(EchoTheme.cardGradient).clipShape(RoundedRectangle(cornerRadius: 10)).contextMenu { Button { UIPasteboard.general.string = line.text } label: { Label("复制", systemImage: "doc.on.doc") } }
-    }
 }
 
 private struct ChannelChip: View {

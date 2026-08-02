@@ -2,12 +2,16 @@ import SwiftUI
 import SwiftData
 
 struct PeopleLibraryView: View {
-    @Query(sort: [SortDescriptor(\.EchoContact.givenName, order: .forward)]) private var contacts: [EchoContact]
+    @Query private var contacts: [EchoContact]
     @State private var searchText = ""
+    
+    private var sortedContacts: [EchoContact] {
+        contacts.sorted { $0.givenName.localizedCompare($1.givenName) == .orderedAscending }
+    }
     @Environment(\.modelContext) private var modelContext
     private var filteredContacts: [EchoContact] {
-        if searchText.isEmpty { return contacts }
-        return contacts.filter { $0.fullName.localizedCaseInsensitiveContains(searchText) || ($0.companyName ?? "").localizedCaseInsensitiveContains(searchText) }
+        if searchText.isEmpty { return sortedContacts }
+        return sortedContacts.filter { $0.fullName.localizedCaseInsensitiveContains(searchText) || ($0.companyName ?? "").localizedCaseInsensitiveContains(searchText) }
     }
     var body: some View {
         NavigationStack {
@@ -27,7 +31,7 @@ struct PeopleLibraryView: View {
                         .swipeActions(edge: .trailing) {
                             if contact.isInEchoLayer { Button { EchoHaptics.selection(); demote(contact) } label: { Label("Demote", systemImage: "tray.and.arrow.down") }.tint(.gray) }
                             else { Button { EchoHaptics.selection(); promote(contact) } label: { Label("Promote", systemImage: "tray.and.arrow.up") }.tint(EchoTheme.accent) }
-                        }.listRowBackground(Color.clear).listRowSeparator(Color.white.opacity(0.06))
+                        }.listRowBackground(Color.clear).listRowSeparator(.visible)
                     }.listStyle(.plain).scrollContentBackground(.hidden).searchable(text: $searchText, prompt: "Search contacts")
                 }
             }.navigationTitle("All People").navigationBarTitleDisplayMode(.large)

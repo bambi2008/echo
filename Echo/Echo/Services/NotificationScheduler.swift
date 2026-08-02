@@ -24,7 +24,7 @@ final class NotificationScheduler {
     }
 
     func scheduleAllSmartReminders(for contacts: [EchoContact]) {
-        let reminders = AIEngine.generateSmartNotifications(for: contacts)
+        let reminders = AIEngine.generateSmartNotifications(contacts: contacts)
         for (index, r) in reminders.enumerated() {
             var t = r.suggestedTime
             if index > 0 { t = t.addingTimeInterval(TimeInterval(index * 1800)) }
@@ -75,10 +75,4 @@ final class NotificationScheduler {
     }
 
     func pendingCount() async -> Int { await UNUserNotificationCenter.current().pendingNotificationRequests().count }
-}
-
-extension SmartReminder {
-    init(contact: EchoContact, suggestedTime: Date, reason: String, suggestedChannel: InteractionType, priority: ReminderPriority) {
-        self.contact = contact; self.suggestedTime = suggestedTime; self.reason = reason; self.suggestedChannel = suggestedChannel; self.priority = priority
-    }
 }

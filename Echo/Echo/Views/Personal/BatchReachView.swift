@@ -75,7 +75,7 @@ struct BatchReachView: View {
                 Circle().fill(EchoTheme.accentColor.opacity(0.2)).frame(width: 36, height: 36).overlay(Text(c.givenName.prefix(1)).font(.system(size: 14, weight: .bold)).foregroundStyle(EchoTheme.accentColor))
                 VStack(alignment: .leading, spacing: 2) { Text(c.fullName).font(.system(size: 15, weight: .medium)).foregroundStyle(.primary); Text(EchoEngine.gapDescription(for: c)).font(.system(size: 12)).foregroundStyle(.secondary) }
                 Spacer()
-                ScoreRing(score: h.score, size: 36)
+                Text("\(h.score)").font(.system(size: 12, weight: .bold))
             }.padding(.horizontal, 14).padding(.vertical, 10).background(isSelected ? EchoTheme.accentColor.opacity(0.08) : EchoTheme.cardBackground).clipShape(RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(isSelected ? EchoTheme.accentColor.opacity(0.3) : .clear, lineWidth: 1))
         }.buttonStyle(.plain)
     }
@@ -85,7 +85,7 @@ struct BatchReachView: View {
             else if !generated {
                 Button { generateLines() } label: { Text("AI 生成 " + String(selectedContacts.count) + " 人的开场白").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white).frame(maxWidth: .infinity).padding(.vertical, 14).background(selectedContacts.isEmpty ? AnyShapeStyle(.gray.opacity(0.3)) : AnyShapeStyle(EchoTheme.gradient)).clipShape(RoundedRectangle(cornerRadius: 16)) }.disabled(selectedContacts.isEmpty).buttonStyle(.plain)
             } else {
-                Button { for id in selectedContacts { if let c = contacts.first(where: { $0.systemIdentifier == id }) { EchoEngine.recordReach(contact: c, type: selectedChannel, modelContext: modelContext) } }; dismiss() } label: { Text("全部标记为已联系").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white).frame(maxWidth: .infinity).padding(.vertical, 14).background(EchoTheme.gradient).clipShape(RoundedRectangle(cornerRadius: 16)) }.buttonStyle(.plain)
+                Button { for id in selectedContacts { if let c = contacts.first(where: { $0.systemIdentifier == id }) { EchoEngine.recordReach(on: c, type: selectedChannel, note: "", context: modelContext) } }; dismiss() } label: { Text("全部标记为已联系").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white).frame(maxWidth: .infinity).padding(.vertical, 14).background(EchoTheme.gradient).clipShape(RoundedRectangle(cornerRadius: 16)) }.buttonStyle(.plain)
             }
         }.padding(.horizontal, 16).padding(.vertical, 12).background(.ultraThinMaterial)
     }

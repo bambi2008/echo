@@ -24,7 +24,7 @@ final class ContactImportService {
         var imported = 0
         try store.enumerateContacts(with: request) { cnContact, _ in
             let phone = cnContact.phoneNumbers.first?.value.stringValue
-            let email = cnContact.emailAddresses.first?.value
+            let email = cnContact.emailAddresses.first?.value as String?
             let name = "\(cnContact.givenName) \(cnContact.familyName)".trimmingCharacters(in: .whitespaces)
             guard !name.isEmpty else { return }
             let existing = self.fetchContact(by: cnContact.identifier)

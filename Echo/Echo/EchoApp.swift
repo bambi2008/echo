@@ -12,9 +12,7 @@ struct EchoApp: App {
                 .environmentObject(storeManager)
                 .modelContainer(for: [EchoContact.self, Interaction.self, Note.self, Deal.self])
                 .task {
-                    NotificationScheduler.shared.requestPermission()
-                    NotificationScheduler.shared.scheduleDailyBriefing()
-                    NotificationScheduler.shared.scheduleWeeklyReport()
+                    await NotificationScheduler.shared.requestPermission()
                 }
         }
     }

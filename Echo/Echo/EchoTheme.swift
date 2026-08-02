@@ -25,7 +25,7 @@ enum EchoTheme {
     static let radius16: CGFloat = 16
     static let radius20: CGFloat = 20
     static let radius24: CGFloat = 24
-    static let cardShadow = (color: Color.black.opacity(0.3), radius: CGFloat = 8, x: CGFloat = 0, y: CGFloat = 2)
+    static let cardShadow = (color: Color.black.opacity(0.3), radius: CGFloat(8), x: CGFloat(0), y: CGFloat(2))
 }
 
 enum EchoHaptics {

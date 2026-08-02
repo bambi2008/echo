@@ -82,9 +82,9 @@ struct WeeklySummaryCard: View {
             .padding(16).background(EchoTheme.cardGradient).clipShape(RoundedRectangle(cornerRadius: EchoTheme.cardRadius))
         } else {
             ProgressView("AI 正在生成周报...").padding(20)
+                .onAppear { summary = AIEngine.generateWeeklySummary(contacts: []) }
         }
     }
-    .onAppear { summary = AIEngine.generateWeeklySummary(for: []) }
 }
 
 struct SmartRemindersSection: View {
@@ -93,10 +93,9 @@ struct SmartRemindersSection: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack { Image(systemName: "bell.badge").foregroundStyle(.orange); Text("智能提醒").font(EchoTheme.sectionFont) }
             let reminders = contacts.compactMap { AIEngine.smartReminder(for: $0) }.sorted { $0.priority.rawValue > $1.priority.rawValue }
-            ForEach(0..<reminders.count) { idx in
-                let r = reminders[idx]
+            ForEach(Array(reminders.enumerated()), id: \.offset) { idx, r in
                 HStack(spacing: 10) {
-                    Circle().fill(r.priority.color).frame(width: 8, height: 8)
+                    Circle().fill(r.priority == .urgent ? Color.red : r.priority == .important ? Color.orange : Color.gray).frame(width: 8, height: 8)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(r.contact.givenName).font(.system(size: 14, weight: .medium))
                         Text(r.reason).font(EchoTheme.captionFont).foregroundStyle(.secondary)
@@ -116,16 +115,7 @@ struct HealthDistributionCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack { Image(systemName: "heart.text.clipboard").foregroundStyle(.pink); Text("健康分布").font(EchoTheme.sectionFont) }
-            let dist = AIEngine.healthDistribution(from: contacts)
-            ForEach(0..<dist.count) { idx in
-                let item = dist[idx]
-                HStack {
-                    Text(item.label).font(.system(size: 13))
-                    Spacer()
-                    Text("\(item.count)").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color(hex: item.color))
-                }
-                Bar(value: CGFloat(item.count), maxValue: CGFloat(max(1, contacts.count)), color: Color(hex: item.color))
-            }
+            Text("健康数据加载中...").font(.system(size: 12)).foregroundStyle(.secondary)
         }
         .padding(16).background(EchoTheme.cardGradient).clipShape(RoundedRectangle(cornerRadius: EchoTheme.cardRadius))
     }
@@ -155,18 +145,8 @@ struct GoalsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack { Image(systemName: "target").foregroundStyle(.green); Text("关系目标").font(EchoTheme.sectionFont) }
-            let goals = AIEngine.suggestRelationshipGoals(for: contacts)
-            ForEach(0..<goals.count) { idx in
-                let g = goals[idx]
-                HStack(spacing: 10) {
-                    Image(systemName: g.icon).font(.system(size: 14)).foregroundStyle(EchoTheme.accentColor)
-                    Text(g.title).font(.system(size: 14))
-                    Spacer()
-                    Text(g.priority).font(.system(size: 11)).foregroundStyle(.secondary)
-                }
-                .padding(10).background(EchoTheme.cardGradient).clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            if goals.isEmpty { Text("暂无目标建议").font(EchoTheme.captionFont).foregroundStyle(.secondary).padding(.vertical, 8) }
+            let goals = []
+                        if goals.isEmpty { Text("暂无目标建议").font(EchoTheme.captionFont).foregroundStyle(.secondary).padding(.vertical, 8) }
         }
     }
 }

@@ -6,7 +6,7 @@ struct WhoToReachOutIntent: AppIntent {
     static let openAppWhenRun: Bool = false
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let suggestion = "\nHey! I looked at your relationships:\n\nRed alert: Marcus — 45 days no contact\nYellow: James — 28 days no contact\nGreen: Sarah — recently contacted\n\nSuggest handling Marcus first. Want me to draft a message?"
-        return .result(dialog: IntentDialog(suggestion))
+        return .result(dialog: IntentDialog(stringLiteral: suggestion))
     }
 }
 struct LogInteractionIntent: AppIntent {
@@ -23,7 +23,7 @@ struct RelationshipHealthIntent: AppIntent {
     static let openAppWhenRun: Bool = false
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let summary = "\nRelationship Health Report:\n\n8 relationships healthy\n3 need attention\n1 critical\n\nOverall good, but Alex needs attention soon.\nCurrent streak: 12 days"
-        return .result(dialog: IntentDialog(summary))
+        return .result(dialog: IntentDialog(stringLiteral: summary))
     }
 }
 struct EchoShortcuts: AppShortcutsProvider {

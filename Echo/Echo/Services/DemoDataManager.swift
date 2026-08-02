@@ -13,7 +13,7 @@ struct DemoDataManager {
             let gap = abs(d.4)
             if gap > 10 { let i2 = Interaction(type: .called, note: "Quick call."); i2.date = (c.lastReachedOut ?? now).addingTimeInterval(-86400 * 14); i2.contact = c; context.insert(i2) }
             if gap > 30 { let i3 = Interaction(type: .metInPerson, note: "Coffee together."); i3.date = (c.lastReachedOut ?? now).addingTimeInterval(-86400 * 30); i3.contact = c; context.insert(i3) }
-            c.interactions = context.fetch(FetchDescriptor<Interaction>()).filter { $0.contact?.systemIdentifier == c.systemIdentifier }
+            if let fetched = try? context.fetch(FetchDescriptor<Interaction>()) { c.interactions = fetched.filter { $0.contact?.systemIdentifier == c.systemIdentifier } }
         }
         try? context.save()
     }
