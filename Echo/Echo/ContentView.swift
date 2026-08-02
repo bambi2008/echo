@@ -5,8 +5,8 @@ struct ContentView: View {
     @State private var showTour = false
     @State private var ahaContact: EchoContact?
     @State private var surveyResult: SurveyResult?
-    @State private var hasLaunched = false
     @AppStorage("hasLaunched") private var hasLaunchedStored = false
+    @AppStorage("hasSeenConstellation") private var hasSeenConstellation = false
     @StateObject private var storeManager = StoreManager.shared
     @StateObject private var authManager = AuthManager.shared
     @StateObject private var trialManager = TrialManager.shared
@@ -17,18 +17,25 @@ struct ContentView: View {
     }
     var body: some View {
         Group {
-            if !hasLaunchedStored { LaunchView(hasLaunched: Binding(get: { hasLaunchedStored }, set: { hasLaunchedStored = $0 })) }
+            if !hasSeenConstellation { MagicMomentView(hasLaunched: Binding(get: { hasSeenConstellation }, set: { hasSeenConstellation = $0; hasLaunchedStored = $0 })) }
+            else if !hasLaunchedStored { LaunchView(hasLaunched: Binding(get: { hasLaunchedStored }, set: { hasLaunchedStored = $0 })) }
             else if OnboardingState.isComplete { mainApp }
             else { onboardingFlow }
         }
         .preferredColorScheme(.dark).environmentObject(storeManager).environmentObject(authManager).environmentObject(trialManager).modelContainer(for: [EchoContact.self, Interaction.self, Note.self, Deal.self])
     }
     private var mainApp: some View {
-        TabView(selection: $selectedTab) {
-            EchoLayerView(ahaContact: $ahaContact).tabItem { Label("Echo", systemImage: "person.3.sequence") }.tag(0)
-            PeopleLibraryView().tabItem { Label("All", systemImage: "person.2.circle") }.tag(1)
-            SettingsView().tabItem { Label("Settings", systemImage: "gearshape") }.tag(2)
-        }.tint(EchoTheme.accent)
+        ZStack {
+            EchoBackground()
+            switch selectedTab {
+            case 0: EchoLayerView(ahaContact: $ahaContact)
+            case 1: PeopleLibraryView()
+            case 2: AnyView(AchievementsView(contacts: []))
+            case 3: SettingsView()
+            default: EchoLayerView(ahaContact: $ahaContact)
+            }
+            FloatingTabBar(selectedTab: $selectedTab) { if selectedTab == 0 { ahaContact = nil } }
+        }
         .overlay { if showTour { OnboardingTour(isActive: $showTour).transition(.opacity) } }
         .animation(.easeInOut(duration: 0.25), value: showTour)
         .onAppear { checkTrialExpiry(); loadDemoIfNeeded() }
