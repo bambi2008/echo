@@ -5,8 +5,13 @@ extension EchoTheme {
     static var cardGradient: LinearGradient { LinearGradient(colors: [bgCard, bgSecondary], startPoint: .topLeading, endPoint: .bottomTrailing) }
     static var cardRadius: CGFloat { radius16 }
     static var backgroundGradient: LinearGradient { LinearGradient(colors: [bgPrimary, Color(red: 0.02, green: 0.025, blue: 0.04)], startPoint: .top, endPoint: .bottom) }
+    static var darkBackground: Color { bgPrimary }
+    static var cardBackground: Color { bgCard }
+    static var gradient: LinearGradient { LinearGradient(colors: [accent, Color(hex: "00F5FF")], startPoint: .leading, endPoint: .trailing) }
     static var sectionFont: Font { .system(size: 16, weight: .bold) }
     static var captionFont: Font { .system(size: 12) }
+    static var titleFont: Font { .system(size: 22, weight: .bold, design: .rounded) }
+    static var bodyFont: Font { .system(size: 15) }
 }
 extension Color { init(hex: String) { let h = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted); var v: UInt64 = 0; Scanner(string: h).scanHexInt64(&v); let r, g, b: UInt64; (r, g, b) = (v >> 16, v >> 8 & 0xFF, v & 0xFF); self.init(.sRGB, red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255) } }
 extension StreakManager { static let shared = StreakManager(); func calculateStreak(from dates: [Date]) -> Int { let cal = Calendar.current; let sorted = Set(dates.map { cal.startOfDay(for: $0) }).sorted(by: >); guard !sorted.isEmpty else { return 0 }; var streak = 0; var check = cal.startOfDay(for: Date()); if sorted.first == check { while sorted.contains(check) { streak += 1; check = cal.date(byAdding: .day, value: -1, to: check)! } } else if let y = cal.date(byAdding: .day, value: -1, to: check), sorted.first == y { check = y; while sorted.contains(check) { streak += 1; check = cal.date(byAdding: .day, value: -1, to: check)! } }; return streak } }
