@@ -5,6 +5,7 @@ struct ContentView: View {
     @State private var selectedTab = 0
     @State private var showTour = false
     @State private var ahaContact: EchoContact?
+    @State private var surveyResult: SurveyResult?
     @StateObject private var storeManager = StoreManager.shared
     @StateObject private var authManager = AuthManager.shared
     @StateObject private var trialManager = TrialManager.shared
@@ -28,8 +29,8 @@ struct ContentView: View {
     private var onboardingFlow: some View {
         Group {
             switch OnboardingState.currentStep {
-            case .survey: SurveyView { OnboardingState.complete(.survey); NotificationCenter.default.post(name: .echoOnboardingStepChanged, object: nil) }
-            case .registration: RegistrationView { profile in OnboardingState.complete(.registration); NotificationCenter.default.post(name: .echoOnboardingStepChanged, object: nil) }
+            case .survey: SurveyView { result in surveyResult = result; OnboardingState.complete(.survey); NotificationCenter.default.post(name: .echoOnboardingStepChanged, object: nil) }
+            case .registration: RegistrationView { profile in AuthManager.shared.saveUser(profile); OnboardingState.complete(.registration); NotificationCenter.default.post(name: .echoOnboardingStepChanged, object: nil) }
             case .valueProp: ValuePropView { OnboardingState.complete(.valueProp); NotificationCenter.default.post(name: .echoOnboardingStepChanged, object: nil) }
             case .paywall: PaywallView { OnboardingState.complete(.paywall); NotificationCenter.default.post(name: .echoOnboardingStepChanged, object: nil) }
             case .importContacts: OnboardingView(hasImported: .constant(false)) { contact in ahaContact = contact; OnboardingState.complete(.importContacts); OnboardingState.complete(.done); NotificationCenter.default.post(name: .echoOnboardingStepChanged, object: nil); DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { showTour = true } }
