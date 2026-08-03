@@ -16,7 +16,7 @@
 
 ## 模拟器验收
 
-当前 Debug 模拟器没有绑定 App Store Connect 商品时，Echo Pro 页面会明确提示 StoreKit 商品尚未连接，并提供“Preview AI Pro on this simulator”。这个入口只在 Debug 构建出现，不会进入正式包，也不会触发真实扣费。
+工程已附带 `Echo/LocalProducts.storekit`，并绑定到共享 `Echo` Scheme。用 Xcode 运行该 Scheme 时，模拟器会加载两个本地自动续期订阅和 7 天试用，不需要 App Store Connect，也不会触发真实扣费。若直接用 `simctl launch` 绕过 Xcode Scheme，StoreKit 配置不会注入，页面会显示“商品未连接”和 Debug 预览入口；这属于命令行启动的预期行为。
 
 ## 上架前
 

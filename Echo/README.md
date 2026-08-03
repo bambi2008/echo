@@ -29,7 +29,7 @@ Echo AI 当前提供：
 - People 的“想不起名字？”支持用相识地点、时间、工作、介绍人、聊天主题等记忆线索找人；先在设备端召回候选，再匿名交给 DeepSeek 复排
 - Memory Search 支持页面内实时语音输入，转写后仍可手动修改再搜索
 - Echo AI 首页会展示价值先行的 AI Pro 入口；Settings → Account & plan 可查看 7 天试用、月/年方案、恢复购买和账户入口
-- StoreKit 2 已接入 `com.bambi2008.echo.ai.pro.monthly` 与 `com.bambi2008.echo.ai.pro.annual`；未绑定商品的 Debug 模拟器提供本地预览，不触发真实扣费
+- StoreKit 2 已接入 `com.bambi2008.echo.ai.pro.monthly` 与 `com.bambi2008.echo.ai.pro.annual`；共享 Echo Scheme 已绑定 `LocalProducts.storekit`，从 Xcode 运行即可在模拟器测试本地订阅，不触发真实扣费
 - 没有 API Key 或网络不可用时，记忆搜索仍会显示本地匹配结果
 - People 可按全部、个人关系或商务关系筛选；同一个联系人可以标记为个人、商务或两者，不会重复建档
 - 联系人详情支持编辑身份、优先级、公司与联系方式，也可以直接创建关联商机
