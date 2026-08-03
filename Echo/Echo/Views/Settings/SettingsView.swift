@@ -6,6 +6,7 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var contacts: [EchoContact]
     @AppStorage("echo.onboarding.complete") private var completedOnboarding = true
+    @StateObject private var subscription = EchoSubscriptionManager.shared
     @State private var apiKey = ""
     @State private var fastModel = "deepseek-v4-flash"
     @State private var advancedModel = "deepseek-v4-pro"
@@ -17,6 +18,33 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    NavigationLink {
+                        EchoProView(subscription: subscription)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: subscription.hasPremiumAccess ? "checkmark.seal.fill" : "sparkles")
+                                .foregroundStyle(subscription.hasPremiumAccess ? .green : .indigo)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(subscription.hasPremiumAccess ? "Echo Pro is active" : "Try Echo Pro")
+                                    .font(.headline)
+                                Text(subscription.hasPremiumAccess ? "Your AI relationship copilot is unlocked." : "Start with a transparent 7-day free trial.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    NavigationLink {
+                        EchoAccountView()
+                    } label: {
+                        Label("Echo account", systemImage: "person.crop.circle.badge.checkmark")
+                    }
+                } header: {
+                    Text("Account & plan")
+                } footer: {
+                    Text("You can keep using the local relationship layer without an account. Sign in only when you want an account-ready profile or future sync.")
+                }
+
                 Section {
                     SecureField("API key", text: $apiKey)
                         .textContentType(.password)
@@ -105,6 +133,7 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .task {
                 await loadModels()
+                await subscription.refresh()
                 let gmailStatus = GmailSyncService.shared.status()
                 gmailAccount = gmailStatus?.email
                 gmailLastSync = gmailStatus?.lastSyncAt

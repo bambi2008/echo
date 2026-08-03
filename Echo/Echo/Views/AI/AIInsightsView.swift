@@ -4,6 +4,8 @@ import SwiftUI
 struct AIInsightsView: View {
     @Query private var contacts: [EchoContact]
     @Query(sort: \Deal.createdAt, order: .reverse) private var deals: [Deal]
+    @StateObject private var subscription = EchoSubscriptionManager.shared
+    @State private var showingPro = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -19,6 +21,34 @@ struct AIInsightsView: View {
                             .font(.title2.bold())
                         Text("Analyze the right group of people, then focus on the relationships that matter.")
                             .foregroundStyle(.secondary)
+                    }
+
+                    if !subscription.hasPremiumAccess {
+                        Button { showingPro = true } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "sparkles")
+                                    .font(.title3)
+                                    .foregroundStyle(.indigo)
+                                    .frame(width: 40, height: 40)
+                                    .background(Color.indigo.opacity(0.12), in: Circle())
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("Make this your daily ritual")
+                                        .font(.subheadline.bold())
+                                        .foregroundStyle(.primary)
+                                    Text("Try Echo Pro free for 7 days: ranked insights, briefings, and better next words.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .multilineTextAlignment(.leading)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(14)
+                            .background(Color.indigo.opacity(0.07), in: RoundedRectangle(cornerRadius: 18))
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     LazyVGrid(columns: columns, spacing: 12) {
@@ -88,6 +118,7 @@ struct AIInsightsView: View {
                 .padding()
             }
             .navigationTitle("Echo AI")
+            .sheet(isPresented: $showingPro) { EchoProView(subscription: subscription) }
         }
     }
 }
