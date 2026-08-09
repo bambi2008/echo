@@ -77,12 +77,64 @@ final class EchoContact {
     }
 
     var fullName: String {
-        [givenName, familyName].filter { !$0.isEmpty }.joined(separator: " ")
+        hasRealName ? storedName : "未命名联系人"
+    }
+
+    var hasRealName: Bool {
+        let candidate = storedName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !candidate.isEmpty else { return false }
+
+        let normalized = candidate.lowercased()
+        if ["unknown contact", "unnamed contact", "未命名联系人"].contains(normalized) {
+            return false
+        }
+        if let companyName,
+           familyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           normalized == companyName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+            return false
+        }
+        if let emailAddress {
+            let emailName = emailAddress.split(separator: "@").first.map(String.init)?.lowercased()
+            if normalized == emailName { return false }
+        }
+        let nameDigits = candidate.filter(\.isNumber)
+        if let phoneNumber {
+            let phoneDigits = phoneNumber.filter(\.isNumber)
+            if !phoneDigits.isEmpty, nameDigits == phoneDigits { return false }
+        }
+        let phonePunctuation = CharacterSet(charactersIn: "+-() .")
+        if !nameDigits.isEmpty,
+           candidate.unicodeScalars.allSatisfy({ CharacterSet.decimalDigits.contains($0) || phonePunctuation.contains($0) }) {
+            return false
+        }
+        return true
+    }
+
+    var isEligibleForTodaysEcho: Bool {
+        hasRealName && hasRelationshipContext
     }
 
     var initials: String {
+        guard hasRealName else { return "?" }
         let values = [givenName.first, familyName.first].compactMap { $0 }
         return values.isEmpty ? "?" : String(values)
+    }
+
+    private var storedName: String {
+        [givenName, familyName]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+
+    private var hasRelationshipContext: Bool {
+        relationshipDomainRawValue != nil
+            || priorityRawValue != nil
+            || !tags.isEmpty
+            || companyName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            || jobTitle?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            || !notes.isEmpty
+            || !interactions.isEmpty
     }
 
     var priority: PriorityLevel? {

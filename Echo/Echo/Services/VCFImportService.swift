@@ -32,7 +32,8 @@ struct VCFContactCandidate: Identifiable {
     let action: Action
 
     var fullName: String {
-        [givenName, familyName].filter { !$0.isEmpty }.joined(separator: " ")
+        let name = [givenName, familyName].filter { !$0.isEmpty }.joined(separator: " ")
+        return name.isEmpty ? "未命名联系人" : name
     }
 }
 
@@ -158,12 +159,9 @@ struct VCFImportService {
             let phone = contact.phoneNumbers.first?.value.stringValue.trimmed.nilIfEmpty
             let organization = contact.organizationName.trimmed.nilIfEmpty
             let jobTitle = contact.jobTitle.trimmed.nilIfEmpty
-            var givenName = contact.givenName.trimmed
+            let givenName = contact.givenName.trimmed
             let familyName = contact.familyName.trimmed
 
-            if givenName.isEmpty && familyName.isEmpty {
-                givenName = organization ?? email?.components(separatedBy: "@").first ?? phone ?? "Unknown contact"
-            }
             guard !givenName.isEmpty || !familyName.isEmpty || email != nil || phone != nil else { continue }
 
             let draft = Draft(
@@ -229,8 +227,7 @@ struct VCFImportService {
     }
 
     private static func canFillMissingFields(of contact: EchoContact, from draft: Draft) -> Bool {
-        (contact.givenName.isEmpty && !draft.givenName.isEmpty)
-            || (contact.familyName.isEmpty && !draft.familyName.isEmpty)
+        (!contact.hasRealName && (!draft.givenName.isEmpty || !draft.familyName.isEmpty))
             || (contact.phoneNumber?.trimmed.nilIfEmpty == nil && draft.phoneNumber != nil)
             || (contact.emailAddress?.trimmed.nilIfEmpty == nil && draft.emailAddress != nil)
             || (contact.companyName?.trimmed.nilIfEmpty == nil && draft.companyName != nil)
@@ -252,11 +249,8 @@ struct VCFImportService {
 
     private static func fillMissingFields(of contact: EchoContact, from candidate: VCFContactCandidate) -> Bool {
         var changed = false
-        if contact.givenName.isEmpty && !candidate.givenName.isEmpty {
+        if !contact.hasRealName && (!candidate.givenName.isEmpty || !candidate.familyName.isEmpty) {
             contact.givenName = candidate.givenName
-            changed = true
-        }
-        if contact.familyName.isEmpty && !candidate.familyName.isEmpty {
             contact.familyName = candidate.familyName
             changed = true
         }

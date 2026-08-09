@@ -37,6 +37,10 @@ struct PersonalHomeView: View {
         }
     }
 
+    private var todaysEchoContact: EchoContact? {
+        prioritized.first(where: \.isEligibleForTodaysEcho)
+    }
+
     var body: some View {
         NavigationStack {
             List {
@@ -85,7 +89,7 @@ struct PersonalHomeView: View {
                         Label("Today's echo", systemImage: "wave.3.right")
                             .font(.headline)
                             .foregroundStyle(.indigo)
-                        Text(prioritized.first.map { "It may be a good day to reach out to \($0.givenName)." } ?? "Add someone you care about to begin.")
+                        Text(todaysEchoContact.map { "It may be a good day to reach out to \($0.fullName)." } ?? "Add a name and relationship details to get a meaningful suggestion.")
                             .font(.title3.weight(.semibold))
                         Text("Small moments keep important relationships alive.")
                             .font(.subheadline)

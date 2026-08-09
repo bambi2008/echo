@@ -18,6 +18,27 @@ final class EchoTests: XCTestCase {
         XCTAssertEqual(contact.initials, "LP")
     }
 
+    func testPhonePlaceholderDisplaysAsUnnamedAndIsExcludedFromTodaysEcho() {
+        let contact = EchoContact(
+            givenName: "18111090503",
+            phoneNumber: "181 1109 0503",
+            relationshipDomain: .personal
+        )
+
+        XCTAssertFalse(contact.hasRealName)
+        XCTAssertEqual(contact.fullName, "未命名联系人")
+        XCTAssertEqual(contact.initials, "?")
+        XCTAssertFalse(contact.isEligibleForTodaysEcho)
+    }
+
+    func testNamedContactNeedsRelationshipContextForTodaysEcho() {
+        let unreviewed = EchoContact(givenName: "Mina")
+        let reviewed = EchoContact(givenName: "Mina", relationshipDomain: .personal)
+
+        XCTAssertFalse(unreviewed.isEligibleForTodaysEcho)
+        XCTAssertTrue(reviewed.isEligibleForTodaysEcho)
+    }
+
     func testPriorityRoundTrip() {
         let contact = EchoContact(givenName: "Sarah", priority: .warm)
 
@@ -369,5 +390,37 @@ final class EchoTests: XCTestCase {
         XCTAssertEqual(secondPreview.newCount, 0)
         XCTAssertEqual(secondPreview.updateCount, 0)
         XCTAssertEqual(secondPreview.unchangedCount, 2)
+    }
+
+    func testVCFContactWithoutANameStaysUnnamedAndOutOfTodaysEcho() throws {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self,
+            configurations: configuration
+        )
+        let vCard = """
+        BEGIN:VCARD
+        VERSION:3.0
+        N:;;;;
+        FN:
+        TEL;TYPE=CELL:18111090503
+        END:VCARD
+        """
+        let service = VCFImportService()
+        let preview = try service.preview(
+            data: try XCTUnwrap(vCard.data(using: .utf8)),
+            fileName: "nameless.vcf",
+            in: container.mainContext
+        )
+
+        XCTAssertEqual(preview.contacts.first?.fullName, "未命名联系人")
+        _ = try service.importContacts(preview, into: container.mainContext)
+
+        let imported = try XCTUnwrap(
+            container.mainContext.fetch(FetchDescriptor<EchoContact>()).first
+        )
+        XCTAssertEqual(imported.givenName, "")
+        XCTAssertEqual(imported.fullName, "未命名联系人")
+        XCTAssertFalse(imported.isEligibleForTodaysEcho)
     }
 }
