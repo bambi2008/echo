@@ -284,6 +284,15 @@ final class EchoTests: XCTestCase {
         XCTAssertFalse(linkedin.draftWasIncluded)
     }
 
+    func testPhoneCallBuildsSafeDialerDestination() throws {
+        let destination = try XCTUnwrap(
+            PhoneCallService.destination(for: "+852 (9123) 4567")
+        )
+
+        XCTAssertEqual(destination.absoluteString, "tel:+85291234567")
+        XCTAssertNil(PhoneCallService.destination(for: "not a phone"))
+    }
+
     func testVCFImportPreviewsAndDeduplicatesByEmailAndPhone() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(

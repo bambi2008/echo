@@ -5,6 +5,7 @@ import SwiftUI
 struct ContactDetailView: View {
     @Environment(\.dismiss) private var dismissDetail
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.openURL) private var openURL
     @Query(sort: \Deal.createdAt, order: .reverse) private var deals: [Deal]
     @Bindable var contact: EchoContact
     @State private var note = ""
@@ -31,6 +32,17 @@ struct ContactDetailView: View {
             if contact.phoneNumber != nil || contact.emailAddress != nil {
                 Section("Contact") {
                     HStack(spacing: 12) {
+                        if let phoneNumber = contact.phoneNumber,
+                           let callURL = PhoneCallService.destination(for: phoneNumber) {
+                            Button {
+                                openURL(callURL)
+                            } label: {
+                                Label("Call", systemImage: "phone.fill")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.green)
+                        }
                         if contact.phoneNumber != nil {
                             Button {
                                 outreachChannel = .message
@@ -38,7 +50,7 @@ struct ContactDetailView: View {
                                 Label("Message", systemImage: "message.fill")
                                     .frame(maxWidth: .infinity)
                             }
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(.bordered)
                             .tint(.indigo)
                         }
                         if contact.emailAddress != nil {
@@ -52,7 +64,7 @@ struct ContactDetailView: View {
                             .tint(.indigo)
                         }
                     }
-                    Text("Echo drafts a personalized opener only after you choose how to reach out.")
+                    Text("Call opens the iPhone dialer. Echo drafts a personalized opener for messages and email.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
