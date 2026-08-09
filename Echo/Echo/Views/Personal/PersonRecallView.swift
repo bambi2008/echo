@@ -92,7 +92,7 @@ struct PersonRecallView: View {
                 Text(
                     speech.isRecording
                         ? "Listening… Speak naturally. Your words appear above as you talk."
-                        : "Voice is transcribed into this field. You can review or edit it before searching."
+                        : "Voice may use a different Chinese character for a name. Echo also checks matching and similar pinyin."
                 )
             }
 

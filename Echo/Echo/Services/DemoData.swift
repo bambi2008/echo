@@ -43,6 +43,44 @@ enum DemoData {
         try? context.save()
     }
 
+    /// Removes contacts shipped only for the early product demo. This is
+    /// intentionally idempotent so upgraded installs are cleaned as well as
+    /// fresh installs, without touching user-created or imported contacts.
+    static func removeLegacyDemoContacts(in context: ModelContext) {
+        let contacts = (try? context.fetch(FetchDescriptor<EchoContact>())) ?? []
+        let demoContacts = contacts.filter(isLegacyDemoContact)
+        guard !demoContacts.isEmpty else { return }
+
+        let identifiers = Set(demoContacts.map(\.systemIdentifier))
+        let deals = (try? context.fetch(FetchDescriptor<Deal>())) ?? []
+        for deal in deals where deal.contact.map({ identifiers.contains($0.systemIdentifier) }) == true {
+            context.delete(deal)
+        }
+        demoContacts.forEach(context.delete)
+        try? context.save()
+    }
+
+    private static func isLegacyDemoContact(_ contact: EchoContact) -> Bool {
+        if contact.systemIdentifier.hasPrefix("echo.demo.contact.") { return true }
+        if contact.emailAddress?.lowercased().hasSuffix("@example.com") == true { return true }
+
+        let curatedSignatures: Set<String> = [
+            "Sarah|Chen|Northstar Studio",
+            "Mike|Johnson|Harbor Financial",
+            "Lisa|Park|",
+        ]
+        let signature = "\(contact.givenName)|\(contact.familyName)|\(contact.companyName ?? "")"
+        guard curatedSignatures.contains(signature) else { return false }
+        let demoPhrases = [
+            "Her mom is recovering well",
+            "Discussed a job change",
+            "Monthly coaching session",
+        ]
+        return contact.notes.contains { note in
+            demoPhrases.contains { note.content.contains($0) }
+        }
+    }
+
     private static func curatedContacts() -> [EchoContact] {
         let calendar = Calendar.current
         let sarah = EchoContact(

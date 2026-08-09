@@ -5,18 +5,47 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var contacts: [EchoContact]
-    @AppStorage("echo.onboarding.complete") private var completedOnboarding = true
+    @AppStorage("echo.onboarding.v2.complete") private var completedOnboarding = true
+    @StateObject private var subscription = EchoSubscriptionManager.shared
     @State private var apiKey = ""
     @State private var fastModel = "deepseek-v4-flash"
     @State private var advancedModel = "deepseek-v4-pro"
     @State private var statusMessage: String?
     @State private var gmailAccount: String?
     @State private var gmailLastSync: Date?
+    @State private var canImportGoogleContacts = false
     @State private var isWorkingWithGmail = false
 
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    NavigationLink {
+                        EchoProView(subscription: subscription)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: subscription.hasPremiumAccess ? "checkmark.seal.fill" : "sparkles")
+                                .foregroundStyle(subscription.hasPremiumAccess ? .green : .indigo)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(subscription.hasPremiumAccess ? "Echo Pro is active" : "Try Echo Pro")
+                                    .font(.headline)
+                                Text(subscription.hasPremiumAccess ? "Your AI relationship copilot is unlocked." : "Start with a transparent 7-day free trial.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    NavigationLink {
+                        EchoAccountView()
+                    } label: {
+                        Label("Echo account", systemImage: "person.crop.circle.badge.checkmark")
+                    }
+                } header: {
+                    Text("Account & plan")
+                } footer: {
+                    Text("You can keep using the local relationship layer without an account. Sign in only when you want an account-ready profile or future sync.")
+                }
+
                 Section {
                     SecureField("API key", text: $apiKey)
                         .textContentType(.password)
@@ -59,6 +88,16 @@ struct SettingsView: View {
                             }
                         }
                         Button {
+                            importGoogleContacts()
+                        } label: {
+                            if isWorkingWithGmail {
+                                ProgressView()
+                            } else {
+                                Label("Import Google contacts", systemImage: "person.2.badge.plus")
+                            }
+                        }
+                        .disabled(isWorkingWithGmail)
+                        Button {
                             syncGmail()
                         } label: {
                             if isWorkingWithGmail {
@@ -68,7 +107,13 @@ struct SettingsView: View {
                             }
                         }
                         .disabled(isWorkingWithGmail)
-                        Button("Disconnect Gmail", role: .destructive) {
+                        Button {
+                            switchGoogleAccount()
+                        } label: {
+                            Label("Switch Google account", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .disabled(isWorkingWithGmail)
+                        Button("Disconnect Google", role: .destructive) {
                             disconnectGmail()
                         }
                         .disabled(isWorkingWithGmail)
@@ -85,9 +130,11 @@ struct SettingsView: View {
                         .disabled(isWorkingWithGmail)
                     }
                 } header: {
-                    Text("Email sync")
+                    Text("Google contacts & Gmail")
                 } footer: {
-                    Text("Echo reads message headers only—sender, recipients, subject, and time. Email bodies and attachments are not downloaded.")
+                    Text(canImportGoogleContacts
+                         ? "Saved contacts and Gmail's Other contacts are imported read-only. Gmail sync reads message headers only—never bodies or attachments."
+                         : "Reconnect Google once to grant read-only access to saved and Other contacts. Echo never edits Google contacts.")
                 }
 
                 Section("Privacy") {
@@ -95,6 +142,27 @@ struct SettingsView: View {
                     Label("Gmail bodies are never downloaded", systemImage: "envelope.badge.shield.half.filled")
                     Label("Cloud prompts use local aliases", systemImage: "person.badge.shield.checkmark.fill")
                     Label("Operational logs contain no prompts", systemImage: "text.badge.xmark")
+                }
+
+                Section {
+                    ForEach(SocialPlatform.allCases) { platform in
+                        Label {
+                            HStack {
+                                Text(platform.title)
+                                Spacer()
+                                Text("Message link")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: platform.symbol)
+                                .foregroundStyle(.indigo)
+                        }
+                    }
+                } header: {
+                    Text("Social messaging")
+                } footer: {
+                    Text("iOS and these platforms do not expose private friend lists to Echo. Add a username or profile URL in a person's Edit screen; Echo can then prepare a draft and open that app.")
                 }
 
                 Section("About") {
@@ -105,9 +173,11 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .task {
                 await loadModels()
+                await subscription.refresh()
                 let gmailStatus = GmailSyncService.shared.status()
                 gmailAccount = gmailStatus?.email
                 gmailLastSync = gmailStatus?.lastSyncAt
+                canImportGoogleContacts = gmailStatus?.canImportContacts ?? false
             }
             .alert("Echo", isPresented: Binding(
                 get: { statusMessage != nil },
@@ -166,9 +236,47 @@ struct SettingsView: View {
             do {
                 let status = try await GmailSyncService.shared.connect()
                 gmailAccount = status.email
-                let result = try await GmailSyncService.shared.sync(contacts: contacts, in: modelContext)
+                canImportGoogleContacts = status.canImportContacts
+                let imported = try await GmailSyncService.shared.importGoogleContacts(in: modelContext)
+                let refreshedContacts = try modelContext.fetch(FetchDescriptor<EchoContact>())
+                let result = try await GmailSyncService.shared.sync(contacts: refreshedContacts, in: modelContext)
                 gmailLastSync = result.lastSyncAt
-                statusMessage = syncMessage(for: result, connected: true)
+                statusMessage = googleImportMessage(imported, prefix: "Google connected. ") + " " + syncMessage(for: result, connected: false)
+            } catch {
+                statusMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func importGoogleContacts() {
+        isWorkingWithGmail = true
+        Task {
+            defer { isWorkingWithGmail = false }
+            do {
+                if GmailSyncService.shared.status()?.canImportContacts != true {
+                    let status = try await GmailSyncService.shared.connect()
+                    gmailAccount = status.email
+                    canImportGoogleContacts = status.canImportContacts
+                }
+                let result = try await GmailSyncService.shared.importGoogleContacts(in: modelContext)
+                statusMessage = googleImportMessage(result)
+            } catch {
+                statusMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func switchGoogleAccount() {
+        isWorkingWithGmail = true
+        Task {
+            defer { isWorkingWithGmail = false }
+            do {
+                let status = try await GmailSyncService.shared.connect()
+                gmailAccount = status.email
+                gmailLastSync = status.lastSyncAt
+                canImportGoogleContacts = status.canImportContacts
+                let imported = try await GmailSyncService.shared.importGoogleContacts(in: modelContext)
+                statusMessage = googleImportMessage(imported, prefix: "Now using \(status.email). ")
             } catch {
                 statusMessage = error.localizedDescription
             }
@@ -194,7 +302,8 @@ struct SettingsView: View {
             try GmailSyncService.shared.disconnect()
             gmailAccount = nil
             gmailLastSync = nil
-            statusMessage = "Gmail disconnected. Existing interaction history remains on this device."
+            canImportGoogleContacts = false
+            statusMessage = "Google disconnected. Existing contacts and interaction history remain on this device."
         } catch {
             statusMessage = error.localizedDescription
         }
@@ -210,5 +319,15 @@ struct SettingsView: View {
         }
         let mode = result.wasIncremental ? "new" : "recent"
         return prefix + "Checked \(result.messagesScanned) \(mode) messages and added \(result.importedInteractions) contact interactions."
+    }
+
+    private func googleImportMessage(_ result: GoogleContactImportResult, prefix: String = "") -> String {
+        if result.savedContactsFound == 0 && result.otherContactsFound == 0 {
+            return prefix + "Google returned no saved or Other contacts for this account."
+        }
+        if result.added == 0 && result.updated == 0 {
+            return prefix + "Found \(result.savedContactsFound) saved and \(result.otherContactsFound) Other contacts; Echo is already up to date."
+        }
+        return prefix + "Imported \(result.added) new and updated \(result.updated) contacts (\(result.savedContactsFound) saved, \(result.otherContactsFound) Other)."
     }
 }

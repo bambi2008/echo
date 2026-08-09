@@ -74,6 +74,32 @@ struct EchoAIFeaturesTests {
         #expect(await client.models == ["deepseek-v4-flash", "deepseek-v4-pro"])
     }
 
+    @Test("Relationship briefs preserve evidence and model metadata")
+    func relationshipBriefDecoding() async throws {
+        let client = QueueClient(responses: [
+            AIResult(
+                text: #"{"momentum":"cooling","headline":"The rhythm is slowing","why_now":"The latest gap is longer than the supplied history","next_action":"Send a low-pressure check-in","evidence":["Last contact: 42 days ago","3 interactions recorded"],"confidence":88}"#,
+                model: "deepseek-v4-pro"
+            )
+        ])
+        let features = EchoAIFeatures(
+            service: AIService(client: client, router: AIModelRouter(defaults: nil))
+        )
+
+        let result = try await features.relationshipBrief(
+            personAlias: "Person A",
+            relationship: "friend",
+            lastContact: "42 days ago",
+            interactionSummary: "3 interactions",
+            memorySummary: "Asked about a new role"
+        )
+
+        #expect(result.value.momentum == "cooling")
+        #expect(result.value.evidence.count == 2)
+        #expect(result.value.confidence == 88)
+        #expect(result.model == "deepseek-v4-pro")
+    }
+
     @Test("Incomplete memories produce typed person recall matches")
     func personRecallDecoding() async throws {
         let client = QueueClient(responses: [

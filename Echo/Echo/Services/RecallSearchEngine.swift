@@ -23,9 +23,12 @@ enum RecallSearchEngine {
         now: Date = .now
     ) -> [RecallCandidate] {
         let keywords = queryKeywords(from: description, now: now)
-        guard !keywords.isEmpty else { return [] }
+        let queryPhonetics = phoneticSyllables(from: description)
+        guard !keywords.isEmpty || !queryPhonetics.isEmpty else { return [] }
 
-        return contacts.compactMap { candidate(for: $0, keywords: keywords) }
+        return contacts.compactMap {
+            candidate(for: $0, keywords: keywords, queryPhonetics: queryPhonetics)
+        }
             .sorted {
                 if $0.score != $1.score { return $0.score > $1.score }
                 if $0.matchedKeywords.count != $1.matchedKeywords.count {
@@ -73,7 +76,8 @@ enum RecallSearchEngine {
 
     private static func candidate(
         for contact: EchoContact,
-        keywords: [String]
+        keywords: [String],
+        queryPhonetics: [String]
     ) -> RecallCandidate? {
         let fields = searchableFields(for: contact)
         var score = 0
@@ -93,6 +97,13 @@ enum RecallSearchEngine {
             if !evidence.contains(bestMatch.label) {
                 evidence.append(bestMatch.label)
             }
+        }
+
+        if let phoneticScore = phoneticNameScore(for: contact, queryPhonetics: queryPhonetics),
+           !evidence.contains("a partial name") {
+            score += phoneticScore
+            matchedKeywords.append("similar-sounding name")
+            evidence.append("a similar-sounding name")
         }
 
         guard score > 0 else { return nil }
@@ -150,6 +161,100 @@ enum RecallSearchEngine {
     private static func normalize(_ value: String) -> String {
         value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
             .lowercased()
+    }
+
+    private static func phoneticNameScore(
+        for contact: EchoContact,
+        queryPhonetics: [String]
+    ) -> Int? {
+        let nameVariants = phoneticNameVariants(for: contact)
+        guard !nameVariants.isEmpty else { return nil }
+
+        for variant in nameVariants where containsSequence(variant, in: queryPhonetics) {
+            return 16
+        }
+
+        var bestSimilarity = 0.0
+        for variant in nameVariants where variant.count >= 2 && queryPhonetics.count >= variant.count {
+            for start in 0...(queryPhonetics.count - variant.count) {
+                let window = Array(queryPhonetics[start..<(start + variant.count)])
+                let similarities = zip(variant, window).map { syllableSimilarity($0, $1) }
+                let exactSyllables = zip(variant, window).filter { $0.0 == $0.1 }.count
+                let average = similarities.reduce(0, +) / Double(similarities.count)
+                if exactSyllables >= max(1, variant.count - 1) {
+                    bestSimilarity = max(bestSimilarity, average)
+                }
+            }
+        }
+        return bestSimilarity >= 0.82 ? 11 : nil
+    }
+
+    private static func phoneticNameVariants(for contact: EchoContact) -> [[String]] {
+        guard containsHanCharacters(contact.fullName) else { return [] }
+        let values = [
+            contact.fullName,
+            [contact.familyName, contact.givenName].filter { !$0.isEmpty }.joined(separator: " "),
+            contact.givenName.count >= 2 ? contact.givenName : "",
+            contact.familyName.count >= 2 ? contact.familyName : "",
+        ]
+        var variants: [[String]] = []
+        for value in values where !value.isEmpty {
+            let syllables = phoneticSyllables(from: value)
+            guard syllables.count >= 2, !variants.contains(syllables) else { continue }
+            variants.append(syllables)
+            if syllables.count >= 3 {
+                let withoutFirst = Array(syllables.dropFirst())
+                if !variants.contains(withoutFirst) { variants.append(withoutFirst) }
+            }
+        }
+        return variants
+    }
+
+    private static func phoneticSyllables(from value: String) -> [String] {
+        let latin = value.applyingTransform(.toLatin, reverse: false) ?? value
+        let folded = latin
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .lowercased()
+        return folded.components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+    }
+
+    private static func containsSequence(_ sequence: [String], in values: [String]) -> Bool {
+        guard !sequence.isEmpty, values.count >= sequence.count else { return false }
+        for start in 0...(values.count - sequence.count) {
+            if Array(values[start..<(start + sequence.count)]) == sequence { return true }
+        }
+        return false
+    }
+
+    private static func syllableSimilarity(_ lhs: String, _ rhs: String) -> Double {
+        let longest = max(lhs.count, rhs.count)
+        guard longest > 0 else { return 1 }
+        return 1 - (Double(editDistance(lhs, rhs)) / Double(longest))
+    }
+
+    private static func editDistance(_ lhs: String, _ rhs: String) -> Int {
+        let left = Array(lhs)
+        let right = Array(rhs)
+        var previous = Array(0...right.count)
+        for (leftIndex, leftCharacter) in left.enumerated() {
+            var current = [leftIndex + 1]
+            for (rightIndex, rightCharacter) in right.enumerated() {
+                let insertion = current[rightIndex] + 1
+                let deletion = previous[rightIndex + 1] + 1
+                let substitution = previous[rightIndex] + (leftCharacter == rightCharacter ? 0 : 1)
+                current.append(min(insertion, min(deletion, substitution)))
+            }
+            previous = current
+        }
+        return previous.last ?? left.count
+    }
+
+    private static func containsHanCharacters(_ value: String) -> Bool {
+        value.unicodeScalars.contains { scalar in
+            (0x3400...0x4DBF).contains(scalar.value)
+                || (0x4E00...0x9FFF).contains(scalar.value)
+        }
     }
 
     private static func isUseful(_ token: String) -> Bool {

@@ -18,6 +18,27 @@ final class EchoTests: XCTestCase {
         XCTAssertEqual(contact.initials, "LP")
     }
 
+    func testPhonePlaceholderDisplaysAsUnnamedAndIsExcludedFromTodaysEcho() {
+        let contact = EchoContact(
+            givenName: "18111090503",
+            phoneNumber: "181 1109 0503",
+            relationshipDomain: .personal
+        )
+
+        XCTAssertFalse(contact.hasRealName)
+        XCTAssertEqual(contact.fullName, "未命名联系人")
+        XCTAssertEqual(contact.initials, "?")
+        XCTAssertFalse(contact.isEligibleForTodaysEcho)
+    }
+
+    func testNamedContactNeedsRelationshipContextForTodaysEcho() {
+        let unreviewed = EchoContact(givenName: "Mina")
+        let reviewed = EchoContact(givenName: "Mina", relationshipDomain: .personal)
+
+        XCTAssertFalse(unreviewed.isEligibleForTodaysEcho)
+        XCTAssertTrue(reviewed.isEligibleForTodaysEcho)
+    }
+
     func testPriorityRoundTrip() {
         let contact = EchoContact(givenName: "Sarah", priority: .warm)
 
@@ -123,6 +144,31 @@ final class EchoTests: XCTestCase {
         XCTAssertTrue(matches.first?.matchedKeywords.contains("colleague") == true)
     }
 
+    func testMemorySearchMatchesChineseNameWithDifferentHomophoneCharacters() {
+        let target = EchoContact(givenName: "茅勤", companyName: "Echo")
+        let distractor = EchoContact(givenName: "马强", companyName: "Northstar")
+
+        let matches = RecallSearchEngine.search(
+            description: "我想找毛琴，之前聊过产品",
+            contacts: [distractor, target]
+        )
+
+        XCTAssertEqual(matches.first?.contact.systemIdentifier, target.systemIdentifier)
+        XCTAssertTrue(matches.first?.matchedKeywords.contains("similar-sounding name") == true)
+        XCTAssertTrue(matches.first?.evidence.contains("a similar-sounding name") == true)
+    }
+
+    func testMemorySearchToleratesOneSmallPinyinRecognitionDifference() {
+        let target = EchoContact(givenName: "茅勤")
+
+        let matches = RecallSearchEngine.search(
+            description: "帮我找一下茅青",
+            contacts: [target]
+        )
+
+        XCTAssertEqual(matches.first?.contact.systemIdentifier, target.systemIdentifier)
+    }
+
     func testVoiceTranscriptKeepsExistingMemoryText() {
         let combined = VoiceTranscriptComposer.combine(
             existing: "去年在上海",
@@ -213,23 +259,168 @@ final class EchoTests: XCTestCase {
         XCTAssertEqual(storedDeal.nextActionDate, nextActionDate)
     }
 
-    func testDemoDataSeedsTwoHundredRichContacts() throws {
+    func testLegacyDemoCleanupPreservesRealContacts() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
             for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self,
             configurations: configuration
         )
 
-        DemoData.seedIfNeeded(in: container.mainContext)
+        let demo = DemoContactFactory.makeContact(index: 0)
+        let real = EchoContact(
+            systemIdentifier: "real-contact",
+            givenName: "Real",
+            familyName: "Person",
+            emailAddress: "real@gmail.com"
+        )
+        container.mainContext.insert(demo)
+        container.mainContext.insert(real)
+        container.mainContext.insert(Deal(title: "Demo deal", contact: demo))
+        try container.mainContext.save()
+
+        DemoData.removeLegacyDemoContacts(in: container.mainContext)
 
         let contacts = try container.mainContext.fetch(FetchDescriptor<EchoContact>())
         let deals = try container.mainContext.fetch(FetchDescriptor<Deal>())
-        XCTAssertEqual(contacts.count, DemoData.targetContactCount)
-        XCTAssertEqual(Set(contacts.map(\.systemIdentifier)).count, DemoData.targetContactCount)
-        XCTAssertTrue(contacts.allSatisfy { !$0.tags.isEmpty })
-        XCTAssertTrue(contacts.filter { $0.systemIdentifier.hasPrefix("echo.demo.contact") }.allSatisfy {
-            !$0.interactions.isEmpty && $0.notes.count >= 2 && $0.companyName != nil
-        })
-        XCTAssertGreaterThan(deals.count, 40)
+        XCTAssertEqual(contacts.map(\.systemIdentifier), ["real-contact"])
+        XCTAssertTrue(deals.isEmpty)
+    }
+
+    func testSocialMessagingBuildsSafeDestinations() throws {
+        let telegram = try XCTUnwrap(SocialMessagingService.destination(
+            for: .telegram,
+            identifier: "@echo_friend",
+            draft: "Hello there"
+        ))
+        XCTAssertEqual(telegram.url.host, "t.me")
+        XCTAssertTrue(telegram.url.absoluteString.contains("text=Hello%20there"))
+        XCTAssertTrue(telegram.draftWasIncluded)
+
+        let linkedin = try XCTUnwrap(SocialMessagingService.destination(
+            for: .linkedin,
+            identifier: "https://www.linkedin.com/in/qin-mao/",
+            draft: "Hello"
+        ))
+        XCTAssertEqual(linkedin.url.absoluteString, "https://www.linkedin.com/in/qin-mao")
+        XCTAssertFalse(linkedin.draftWasIncluded)
+    }
+
+    func testPhoneCallBuildsSafeDialerDestination() throws {
+        let destination = try XCTUnwrap(
+            PhoneCallService.destination(for: "+852 (9123) 4567")
+        )
+
+        XCTAssertEqual(destination.absoluteString, "tel:+85291234567")
+        XCTAssertNil(PhoneCallService.destination(for: "not a phone"))
+    }
+
+    func testVCFImportPreviewsAndDeduplicatesByEmailAndPhone() throws {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self,
+            configurations: configuration
+        )
+        let existing = EchoContact(
+            systemIdentifier: "existing-ava",
+            givenName: "Ava",
+            familyName: "Chen",
+            emailAddress: "AVA@EXAMPLE.COM"
+        )
+        container.mainContext.insert(existing)
+        try container.mainContext.save()
+
+        let vCard = """
+        BEGIN:VCARD
+        VERSION:3.0
+        N:Chen;Ava;;;
+        FN:Ava Chen
+        EMAIL;TYPE=INTERNET:ava@example.com
+        ORG:Harbor Insurance
+        END:VCARD
+        BEGIN:VCARD
+        VERSION:3.0
+        N:Chen;Ava;;;
+        FN:Ava Chen
+        TEL;TYPE=CELL:+852 9123 4567
+        EMAIL;TYPE=INTERNET:ava@example.com
+        END:VCARD
+        BEGIN:VCARD
+        VERSION:3.0
+        N:Wong;Ben;;;
+        FN:Ben Wong
+        TEL;TYPE=CELL:+852 6000 1000
+        ORG:Northstar Limited
+        END:VCARD
+        """
+        let service = VCFImportService()
+        let data = try XCTUnwrap(vCard.data(using: .utf8))
+        let preview = try service.preview(
+            data: data,
+            fileName: "contacts.vcf",
+            in: container.mainContext
+        )
+
+        XCTAssertEqual(preview.contacts.count, 2)
+        XCTAssertEqual(preview.newCount, 1)
+        XCTAssertEqual(preview.updateCount, 1)
+        XCTAssertEqual(preview.unchangedCount, 0)
+        let ben = try XCTUnwrap(preview.contacts.first { $0.emailAddress == nil })
+        XCTAssertEqual(ben.relationshipDomain, .business)
+
+        let result = try service.importContacts(
+            preview,
+            relationshipOverrides: [ben.id: .personal],
+            into: container.mainContext
+        )
+        XCTAssertEqual(result.added, 1)
+        XCTAssertEqual(result.updated, 1)
+        XCTAssertEqual(existing.phoneNumber, "+852 9123 4567")
+        XCTAssertEqual(existing.companyName, "Harbor Insurance")
+        let importedBen = try XCTUnwrap(
+            container.mainContext.fetch(FetchDescriptor<EchoContact>())
+                .first { $0.phoneNumber == "+852 6000 1000" }
+        )
+        XCTAssertEqual(importedBen.relationshipDomain, .personal)
+
+        let secondPreview = try service.preview(
+            data: data,
+            fileName: "contacts.vcf",
+            in: container.mainContext
+        )
+        XCTAssertEqual(secondPreview.newCount, 0)
+        XCTAssertEqual(secondPreview.updateCount, 0)
+        XCTAssertEqual(secondPreview.unchangedCount, 2)
+    }
+
+    func testVCFContactWithoutANameStaysUnnamedAndOutOfTodaysEcho() throws {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self,
+            configurations: configuration
+        )
+        let vCard = """
+        BEGIN:VCARD
+        VERSION:3.0
+        N:;;;;
+        FN:
+        TEL;TYPE=CELL:18111090503
+        END:VCARD
+        """
+        let service = VCFImportService()
+        let preview = try service.preview(
+            data: try XCTUnwrap(vCard.data(using: .utf8)),
+            fileName: "nameless.vcf",
+            in: container.mainContext
+        )
+
+        XCTAssertEqual(preview.contacts.first?.fullName, "未命名联系人")
+        _ = try service.importContacts(preview, into: container.mainContext)
+
+        let imported = try XCTUnwrap(
+            container.mainContext.fetch(FetchDescriptor<EchoContact>()).first
+        )
+        XCTAssertEqual(imported.givenName, "")
+        XCTAssertEqual(imported.fullName, "未命名联系人")
+        XCTAssertFalse(imported.isEligibleForTodaysEcho)
     }
 }

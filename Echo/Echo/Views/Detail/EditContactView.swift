@@ -18,6 +18,7 @@ struct EditContactView: View {
     @State private var relationshipDomain: RelationshipDomain
     @State private var selectedIdentities: Set<ContactIdentity>
     @State private var isInEchoLayer: Bool
+    @State private var socialIdentifiers: [SocialPlatform: String]
     @State private var confirmingDelete = false
 
     init(contact: EchoContact, onDelete: @escaping () -> Void) {
@@ -33,6 +34,9 @@ struct EditContactView: View {
         _relationshipDomain = State(initialValue: contact.relationshipDomain)
         _selectedIdentities = State(initialValue: Set(contact.tags.compactMap(ContactIdentity.init(rawValue:))))
         _isInEchoLayer = State(initialValue: contact.isInEchoLayer)
+        _socialIdentifiers = State(initialValue: Dictionary(uniqueKeysWithValues: SocialPlatform.allCases.map {
+            ($0, contact.socialIdentifier(for: $0) ?? "")
+        }))
     }
 
     var body: some View {
@@ -61,6 +65,24 @@ struct EditContactView: View {
                         .textContentType(.organizationName)
                     TextField("Role", text: $jobTitle)
                         .textContentType(.jobTitle)
+                }
+
+                Section {
+                    ForEach(SocialPlatform.allCases) { platform in
+                        LabeledContent {
+                            TextField(platform.fieldPrompt, text: socialBinding(for: platform))
+                                .multilineTextAlignment(.trailing)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .keyboardType(platform == .whatsapp ? .phonePad : .URL)
+                        } label: {
+                            Label(platform.title, systemImage: platform.symbol)
+                        }
+                    }
+                } header: {
+                    Text("Social accounts")
+                } footer: {
+                    Text("Save a username or profile URL. Echo opens the corresponding app when you choose to reach out.")
                 }
 
                 Section {
@@ -160,8 +182,19 @@ struct EditContactView: View {
         contact.relationshipDomain = relationshipDomain
         contact.isInEchoLayer = isInEchoLayer
         contact.tags = preservedTags + selectedIdentities.map(\.rawValue).sorted()
+        for platform in SocialPlatform.allCases {
+            let value = socialIdentifiers[platform]?.trimmed.nilIfEmpty
+            contact.setSocialIdentifier(value, for: platform)
+        }
         try? modelContext.save()
         dismiss()
+    }
+
+    private func socialBinding(for platform: SocialPlatform) -> Binding<String> {
+        Binding(
+            get: { socialIdentifiers[platform] ?? "" },
+            set: { socialIdentifiers[platform] = $0 }
+        )
     }
 
     private func deleteContact() {

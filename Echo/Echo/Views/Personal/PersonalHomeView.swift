@@ -1,18 +1,23 @@
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct PersonalHomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \EchoContact.givenName) private var contacts: [EchoContact]
     @State private var showingNewContact = false
     @State private var showingBusinessCard = false
+    @State private var showingVCFImporter = false
+    @State private var vcfPreview: VCFImportPreview?
     @State private var importMessage: String?
+    @State private var isImporting = false
     @State private var searchText = ""
     @State private var peopleFilter: PeopleFilter = .all
+    @State private var contactMethodFilter: ContactMethodFilter = .all
 
     private var prioritized: [EchoContact] {
         contacts.filter {
-            $0.isInEchoLayer && peopleFilter.includes($0)
+            $0.isInEchoLayer && peopleFilter.includes($0) && contactMethodFilter.includes($0)
         }.sorted {
             EchoEngine.attentionScore(for: $0) > EchoEngine.attentionScore(for: $1)
         }
@@ -21,17 +26,33 @@ struct PersonalHomeView: View {
     private var visibleContacts: [EchoContact] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return prioritized }
-        return prioritized.filter {
-            [$0.fullName, $0.emailAddress, $0.phoneNumber, $0.companyName, $0.jobTitle]
+        return prioritized.filter { contact in
+            let social = SocialPlatform.allCases.compactMap { platform in
+                contact.socialIdentifier(for: platform)
+            }
+            let profile = [contact.fullName, contact.emailAddress, contact.phoneNumber, contact.companyName, contact.jobTitle]
                 .compactMap { $0 }
+            return (profile + social)
                 .contains { $0.localizedCaseInsensitiveContains(query) }
         }
+    }
+
+    private var todaysEchoContact: EchoContact? {
+        prioritized.first(where: \.isEligibleForTodaysEcho)
     }
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
+                    Picker("Contact method", selection: $contactMethodFilter) {
+                        ForEach(ContactMethodFilter.allCases) { filter in
+                            Label(filter.title, systemImage: filter.symbol).tag(filter)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityLabel("Contact method filter")
+
                     Picker("People", selection: $peopleFilter) {
                         ForEach(PeopleFilter.allCases) { filter in
                             Text(filter.title).tag(filter)
@@ -68,7 +89,7 @@ struct PersonalHomeView: View {
                         Label("Today's echo", systemImage: "wave.3.right")
                             .font(.headline)
                             .foregroundStyle(.indigo)
-                        Text(prioritized.first.map { "It may be a good day to reach out to \($0.givenName)." } ?? "Add someone you care about to begin.")
+                        Text(todaysEchoContact.map { "It may be a good day to reach out to \($0.fullName)." } ?? "Add a name and relationship details to get a meaningful suggestion.")
                             .font(.title3.weight(.semibold))
                         Text("Small moments keep important relationships alive.")
                             .font(.subheadline)
@@ -77,7 +98,7 @@ struct PersonalHomeView: View {
                     .padding(.vertical, 8)
                 }
 
-                Section(peopleFilter.sectionTitle) {
+                Section(contactSectionTitle) {
                     ForEach(visibleContacts) { contact in
                         NavigationLink(value: contact) {
                             ContactRow(contact: contact)
@@ -90,20 +111,23 @@ struct PersonalHomeView: View {
             .navigationDestination(for: EchoContact.self) { ContactDetailView(contact: $0) }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        Task {
-                            do {
-                                let result = try await ContactImportService().importContacts(into: modelContext)
-                                if result.added == 0 && result.updated == 0 {
-                                    importMessage = "Your contacts are already up to date."
-                                } else {
-                                    importMessage = "Added \(result.added) and updated \(result.updated) contacts."
-                                }
-                            } catch {
-                                importMessage = "Contacts could not be imported."
-                            }
+                    Menu {
+                        Button(action: importGoogleContacts) {
+                            Label("Google contacts", systemImage: "person.2.badge.plus")
                         }
-                    } label: { Image(systemName: "person.crop.circle.badge.plus") }
+                        Button(action: importIPhoneContacts) {
+                            Label("iPhone contacts", systemImage: "iphone")
+                        }
+                        Button {
+                            showingVCFImporter = true
+                        } label: {
+                            Label("VCF file", systemImage: "doc.badge.plus")
+                        }
+                    } label: {
+                        if isImporting { ProgressView() }
+                        else { Image(systemName: "person.crop.circle.badge.plus") }
+                    }
+                    .disabled(isImporting)
                     .accessibilityLabel("Import contacts")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -135,10 +159,114 @@ struct PersonalHomeView: View {
                         }
                 }
             }
+            .sheet(item: $vcfPreview) { preview in
+                VCFImportPreviewView(preview: preview) { result in
+                    importMessage = result.added == 0 && result.updated == 0
+                        ? "All VCF contacts already exist in Echo."
+                        : "Added \(result.added) and updated \(result.updated) VCF contacts."
+                }
+            }
+            .fileImporter(
+                isPresented: $showingVCFImporter,
+                allowedContentTypes: [.vCard],
+                allowsMultipleSelection: false
+            ) { result in
+                handleVCFSelection(result)
+            }
             .alert("Contact import", isPresented: Binding(
                 get: { importMessage != nil },
                 set: { if !$0 { importMessage = nil } }
             )) { Button("OK") { importMessage = nil } } message: { Text(importMessage ?? "") }
+        }
+    }
+
+    private var contactSectionTitle: String {
+        if contactMethodFilter == .all { return peopleFilter.sectionTitle }
+        return "\(contactMethodFilter.title) contacts"
+    }
+
+    private func handleVCFSelection(_ result: Result<[URL], Error>) {
+        do {
+            guard let url = try result.get().first else { return }
+            let hasAccess = url.startAccessingSecurityScopedResource()
+            defer { if hasAccess { url.stopAccessingSecurityScopedResource() } }
+            let data = try Data(contentsOf: url)
+            vcfPreview = try VCFImportService().preview(
+                data: data,
+                fileName: url.lastPathComponent,
+                in: modelContext
+            )
+        } catch {
+            importMessage = error.localizedDescription
+        }
+    }
+
+    private func importIPhoneContacts() {
+        isImporting = true
+        Task {
+            defer { isImporting = false }
+            do {
+                let result = try await ContactImportService().importContacts(into: modelContext)
+                importMessage = result.added == 0 && result.updated == 0
+                    ? "Your iPhone contacts are already up to date."
+                    : "Added \(result.added) and updated \(result.updated) iPhone contacts."
+            } catch {
+                importMessage = "iPhone contacts could not be imported."
+            }
+        }
+    }
+
+    private func importGoogleContacts() {
+        isImporting = true
+        Task {
+            defer { isImporting = false }
+            do {
+                if GmailSyncService.shared.status()?.canImportContacts != true {
+                    _ = try await GmailSyncService.shared.connect()
+                }
+                let result = try await GmailSyncService.shared.importGoogleContacts(in: modelContext)
+                if result.savedContactsFound == 0 && result.otherContactsFound == 0 {
+                    importMessage = "Google returned no saved or Other contacts for this account. You can switch accounts in Settings."
+                } else if result.added == 0 && result.updated == 0 {
+                    importMessage = "Found \(result.savedContactsFound) saved and \(result.otherContactsFound) Other contacts; Echo is already up to date."
+                } else {
+                    importMessage = "Added \(result.added) and updated \(result.updated) Google contacts."
+                }
+            } catch {
+                importMessage = error.localizedDescription
+            }
+        }
+    }
+}
+
+private enum ContactMethodFilter: String, CaseIterable, Identifiable {
+    case all
+    case phone
+    case email
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: "All"
+        case .phone: "Phone"
+        case .email: "Email"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .all: "person.2"
+        case .phone: "phone"
+        case .email: "envelope"
+        }
+    }
+
+    func includes(_ contact: EchoContact) -> Bool {
+        switch self {
+        case .all: true
+        case .phone: contact.phoneNumber?.trimmed.nilIfEmpty != nil
+        case .email: contact.emailAddress?.trimmed.nilIfEmpty != nil
         }
     }
 }
@@ -197,6 +325,7 @@ private struct NewContactView: View {
     @State private var priority: PriorityLevel?
     @State private var relationshipDomain: RelationshipDomain = .personal
     @State private var identity: ContactIdentity?
+    @State private var socialIdentifiers: [SocialPlatform: String] = [:]
 
     private var availableIdentities: [ContactIdentity] {
         ContactIdentity.allCases.filter { relationshipDomain.includes($0.domain) }
@@ -219,6 +348,20 @@ private struct NewContactView: View {
                     .textContentType(.organizationName)
                 TextField("Role", text: $jobTitle)
                     .textContentType(.jobTitle)
+                Section {
+                    ForEach(SocialPlatform.allCases) { platform in
+                        LabeledContent {
+                            TextField(platform.fieldPrompt, text: socialBinding(for: platform))
+                                .multilineTextAlignment(.trailing)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                        } label: {
+                            Label(platform.title, systemImage: platform.symbol)
+                        }
+                    }
+                } header: {
+                    Text("Social accounts")
+                }
                 Picker("Relationship", selection: $relationshipDomain) {
                     ForEach(RelationshipDomain.allCases) { domain in
                         Label(domain.title, systemImage: domain.symbol).tag(domain)
@@ -253,6 +396,12 @@ private struct NewContactView: View {
                             jobTitle: jobTitle.trimmed.nilIfEmpty
                         )
                         contact.tags = identity.map { [$0.rawValue] } ?? []
+                        for platform in SocialPlatform.allCases {
+                            contact.setSocialIdentifier(
+                                socialIdentifiers[platform]?.trimmed.nilIfEmpty,
+                                for: platform
+                            )
+                        }
                         modelContext.insert(contact)
                         try? modelContext.save()
                         dismiss()
@@ -266,6 +415,13 @@ private struct NewContactView: View {
                 }
             }
         }
+    }
+
+    private func socialBinding(for platform: SocialPlatform) -> Binding<String> {
+        Binding(
+            get: { socialIdentifiers[platform] ?? "" },
+            set: { socialIdentifiers[platform] = $0 }
+        )
     }
 }
 

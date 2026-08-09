@@ -51,6 +51,35 @@ public struct EchoAIFeatures: Sendable {
         )
     }
 
+    /// Produces a structured, evidence-led brief for one person. The caller
+    /// supplies aliases and restores them locally after the response returns.
+    public func relationshipBrief(
+        personAlias: String,
+        relationship: String,
+        lastContact: String,
+        interactionSummary: String,
+        memorySummary: String,
+        modelOverride: AIModelID? = nil
+    ) async throws -> AIStructuredResult<RelationshipBrief> {
+        let result = try await service.chat(
+            task: .relationshipInsight,
+            systemPrompt: """
+            You are Echo, a careful relationship memory assistant. Return only valid JSON with exactly these keys:
+            {"momentum":"active|steady|cooling|dormant|unknown","headline":"","why_now":"","next_action":"","evidence":[""],"confidence":0}
+            Use only supplied facts. Evidence must contain one to three short facts from the input. Do not diagnose, judge, or invent feelings. If evidence is insufficient, use unknown and say so. Keep every string concise and confidence between 0 and 100.
+            """,
+            userMessage: """
+            Person: (personAlias)
+            Relationship: (relationship)
+            Last contact: (lastContact)
+            Interactions: (interactionSummary)
+            Memories: (memorySummary)
+            """,
+            modelOverride: modelOverride
+        )
+        return try decode(RelationshipBrief.self, from: result, task: .relationshipInsight)
+    }
+
     public func relationshipInsights(
         peopleSummary: String,
         modelOverride: AIModelID? = nil
@@ -304,6 +333,38 @@ public struct PersonRecallMatch: Codable, Equatable, Sendable {
         self.alias = alias
         self.confidence = confidence
         self.reason = reason
+    }
+}
+
+public struct RelationshipBrief: Codable, Equatable, Sendable {
+    public let momentum: String
+    public let headline: String
+    public let whyNow: String
+    public let nextAction: String
+    public let evidence: [String]
+    public let confidence: Int
+
+    public init(
+        momentum: String,
+        headline: String,
+        whyNow: String,
+        nextAction: String,
+        evidence: [String],
+        confidence: Int
+    ) {
+        self.momentum = momentum
+        self.headline = headline
+        self.whyNow = whyNow
+        self.nextAction = nextAction
+        self.evidence = evidence
+        self.confidence = confidence
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case momentum, headline
+        case whyNow = "why_now"
+        case nextAction = "next_action"
+        case evidence, confidence
     }
 }
 
