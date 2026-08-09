@@ -123,6 +123,31 @@ final class EchoTests: XCTestCase {
         XCTAssertTrue(matches.first?.matchedKeywords.contains("colleague") == true)
     }
 
+    func testMemorySearchMatchesChineseNameWithDifferentHomophoneCharacters() {
+        let target = EchoContact(givenName: "茅勤", companyName: "Echo")
+        let distractor = EchoContact(givenName: "马强", companyName: "Northstar")
+
+        let matches = RecallSearchEngine.search(
+            description: "我想找毛琴，之前聊过产品",
+            contacts: [distractor, target]
+        )
+
+        XCTAssertEqual(matches.first?.contact.systemIdentifier, target.systemIdentifier)
+        XCTAssertTrue(matches.first?.matchedKeywords.contains("similar-sounding name") == true)
+        XCTAssertTrue(matches.first?.evidence.contains("a similar-sounding name") == true)
+    }
+
+    func testMemorySearchToleratesOneSmallPinyinRecognitionDifference() {
+        let target = EchoContact(givenName: "茅勤")
+
+        let matches = RecallSearchEngine.search(
+            description: "帮我找一下茅青",
+            contacts: [target]
+        )
+
+        XCTAssertEqual(matches.first?.contact.systemIdentifier, target.systemIdentifier)
+    }
+
     func testVoiceTranscriptKeepsExistingMemoryText() {
         let combined = VoiceTranscriptComposer.combine(
             existing: "去年在上海",
