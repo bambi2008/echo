@@ -1,19 +1,23 @@
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct PersonalHomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \EchoContact.givenName) private var contacts: [EchoContact]
     @State private var showingNewContact = false
     @State private var showingBusinessCard = false
+    @State private var showingVCFImporter = false
+    @State private var vcfPreview: VCFImportPreview?
     @State private var importMessage: String?
     @State private var isImporting = false
     @State private var searchText = ""
     @State private var peopleFilter: PeopleFilter = .all
+    @State private var contactMethodFilter: ContactMethodFilter = .all
 
     private var prioritized: [EchoContact] {
         contacts.filter {
-            $0.isInEchoLayer && peopleFilter.includes($0)
+            $0.isInEchoLayer && peopleFilter.includes($0) && contactMethodFilter.includes($0)
         }.sorted {
             EchoEngine.attentionScore(for: $0) > EchoEngine.attentionScore(for: $1)
         }
@@ -37,6 +41,14 @@ struct PersonalHomeView: View {
         NavigationStack {
             List {
                 Section {
+                    Picker("Contact method", selection: $contactMethodFilter) {
+                        ForEach(ContactMethodFilter.allCases) { filter in
+                            Label(filter.title, systemImage: filter.symbol).tag(filter)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityLabel("Contact method filter")
+
                     Picker("People", selection: $peopleFilter) {
                         ForEach(PeopleFilter.allCases) { filter in
                             Text(filter.title).tag(filter)
@@ -82,7 +94,7 @@ struct PersonalHomeView: View {
                     .padding(.vertical, 8)
                 }
 
-                Section(peopleFilter.sectionTitle) {
+                Section(contactSectionTitle) {
                     ForEach(visibleContacts) { contact in
                         NavigationLink(value: contact) {
                             ContactRow(contact: contact)
@@ -101,6 +113,11 @@ struct PersonalHomeView: View {
                         }
                         Button(action: importIPhoneContacts) {
                             Label("iPhone contacts", systemImage: "iphone")
+                        }
+                        Button {
+                            showingVCFImporter = true
+                        } label: {
+                            Label("VCF file", systemImage: "doc.badge.plus")
                         }
                     } label: {
                         if isImporting { ProgressView() }
@@ -138,10 +155,45 @@ struct PersonalHomeView: View {
                         }
                 }
             }
+            .sheet(item: $vcfPreview) { preview in
+                VCFImportPreviewView(preview: preview) { result in
+                    importMessage = result.added == 0 && result.updated == 0
+                        ? "All VCF contacts already exist in Echo."
+                        : "Added \(result.added) and updated \(result.updated) VCF contacts."
+                }
+            }
+            .fileImporter(
+                isPresented: $showingVCFImporter,
+                allowedContentTypes: [.vCard],
+                allowsMultipleSelection: false
+            ) { result in
+                handleVCFSelection(result)
+            }
             .alert("Contact import", isPresented: Binding(
                 get: { importMessage != nil },
                 set: { if !$0 { importMessage = nil } }
             )) { Button("OK") { importMessage = nil } } message: { Text(importMessage ?? "") }
+        }
+    }
+
+    private var contactSectionTitle: String {
+        if contactMethodFilter == .all { return peopleFilter.sectionTitle }
+        return "\(contactMethodFilter.title) contacts"
+    }
+
+    private func handleVCFSelection(_ result: Result<[URL], Error>) {
+        do {
+            guard let url = try result.get().first else { return }
+            let hasAccess = url.startAccessingSecurityScopedResource()
+            defer { if hasAccess { url.stopAccessingSecurityScopedResource() } }
+            let data = try Data(contentsOf: url)
+            vcfPreview = try VCFImportService().preview(
+                data: data,
+                fileName: url.lastPathComponent,
+                in: modelContext
+            )
+        } catch {
+            importMessage = error.localizedDescription
         }
     }
 
@@ -179,6 +231,38 @@ struct PersonalHomeView: View {
             } catch {
                 importMessage = error.localizedDescription
             }
+        }
+    }
+}
+
+private enum ContactMethodFilter: String, CaseIterable, Identifiable {
+    case all
+    case phone
+    case email
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: "All"
+        case .phone: "Phone"
+        case .email: "Email"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .all: "person.2"
+        case .phone: "phone"
+        case .email: "envelope"
+        }
+    }
+
+    func includes(_ contact: EchoContact) -> Bool {
+        switch self {
+        case .all: true
+        case .phone: contact.phoneNumber?.trimmed.nilIfEmpty != nil
+        case .email: contact.emailAddress?.trimmed.nilIfEmpty != nil
         }
     }
 }

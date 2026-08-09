@@ -258,4 +258,70 @@ final class EchoTests: XCTestCase {
         XCTAssertEqual(linkedin.url.absoluteString, "https://www.linkedin.com/in/qin-mao")
         XCTAssertFalse(linkedin.draftWasIncluded)
     }
+
+    func testVCFImportPreviewsAndDeduplicatesByEmailAndPhone() throws {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self,
+            configurations: configuration
+        )
+        let existing = EchoContact(
+            systemIdentifier: "existing-ava",
+            givenName: "Ava",
+            familyName: "Chen",
+            emailAddress: "AVA@EXAMPLE.COM"
+        )
+        container.mainContext.insert(existing)
+        try container.mainContext.save()
+
+        let vCard = """
+        BEGIN:VCARD
+        VERSION:3.0
+        N:Chen;Ava;;;
+        FN:Ava Chen
+        EMAIL;TYPE=INTERNET:ava@example.com
+        ORG:Harbor Insurance
+        END:VCARD
+        BEGIN:VCARD
+        VERSION:3.0
+        N:Chen;Ava;;;
+        FN:Ava Chen
+        TEL;TYPE=CELL:+852 9123 4567
+        EMAIL;TYPE=INTERNET:ava@example.com
+        END:VCARD
+        BEGIN:VCARD
+        VERSION:3.0
+        N:Wong;Ben;;;
+        FN:Ben Wong
+        TEL;TYPE=CELL:+852 6000 1000
+        END:VCARD
+        """
+        let service = VCFImportService()
+        let data = try XCTUnwrap(vCard.data(using: .utf8))
+        let preview = try service.preview(
+            data: data,
+            fileName: "contacts.vcf",
+            in: container.mainContext
+        )
+
+        XCTAssertEqual(preview.contacts.count, 2)
+        XCTAssertEqual(preview.newCount, 1)
+        XCTAssertEqual(preview.updateCount, 1)
+        XCTAssertEqual(preview.unchangedCount, 0)
+
+        let result = try service.importContacts(preview, into: container.mainContext)
+        XCTAssertEqual(result.added, 1)
+        XCTAssertEqual(result.updated, 1)
+        XCTAssertEqual(existing.phoneNumber, "+852 9123 4567")
+        XCTAssertEqual(existing.companyName, "Harbor Insurance")
+
+        let secondPreview = try service.preview(
+            data: data,
+            fileName: "contacts.vcf",
+            in: container.mainContext
+        )
+        XCTAssertEqual(secondPreview.newCount, 0)
+        XCTAssertEqual(secondPreview.updateCount, 0)
+        XCTAssertEqual(secondPreview.unchangedCount, 2)
+    }
 }
