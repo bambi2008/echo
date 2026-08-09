@@ -12,7 +12,7 @@ open Echo/Echo.xcodeproj
 
 ## AI 在哪里
 
-App 启动并完成三页引导后，底部第二个 **Echo AI** 就是 AI 入口。第一次使用前，在底部 **Settings** 中填写 DeepSeek API Key；快速模型和高级模型都可以直接输入任意模型 ID，修改后无需重新发布 App。
+App 首次启动会依次完成 9 个关系现状问题、个性化结果、账户注册、4 个核心场景介绍和订阅选择；完成后，底部第二个 **Echo AI** 就是 AI 入口。第一次使用前，在底部 **Settings** 中填写 DeepSeek API Key；快速模型和高级模型都可以直接输入任意模型 ID，修改后无需重新发布 App。
 
 Echo AI 当前提供：
 
@@ -29,6 +29,8 @@ Echo AI 当前提供：
 - People 的“想不起名字？”支持用相识地点、时间、工作、介绍人、聊天主题等记忆线索找人；先在设备端召回候选，再匿名交给 DeepSeek 复排
 - Memory Search 支持页面内实时语音输入，转写后仍可手动修改再搜索
 - Echo AI 首页会展示价值先行的 AI Pro 入口；Settings → Account & plan 可查看 7 天试用、月/年方案、恢复购买和账户入口
+- 首次使用支持 Sign in with Apple、Google OpenID 登录和本地邮件测试入口；Google 身份登录与 Gmail 邮件读取是两项独立授权
+- 首次订阅页会明确展示“今天不扣费”、第 8 天续费价格、自动续订和取消路径；订阅由 Apple 管理
 - StoreKit 2 已接入 `com.bambi2008.echo.ai.pro.monthly` 与 `com.bambi2008.echo.ai.pro.annual`；共享 Echo Scheme 已绑定 `LocalProducts.storekit`，从 Xcode 运行即可在模拟器测试本地订阅，不触发真实扣费
 - 没有 API Key 或网络不可用时，记忆搜索仍会显示本地匹配结果
 - People 可按全部、个人关系或商务关系筛选；同一个联系人可以标记为个人、商务或两者，不会重复建档

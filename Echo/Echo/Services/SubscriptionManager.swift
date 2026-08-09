@@ -352,6 +352,7 @@ struct EchoAccountView: View {
     @AppStorage("echo.account.email") private var accountEmail = ""
     @AppStorage("echo.account.provider") private var accountProvider = ""
     @AppStorage("echo.account.displayName") private var displayName = ""
+    @AppStorage("echo.account.identifier") private var accountIdentifier = ""
     @State private var showingEmailSheet = false
     @State private var isConnectingGoogle = false
     @State private var statusMessage: String?
@@ -392,6 +393,7 @@ struct EchoAccountView: View {
                             accountEmail = ""
                             accountProvider = ""
                             displayName = ""
+                            accountIdentifier = ""
                         }
                     }
                 }
@@ -403,6 +405,7 @@ struct EchoAccountView: View {
                     accountEmail = email
                     displayName = name
                     accountProvider = "Email"
+                    accountIdentifier = email.lowercased()
                     showingEmailSheet = false
                     statusMessage = "Your private Echo profile is ready on this iPhone."
                 }
@@ -429,10 +432,13 @@ struct EchoAccountView: View {
                 statusMessage = "Apple returned an unexpected credential."
                 return
             }
-            accountEmail = credential.email ?? "apple-user@privileged.local"
+            accountIdentifier = credential.user
+            if let email = credential.email { accountEmail = email }
+            if accountEmail.isEmpty { accountEmail = "Apple private account" }
             displayName = [credential.fullName?.givenName, credential.fullName?.familyName]
                 .compactMap { $0 }
                 .joined(separator: " ")
+            if displayName.isEmpty { displayName = accountEmail }
             accountProvider = "Apple"
             statusMessage = "Signed in with Apple."
         case .failure(let error):
@@ -448,11 +454,12 @@ struct EchoAccountView: View {
         Task {
             defer { isConnectingGoogle = false }
             do {
-                let status = try await GmailSyncService.shared.connect()
-                accountEmail = status.email
-                displayName = status.email
+                let identity = try await GoogleIdentityService.shared.signIn()
+                accountIdentifier = identity.identifier
+                accountEmail = identity.email
+                displayName = identity.name
                 accountProvider = "Google"
-                statusMessage = "Signed in with Google. Gmail sync can be enabled separately in Settings."
+                statusMessage = "Signed in with Google. Gmail access remains a separate optional permission."
             } catch {
                 statusMessage = "Google sign-in was not completed. You can try again or use Apple/email."
             }

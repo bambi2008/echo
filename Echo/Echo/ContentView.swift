@@ -4,7 +4,7 @@ import SwiftUI
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var contacts: [EchoContact]
-    @AppStorage("echo.onboarding.complete") private var completedOnboarding = false
+    @AppStorage("echo.onboarding.v2.complete") private var completedOnboarding = false
 
     var body: some View {
         TabView {

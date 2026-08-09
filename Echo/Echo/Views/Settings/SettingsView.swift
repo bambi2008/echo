@@ -5,7 +5,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var contacts: [EchoContact]
-    @AppStorage("echo.onboarding.complete") private var completedOnboarding = true
+    @AppStorage("echo.onboarding.v2.complete") private var completedOnboarding = true
     @StateObject private var subscription = EchoSubscriptionManager.shared
     @State private var apiKey = ""
     @State private var fastModel = "deepseek-v4-flash"
