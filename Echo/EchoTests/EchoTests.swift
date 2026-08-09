@@ -294,6 +294,7 @@ final class EchoTests: XCTestCase {
         N:Wong;Ben;;;
         FN:Ben Wong
         TEL;TYPE=CELL:+852 6000 1000
+        ORG:Northstar Limited
         END:VCARD
         """
         let service = VCFImportService()
@@ -308,12 +309,23 @@ final class EchoTests: XCTestCase {
         XCTAssertEqual(preview.newCount, 1)
         XCTAssertEqual(preview.updateCount, 1)
         XCTAssertEqual(preview.unchangedCount, 0)
+        let ben = try XCTUnwrap(preview.contacts.first { $0.emailAddress == nil })
+        XCTAssertEqual(ben.relationshipDomain, .business)
 
-        let result = try service.importContacts(preview, into: container.mainContext)
+        let result = try service.importContacts(
+            preview,
+            relationshipOverrides: [ben.id: .personal],
+            into: container.mainContext
+        )
         XCTAssertEqual(result.added, 1)
         XCTAssertEqual(result.updated, 1)
         XCTAssertEqual(existing.phoneNumber, "+852 9123 4567")
         XCTAssertEqual(existing.companyName, "Harbor Insurance")
+        let importedBen = try XCTUnwrap(
+            container.mainContext.fetch(FetchDescriptor<EchoContact>())
+                .first { $0.phoneNumber == "+852 6000 1000" }
+        )
+        XCTAssertEqual(importedBen.relationshipDomain, .personal)
 
         let secondPreview = try service.preview(
             data: data,

@@ -27,6 +27,7 @@ struct VCFContactCandidate: Identifiable {
     let emailAddress: String?
     let companyName: String?
     let jobTitle: String?
+    let relationshipDomain: RelationshipDomain
     let matchedSystemIdentifier: String?
     let action: Action
 
@@ -76,6 +77,7 @@ struct VCFImportService {
                 emailAddress: draft.emailAddress,
                 companyName: draft.companyName,
                 jobTitle: draft.jobTitle,
+                relationshipDomain: match?.relationshipDomain ?? Self.suggestedRelationship(for: draft),
                 matchedSystemIdentifier: match?.systemIdentifier,
                 action: action
             )
@@ -85,13 +87,18 @@ struct VCFImportService {
         return VCFImportPreview(fileName: fileName, contacts: candidates)
     }
 
-    func importContacts(_ preview: VCFImportPreview, into context: ModelContext) throws -> ContactImportResult {
+    func importContacts(
+        _ preview: VCFImportPreview,
+        relationshipOverrides: [UUID: RelationshipDomain] = [:],
+        into context: ModelContext
+    ) throws -> ContactImportResult {
         let storedContacts = try context.fetch(FetchDescriptor<EchoContact>())
         var contactsByIdentifier = Dictionary(uniqueKeysWithValues: storedContacts.map { ($0.systemIdentifier, $0) })
         var added = 0
         var updated = 0
 
         for candidate in preview.contacts {
+            let selectedRelationship = relationshipOverrides[candidate.id] ?? candidate.relationshipDomain
             switch candidate.action {
             case .add:
                 let contact = EchoContact(
@@ -100,6 +107,7 @@ struct VCFImportService {
                     familyName: candidate.familyName,
                     phoneNumber: candidate.phoneNumber,
                     emailAddress: candidate.emailAddress,
+                    relationshipDomain: selectedRelationship,
                     companyName: candidate.companyName,
                     jobTitle: candidate.jobTitle
                 )
@@ -110,11 +118,21 @@ struct VCFImportService {
                 guard let identifier = candidate.matchedSystemIdentifier,
                       let contact = contactsByIdentifier[identifier]
                 else { continue }
-                if Self.fillMissingFields(of: contact, from: candidate) {
+                let filledMissingFields = Self.fillMissingFields(of: contact, from: candidate)
+                let changedRelationship = Self.updateRelationship(
+                    of: contact,
+                    to: selectedRelationship
+                )
+                if filledMissingFields || changedRelationship {
                     updated += 1
                 }
             case .unchanged:
-                continue
+                guard let identifier = candidate.matchedSystemIdentifier,
+                      let contact = contactsByIdentifier[identifier]
+                else { continue }
+                if Self.updateRelationship(of: contact, to: selectedRelationship) {
+                    updated += 1
+                }
             }
         }
 
@@ -217,6 +235,19 @@ struct VCFImportService {
             || (contact.emailAddress?.trimmed.nilIfEmpty == nil && draft.emailAddress != nil)
             || (contact.companyName?.trimmed.nilIfEmpty == nil && draft.companyName != nil)
             || (contact.jobTitle?.trimmed.nilIfEmpty == nil && draft.jobTitle != nil)
+    }
+
+    private static func suggestedRelationship(for draft: Draft) -> RelationshipDomain {
+        draft.companyName != nil || draft.jobTitle != nil ? .business : .personal
+    }
+
+    private static func updateRelationship(
+        of contact: EchoContact,
+        to relationship: RelationshipDomain
+    ) -> Bool {
+        guard contact.relationshipDomain != relationship else { return false }
+        contact.relationshipDomain = relationship
+        return true
     }
 
     private static func fillMissingFields(of contact: EchoContact, from candidate: VCFContactCandidate) -> Bool {

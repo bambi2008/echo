@@ -8,6 +8,15 @@ struct VCFImportPreviewView: View {
     let onComplete: (ContactImportResult) -> Void
     @State private var isImporting = false
     @State private var errorMessage: String?
+    @State private var relationships: [UUID: RelationshipDomain]
+
+    init(preview: VCFImportPreview, onComplete: @escaping (ContactImportResult) -> Void) {
+        self.preview = preview
+        self.onComplete = onComplete
+        _relationships = State(initialValue: Dictionary(uniqueKeysWithValues: preview.contacts.map {
+            ($0.id, $0.relationshipDomain)
+        }))
+    }
 
     var body: some View {
         NavigationStack {
@@ -46,9 +55,19 @@ struct VCFImportPreviewView: View {
                                 }
                             }
                             Spacer()
-                            Text(label(for: contact.action))
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(color(for: contact.action))
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text(label(for: contact.action))
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(color(for: contact.action))
+                                Picker("Relationship", selection: relationshipBinding(for: contact)) {
+                                    ForEach(RelationshipDomain.allCases) { domain in
+                                        Label(domain.title, systemImage: domain.symbol).tag(domain)
+                                    }
+                                }
+                                .labelsHidden()
+                                .pickerStyle(.menu)
+                                .fixedSize()
+                            }
                         }
                         .padding(.vertical, 3)
                     }
@@ -65,7 +84,7 @@ struct VCFImportPreviewView: View {
                         importContacts()
                     } label: {
                         if isImporting { ProgressView() }
-                        else { Text(preview.importableCount == 0 ? "Done" : "Import \(preview.importableCount)") }
+                        else { Text(importableCount == 0 ? "Done" : "Import \(importableCount)") }
                     }
                     .disabled(isImporting)
                 }
@@ -82,19 +101,36 @@ struct VCFImportPreviewView: View {
     }
 
     private func importContacts() {
-        guard preview.importableCount > 0 else {
+        guard importableCount > 0 else {
             dismiss()
             return
         }
         isImporting = true
         do {
-            let result = try VCFImportService().importContacts(preview, into: modelContext)
+            let result = try VCFImportService().importContacts(
+                preview,
+                relationshipOverrides: relationships,
+                into: modelContext
+            )
             onComplete(result)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
             isImporting = false
         }
+    }
+
+    private var importableCount: Int {
+        preview.contacts.filter { contact in
+            contact.action != .unchanged || relationships[contact.id] != contact.relationshipDomain
+        }.count
+    }
+
+    private func relationshipBinding(for contact: VCFContactCandidate) -> Binding<RelationshipDomain> {
+        Binding(
+            get: { relationships[contact.id] ?? contact.relationshipDomain },
+            set: { relationships[contact.id] = $0 }
+        )
     }
 
     private func detail(for contact: VCFContactCandidate) -> String? {

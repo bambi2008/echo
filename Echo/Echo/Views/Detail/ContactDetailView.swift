@@ -97,12 +97,13 @@ struct ContactDetailView: View {
             }
 
             Section("Profile") {
-                LabeledContent {
-                    Label(contact.relationshipDomain.title, systemImage: contact.relationshipDomain.symbol)
-                        .foregroundStyle(.indigo)
-                } label: {
-                    Text("Relationship")
+                Picker("Relationship", selection: relationshipBinding) {
+                    ForEach(RelationshipDomain.allCases) { domain in
+                        Label(domain.title, systemImage: domain.symbol).tag(domain)
+                    }
                 }
+                .pickerStyle(.menu)
+                .tint(.indigo)
                 if let phoneNumber = contact.phoneNumber {
                     LabeledContent("Phone", value: phoneNumber)
                 }
@@ -261,6 +262,16 @@ struct ContactDetailView: View {
 
     private var businessDeals: [Deal] {
         deals.filter { $0.contact?.systemIdentifier == contact.systemIdentifier }
+    }
+
+    private var relationshipBinding: Binding<RelationshipDomain> {
+        Binding(
+            get: { contact.relationshipDomain },
+            set: { newValue in
+                contact.relationshipDomain = newValue
+                try? modelContext.save()
+            }
+        )
     }
 
     private func interactionTitle(_ interaction: Interaction) -> String {
