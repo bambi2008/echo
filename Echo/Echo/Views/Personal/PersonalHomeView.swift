@@ -169,9 +169,13 @@ struct PersonalHomeView: View {
                     _ = try await GmailSyncService.shared.connect()
                 }
                 let result = try await GmailSyncService.shared.importGoogleContacts(in: modelContext)
-                importMessage = result.added == 0 && result.updated == 0
-                    ? "Your Google contacts are already up to date."
-                    : "Added \(result.added) and updated \(result.updated) Google contacts."
+                if result.savedContactsFound == 0 && result.otherContactsFound == 0 {
+                    importMessage = "Google returned no saved or Other contacts for this account. You can switch accounts in Settings."
+                } else if result.added == 0 && result.updated == 0 {
+                    importMessage = "Found \(result.savedContactsFound) saved and \(result.otherContactsFound) Other contacts; Echo is already up to date."
+                } else {
+                    importMessage = "Added \(result.added) and updated \(result.updated) Google contacts."
+                }
             } catch {
                 importMessage = error.localizedDescription
             }

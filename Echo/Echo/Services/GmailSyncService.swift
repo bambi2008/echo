@@ -28,6 +28,8 @@ struct GoogleContactImportResult {
     let added: Int
     let updated: Int
     let skipped: Int
+    let savedContactsFound: Int
+    let otherContactsFound: Int
 }
 
 private struct GmailToken: Codable {
@@ -113,6 +115,11 @@ private struct GooglePeopleResponse: Decodable {
     let nextPageToken: String?
 }
 
+private struct GoogleOtherContactsResponse: Decodable {
+    let otherContacts: [GooglePerson]?
+    let nextPageToken: String?
+}
+
 private struct GooglePerson: Decodable {
     let resourceName: String
     let names: [GooglePersonName]?
@@ -189,6 +196,7 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
     private let scope = [
         "https://www.googleapis.com/auth/gmail.metadata",
         "https://www.googleapis.com/auth/contacts.readonly",
+        "https://www.googleapis.com/auth/contacts.other.readonly",
     ].joined(separator: " ")
     private let tokenStore = GmailTokenStore()
     private var authenticationSession: ASWebAuthenticationSession?
@@ -199,7 +207,7 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
             email: email,
             expiresAt: token.expiresAt,
             lastSyncAt: token.lastSyncAt,
-            canImportContacts: token.grantedScopes?.contains("contacts.readonly") == true
+            canImportContacts: Self.hasContactScopes(token.grantedScopes)
         )
     }
 
@@ -214,7 +222,7 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "scope", value: scope),
             URLQueryItem(name: "access_type", value: "offline"),
-            URLQueryItem(name: "prompt", value: "consent"),
+            URLQueryItem(name: "prompt", value: "consent select_account"),
             URLQueryItem(name: "code_challenge", value: challenge),
             URLQueryItem(name: "code_challenge_method", value: "S256"),
         ]
@@ -337,10 +345,10 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
 
     func importGoogleContacts(in context: ModelContext) async throws -> GoogleContactImportResult {
         let token = try await validToken()
-        guard token.grantedScopes?.contains("contacts.readonly") == true else {
+        guard Self.hasContactScopes(token.grantedScopes) else {
             throw GmailSyncError.provider(
                 statusCode: 403,
-                message: "Reconnect Google to grant read-only Contacts access."
+                message: "Reconnect Google to grant read-only access to saved and other contacts."
             )
         }
 
@@ -364,6 +372,25 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
             people.append(contentsOf: response.connections ?? [])
             pageToken = response.nextPageToken
         } while pageToken != nil
+        let savedContactsFound = people.count
+
+        pageToken = nil
+        var otherPeople: [GooglePerson] = []
+        repeat {
+            var components = URLComponents(string: "https://people.googleapis.com/v1/otherContacts")!
+            var query = [
+                URLQueryItem(name: "pageSize", value: "1000"),
+                URLQueryItem(name: "readMask", value: "names,emailAddresses,phoneNumbers"),
+            ]
+            if let pageToken { query.append(URLQueryItem(name: "pageToken", value: pageToken)) }
+            components.queryItems = query
+            var request = URLRequest(url: components.url!)
+            request.setValue("Bearer \(token.accessToken)", forHTTPHeaderField: "Authorization")
+            let response: GoogleOtherContactsResponse = try await decode(request)
+            otherPeople.append(contentsOf: response.otherContacts ?? [])
+            pageToken = response.nextPageToken
+        } while pageToken != nil
+        people.append(contentsOf: otherPeople)
 
         var contacts = try context.fetch(FetchDescriptor<EchoContact>())
         var byGoogleID = Dictionary(uniqueKeysWithValues: contacts.map { ($0.systemIdentifier, $0) })
@@ -432,7 +459,13 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
             }
         }
         try context.save()
-        return GoogleContactImportResult(added: added, updated: updated, skipped: skipped)
+        return GoogleContactImportResult(
+            added: added,
+            updated: updated,
+            skipped: skipped,
+            savedContactsFound: savedContactsFound,
+            otherContactsFound: otherPeople.count
+        )
     }
 
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
@@ -605,6 +638,11 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
 
     private static func normalize(_ email: String) -> String {
         email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private static func hasContactScopes(_ scopes: String?) -> Bool {
+        guard let scopes else { return false }
+        return scopes.contains("contacts.readonly") && scopes.contains("contacts.other.readonly")
     }
 
     private static func normalizePhone(_ phone: String) -> String {

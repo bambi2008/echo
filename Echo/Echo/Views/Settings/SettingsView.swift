@@ -107,7 +107,13 @@ struct SettingsView: View {
                             }
                         }
                         .disabled(isWorkingWithGmail)
-                        Button("Disconnect Gmail", role: .destructive) {
+                        Button {
+                            switchGoogleAccount()
+                        } label: {
+                            Label("Switch Google account", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .disabled(isWorkingWithGmail)
+                        Button("Disconnect Google", role: .destructive) {
                             disconnectGmail()
                         }
                         .disabled(isWorkingWithGmail)
@@ -127,8 +133,8 @@ struct SettingsView: View {
                     Text("Google contacts & Gmail")
                 } footer: {
                     Text(canImportGoogleContacts
-                         ? "Contacts are imported read-only. Gmail sync reads message headers only—never bodies or attachments."
-                         : "Reconnect Google once to grant read-only Contacts access. Echo never edits your Google contacts.")
+                         ? "Saved contacts and Gmail's Other contacts are imported read-only. Gmail sync reads message headers only—never bodies or attachments."
+                         : "Reconnect Google once to grant read-only access to saved and Other contacts. Echo never edits Google contacts.")
                 }
 
                 Section("Privacy") {
@@ -235,7 +241,7 @@ struct SettingsView: View {
                 let refreshedContacts = try modelContext.fetch(FetchDescriptor<EchoContact>())
                 let result = try await GmailSyncService.shared.sync(contacts: refreshedContacts, in: modelContext)
                 gmailLastSync = result.lastSyncAt
-                statusMessage = "Google connected. Imported \(imported.added) new and updated \(imported.updated) contacts. " + syncMessage(for: result, connected: false)
+                statusMessage = googleImportMessage(imported, prefix: "Google connected. ") + " " + syncMessage(for: result, connected: false)
             } catch {
                 statusMessage = error.localizedDescription
             }
@@ -253,9 +259,24 @@ struct SettingsView: View {
                     canImportGoogleContacts = status.canImportContacts
                 }
                 let result = try await GmailSyncService.shared.importGoogleContacts(in: modelContext)
-                statusMessage = result.added == 0 && result.updated == 0
-                    ? "Google contacts are already up to date."
-                    : "Imported \(result.added) new contacts and updated \(result.updated)."
+                statusMessage = googleImportMessage(result)
+            } catch {
+                statusMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func switchGoogleAccount() {
+        isWorkingWithGmail = true
+        Task {
+            defer { isWorkingWithGmail = false }
+            do {
+                let status = try await GmailSyncService.shared.connect()
+                gmailAccount = status.email
+                gmailLastSync = status.lastSyncAt
+                canImportGoogleContacts = status.canImportContacts
+                let imported = try await GmailSyncService.shared.importGoogleContacts(in: modelContext)
+                statusMessage = googleImportMessage(imported, prefix: "Now using \(status.email). ")
             } catch {
                 statusMessage = error.localizedDescription
             }
@@ -282,7 +303,7 @@ struct SettingsView: View {
             gmailAccount = nil
             gmailLastSync = nil
             canImportGoogleContacts = false
-            statusMessage = "Gmail disconnected. Existing interaction history remains on this device."
+            statusMessage = "Google disconnected. Existing contacts and interaction history remain on this device."
         } catch {
             statusMessage = error.localizedDescription
         }
@@ -298,5 +319,15 @@ struct SettingsView: View {
         }
         let mode = result.wasIncremental ? "new" : "recent"
         return prefix + "Checked \(result.messagesScanned) \(mode) messages and added \(result.importedInteractions) contact interactions."
+    }
+
+    private func googleImportMessage(_ result: GoogleContactImportResult, prefix: String = "") -> String {
+        if result.savedContactsFound == 0 && result.otherContactsFound == 0 {
+            return prefix + "Google returned no saved or Other contacts for this account."
+        }
+        if result.added == 0 && result.updated == 0 {
+            return prefix + "Found \(result.savedContactsFound) saved and \(result.otherContactsFound) Other contacts; Echo is already up to date."
+        }
+        return prefix + "Imported \(result.added) new and updated \(result.updated) contacts (\(result.savedContactsFound) saved, \(result.otherContactsFound) Other)."
     }
 }

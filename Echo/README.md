@@ -24,7 +24,8 @@ Echo AI 当前提供：
 - 从 People 首页的新增菜单识别名片并添加联系人；从 Echo AI 识别保单字段
 - 图片先在设备端使用 Apple Vision 识别文字，再由 DeepSeek 整理为结构化字段
 - 在 Settings 连接 Gmail，仅同步发件人、收件人、主题和时间，并把匹配到现有联系人的邮件写入互动记录
-- People 首页可通过 Google People API 只读导入 Google Contacts（姓名、邮箱、电话、公司、职位及联系人中已有的社媒链接），并自动合并同邮箱或电话的联系人
+- People 首页可通过 Google People API 只读导入已保存联系人及 Gmail 自动积累的“其他联系人”，并自动合并同邮箱或电话的联系人
+- Settings → Google contacts & Gmail 提供明确的 Switch Google account；授权页每次都会显示账号选择器，取消换号不会破坏原连接
 - 旧版内置的 200 个演示联系人会在升级后自动删除，不再为新安装创建虚拟联系人
 - 联系人支持保存 WhatsApp、Telegram、Instagram、Facebook、X、LinkedIn、Reddit、Discord 账号；发起联系时生成可编辑草稿并打开对应平台
 - 邮件联系人可从详情页生成个性化开场白，并通过系统 `mailto` 交给 iPhone 上用户选择的邮件 App 发送
