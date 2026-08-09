@@ -24,6 +24,10 @@ Echo AI 当前提供：
 - 从 People 首页的新增菜单识别名片并添加联系人；从 Echo AI 识别保单字段
 - 图片先在设备端使用 Apple Vision 识别文字，再由 DeepSeek 整理为结构化字段
 - 在 Settings 连接 Gmail，仅同步发件人、收件人、主题和时间，并把匹配到现有联系人的邮件写入互动记录
+- People 首页可通过 Google People API 只读导入 Google Contacts（姓名、邮箱、电话、公司、职位及联系人中已有的社媒链接），并自动合并同邮箱或电话的联系人
+- 旧版内置的 200 个演示联系人会在升级后自动删除，不再为新安装创建虚拟联系人
+- 联系人支持保存 WhatsApp、Telegram、Instagram、Facebook、X、LinkedIn、Reddit、Discord 账号；发起联系时生成可编辑草稿并打开对应平台
+- 邮件联系人可从详情页生成个性化开场白，并通过系统 `mailto` 交给 iPhone 上用户选择的邮件 App 发送
 - Gmail 首次检查最近 200 封邮件，之后使用 Gmail History 增量同步；App 启动时最多每 15 分钟自动检查一次
 - People 支持按姓名、公司、邮箱或电话搜索；通讯录重复导入会更新已有联系人，不重复创建
 - People 的“想不起名字？”支持用相识地点、时间、工作、介绍人、聊天主题等记忆线索找人；先在设备端召回候选，再匿名交给 DeepSeek 复排
@@ -46,5 +50,5 @@ Echo AI 当前提供：
 - 本地依赖根目录中的 `EchoAI` Swift Package
 - 联系人、互动记录、备注与交易管道保存在设备端
 - 名片与保单图片本身不上传；图片文字识别在设备端完成
-- Gmail OAuth Token 保存在 Apple Keychain；Echo 不下载邮件正文和附件
+- Google OAuth Token 保存在 Apple Keychain；Google Contacts 只读导入，Echo 不修改云端联系人，也不下载 Gmail 正文和附件
 - Outlook 同步需要单独的 Microsoft Entra 应用 Client ID，尚未绑定任何虚构或共享凭据

@@ -17,6 +17,14 @@ final class EchoContact {
     var tags: [String]
     var companyName: String?
     var jobTitle: String?
+    var facebookUsername: String?
+    var xUsername: String?
+    var redditUsername: String?
+    var telegramUsername: String?
+    var discordUsername: String?
+    var linkedinUsername: String?
+    var instagramUsername: String?
+    var whatsappNumber: String?
 
     @Relationship(deleteRule: .cascade, inverse: \Interaction.contact)
     var interactions: [Interaction] = []
@@ -35,7 +43,15 @@ final class EchoContact {
         lastReachedOut: Date? = nil,
         reachCount: Int = 0,
         companyName: String? = nil,
-        jobTitle: String? = nil
+        jobTitle: String? = nil,
+        facebookUsername: String? = nil,
+        xUsername: String? = nil,
+        redditUsername: String? = nil,
+        telegramUsername: String? = nil,
+        discordUsername: String? = nil,
+        linkedinUsername: String? = nil,
+        instagramUsername: String? = nil,
+        whatsappNumber: String? = nil
     ) {
         self.systemIdentifier = systemIdentifier
         self.givenName = givenName
@@ -50,6 +66,14 @@ final class EchoContact {
         self.tags = []
         self.companyName = companyName
         self.jobTitle = jobTitle
+        self.facebookUsername = facebookUsername
+        self.xUsername = xUsername
+        self.redditUsername = redditUsername
+        self.telegramUsername = telegramUsername
+        self.discordUsername = discordUsername
+        self.linkedinUsername = linkedinUsername
+        self.instagramUsername = instagramUsername
+        self.whatsappNumber = whatsappNumber
     }
 
     var fullName: String {
@@ -99,5 +123,35 @@ final class EchoContact {
         let latestInteraction = interactions.map(\.date).max()
         guard let latest = [lastReachedOut, latestInteraction].compactMap({ $0 }).max() else { return nil }
         return Calendar.current.dateComponents([.day], from: latest, to: .now).day
+    }
+
+    var availableSocialPlatforms: [SocialPlatform] {
+        SocialPlatform.allCases.filter { socialIdentifier(for: $0) != nil }
+    }
+
+    func socialIdentifier(for platform: SocialPlatform) -> String? {
+        switch platform {
+        case .facebook: facebookUsername
+        case .x: xUsername
+        case .reddit: redditUsername
+        case .telegram: telegramUsername
+        case .discord: discordUsername
+        case .linkedin: linkedinUsername
+        case .instagram: instagramUsername
+        case .whatsapp: whatsappNumber ?? phoneNumber
+        }
+    }
+
+    func setSocialIdentifier(_ value: String?, for platform: SocialPlatform) {
+        switch platform {
+        case .facebook: facebookUsername = value
+        case .x: xUsername = value
+        case .reddit: redditUsername = value
+        case .telegram: telegramUsername = value
+        case .discord: discordUsername = value
+        case .linkedin: linkedinUsername = value
+        case .instagram: instagramUsername = value
+        case .whatsapp: whatsappNumber = value
+        }
     }
 }

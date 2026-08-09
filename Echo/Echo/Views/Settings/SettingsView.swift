@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var statusMessage: String?
     @State private var gmailAccount: String?
     @State private var gmailLastSync: Date?
+    @State private var canImportGoogleContacts = false
     @State private var isWorkingWithGmail = false
 
     var body: some View {
@@ -87,6 +88,16 @@ struct SettingsView: View {
                             }
                         }
                         Button {
+                            importGoogleContacts()
+                        } label: {
+                            if isWorkingWithGmail {
+                                ProgressView()
+                            } else {
+                                Label("Import Google contacts", systemImage: "person.2.badge.plus")
+                            }
+                        }
+                        .disabled(isWorkingWithGmail)
+                        Button {
                             syncGmail()
                         } label: {
                             if isWorkingWithGmail {
@@ -113,9 +124,11 @@ struct SettingsView: View {
                         .disabled(isWorkingWithGmail)
                     }
                 } header: {
-                    Text("Email sync")
+                    Text("Google contacts & Gmail")
                 } footer: {
-                    Text("Echo reads message headers only—sender, recipients, subject, and time. Email bodies and attachments are not downloaded.")
+                    Text(canImportGoogleContacts
+                         ? "Contacts are imported read-only. Gmail sync reads message headers only—never bodies or attachments."
+                         : "Reconnect Google once to grant read-only Contacts access. Echo never edits your Google contacts.")
                 }
 
                 Section("Privacy") {
@@ -123,6 +136,27 @@ struct SettingsView: View {
                     Label("Gmail bodies are never downloaded", systemImage: "envelope.badge.shield.half.filled")
                     Label("Cloud prompts use local aliases", systemImage: "person.badge.shield.checkmark.fill")
                     Label("Operational logs contain no prompts", systemImage: "text.badge.xmark")
+                }
+
+                Section {
+                    ForEach(SocialPlatform.allCases) { platform in
+                        Label {
+                            HStack {
+                                Text(platform.title)
+                                Spacer()
+                                Text("Message link")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: platform.symbol)
+                                .foregroundStyle(.indigo)
+                        }
+                    }
+                } header: {
+                    Text("Social messaging")
+                } footer: {
+                    Text("iOS and these platforms do not expose private friend lists to Echo. Add a username or profile URL in a person's Edit screen; Echo can then prepare a draft and open that app.")
                 }
 
                 Section("About") {
@@ -137,6 +171,7 @@ struct SettingsView: View {
                 let gmailStatus = GmailSyncService.shared.status()
                 gmailAccount = gmailStatus?.email
                 gmailLastSync = gmailStatus?.lastSyncAt
+                canImportGoogleContacts = gmailStatus?.canImportContacts ?? false
             }
             .alert("Echo", isPresented: Binding(
                 get: { statusMessage != nil },
@@ -195,9 +230,32 @@ struct SettingsView: View {
             do {
                 let status = try await GmailSyncService.shared.connect()
                 gmailAccount = status.email
-                let result = try await GmailSyncService.shared.sync(contacts: contacts, in: modelContext)
+                canImportGoogleContacts = status.canImportContacts
+                let imported = try await GmailSyncService.shared.importGoogleContacts(in: modelContext)
+                let refreshedContacts = try modelContext.fetch(FetchDescriptor<EchoContact>())
+                let result = try await GmailSyncService.shared.sync(contacts: refreshedContacts, in: modelContext)
                 gmailLastSync = result.lastSyncAt
-                statusMessage = syncMessage(for: result, connected: true)
+                statusMessage = "Google connected. Imported \(imported.added) new and updated \(imported.updated) contacts. " + syncMessage(for: result, connected: false)
+            } catch {
+                statusMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func importGoogleContacts() {
+        isWorkingWithGmail = true
+        Task {
+            defer { isWorkingWithGmail = false }
+            do {
+                if GmailSyncService.shared.status()?.canImportContacts != true {
+                    let status = try await GmailSyncService.shared.connect()
+                    gmailAccount = status.email
+                    canImportGoogleContacts = status.canImportContacts
+                }
+                let result = try await GmailSyncService.shared.importGoogleContacts(in: modelContext)
+                statusMessage = result.added == 0 && result.updated == 0
+                    ? "Google contacts are already up to date."
+                    : "Imported \(result.added) new contacts and updated \(result.updated)."
             } catch {
                 statusMessage = error.localizedDescription
             }
@@ -223,6 +281,7 @@ struct SettingsView: View {
             try GmailSyncService.shared.disconnect()
             gmailAccount = nil
             gmailLastSync = nil
+            canImportGoogleContacts = false
             statusMessage = "Gmail disconnected. Existing interaction history remains on this device."
         } catch {
             statusMessage = error.localizedDescription

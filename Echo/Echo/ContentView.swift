@@ -22,7 +22,7 @@ struct ContentView: View {
         }
         .tint(.indigo)
         .task {
-            DemoData.seedIfNeeded(in: modelContext)
+            DemoData.removeLegacyDemoContacts(in: modelContext)
             guard GmailSyncService.shared.status() != nil,
                   GmailSyncService.shared.shouldSync()
             else { return }

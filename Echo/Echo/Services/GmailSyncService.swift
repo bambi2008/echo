@@ -9,6 +9,7 @@ struct GmailConnectionStatus {
     let email: String
     let expiresAt: Date
     let lastSyncAt: Date?
+    let canImportContacts: Bool
 }
 
 struct GmailSyncResult {
@@ -23,6 +24,12 @@ struct GmailSyncResult {
     }
 }
 
+struct GoogleContactImportResult {
+    let added: Int
+    let updated: Int
+    let skipped: Int
+}
+
 private struct GmailToken: Codable {
     var accessToken: String
     var refreshToken: String
@@ -30,6 +37,7 @@ private struct GmailToken: Codable {
     var email: String?
     var historyID: String?
     var lastSyncAt: Date?
+    var grantedScopes: String?
 }
 
 private struct GmailTokenResponse: Decodable {
@@ -100,6 +108,50 @@ private struct GmailProviderErrorBody: Decodable {
     let message: String
 }
 
+private struct GooglePeopleResponse: Decodable {
+    let connections: [GooglePerson]?
+    let nextPageToken: String?
+}
+
+private struct GooglePerson: Decodable {
+    let resourceName: String
+    let names: [GooglePersonName]?
+    let emailAddresses: [GooglePersonValue]?
+    let phoneNumbers: [GooglePersonValue]?
+    let organizations: [GoogleOrganization]?
+    let urls: [GooglePersonValue]?
+    let imClients: [GoogleIMClient]?
+}
+
+private struct GooglePersonName: Decodable {
+    let givenName: String?
+    let familyName: String?
+    let displayName: String?
+}
+
+private struct GooglePersonValue: Decodable {
+    let value: String?
+    let type: String?
+}
+
+private struct GoogleOrganization: Decodable {
+    let name: String?
+    let title: String?
+    let current: Bool?
+}
+
+private struct GoogleIMClient: Decodable {
+    let username: String?
+    let protocolName: String?
+    let formattedProtocol: String?
+
+    enum CodingKeys: String, CodingKey {
+        case username
+        case protocolName = "protocol"
+        case formattedProtocol
+    }
+}
+
 enum GmailSyncError: LocalizedError {
     case notConnected
     case invalidConfiguration
@@ -116,7 +168,9 @@ enum GmailSyncError: LocalizedError {
             case 401:
                 "Google access has expired. Disconnect Gmail and connect it again."
             case 403:
-                "Google did not allow this Gmail request. Check the Gmail permission and try again."
+                message.contains("Reconnect")
+                    ? message
+                    : "Google did not allow this request. Reconnect Google and make sure People API is enabled."
             case 429:
                 "Gmail is temporarily rate-limiting Echo. Wait a moment and try again."
             default:
@@ -132,7 +186,10 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
 
     private let clientID = "584656353169-ih6dd4dth5lo17aigac05k5l5qju6nr5.apps.googleusercontent.com"
     private let callbackScheme = "com.googleusercontent.apps.584656353169-ih6dd4dth5lo17aigac05k5l5qju6nr5"
-    private let scope = "https://www.googleapis.com/auth/gmail.metadata"
+    private let scope = [
+        "https://www.googleapis.com/auth/gmail.metadata",
+        "https://www.googleapis.com/auth/contacts.readonly",
+    ].joined(separator: " ")
     private let tokenStore = GmailTokenStore()
     private var authenticationSession: ASWebAuthenticationSession?
 
@@ -141,7 +198,8 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
         return GmailConnectionStatus(
             email: email,
             expiresAt: token.expiresAt,
-            lastSyncAt: token.lastSyncAt
+            lastSyncAt: token.lastSyncAt,
+            canImportContacts: token.grantedScopes?.contains("contacts.readonly") == true
         )
     }
 
@@ -174,7 +232,8 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
         return GmailConnectionStatus(
             email: token.email ?? "",
             expiresAt: token.expiresAt,
-            lastSyncAt: token.lastSyncAt
+            lastSyncAt: token.lastSyncAt,
+            canImportContacts: true
         )
     }
 
@@ -276,6 +335,106 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
         )
     }
 
+    func importGoogleContacts(in context: ModelContext) async throws -> GoogleContactImportResult {
+        let token = try await validToken()
+        guard token.grantedScopes?.contains("contacts.readonly") == true else {
+            throw GmailSyncError.provider(
+                statusCode: 403,
+                message: "Reconnect Google to grant read-only Contacts access."
+            )
+        }
+
+        var pageToken: String?
+        var people: [GooglePerson] = []
+        repeat {
+            var components = URLComponents(string: "https://people.googleapis.com/v1/people/me/connections")!
+            var query = [
+                URLQueryItem(name: "pageSize", value: "1000"),
+                URLQueryItem(name: "sortOrder", value: "FIRST_NAME_ASCENDING"),
+                URLQueryItem(
+                    name: "personFields",
+                    value: "names,emailAddresses,phoneNumbers,organizations,urls,imClients"
+                ),
+            ]
+            if let pageToken { query.append(URLQueryItem(name: "pageToken", value: pageToken)) }
+            components.queryItems = query
+            var request = URLRequest(url: components.url!)
+            request.setValue("Bearer \(token.accessToken)", forHTTPHeaderField: "Authorization")
+            let response: GooglePeopleResponse = try await decode(request)
+            people.append(contentsOf: response.connections ?? [])
+            pageToken = response.nextPageToken
+        } while pageToken != nil
+
+        var contacts = try context.fetch(FetchDescriptor<EchoContact>())
+        var byGoogleID = Dictionary(uniqueKeysWithValues: contacts.map { ($0.systemIdentifier, $0) })
+        var byEmail = Dictionary(grouping: contacts.compactMap { contact -> (String, EchoContact)? in
+            guard let email = contact.emailAddress.map(Self.normalize), !email.isEmpty else { return nil }
+            return (email, contact)
+        }, by: \.0).compactMapValues { $0.first?.1 }
+        var byPhone = Dictionary(grouping: contacts.compactMap { contact -> (String, EchoContact)? in
+            guard let phone = contact.phoneNumber.map(Self.normalizePhone), !phone.isEmpty else { return nil }
+            return (phone, contact)
+        }, by: \.0).compactMapValues { $0.first?.1 }
+
+        var added = 0
+        var updated = 0
+        var skipped = 0
+        for person in people {
+            let googleID = "google:\(person.resourceName)"
+            let name = person.names?.first
+            let email = person.emailAddresses?.compactMap(\.value).first
+            let phone = person.phoneNumbers?.compactMap(\.value).first
+            let organization = person.organizations?.first(where: { $0.current == true })
+                ?? person.organizations?.first
+            let fallbackName = name?.displayName ?? email?.split(separator: "@").first.map(String.init) ?? ""
+            let givenName = name?.givenName ?? fallbackName
+            let familyName = name?.familyName ?? ""
+            guard !givenName.isEmpty || !familyName.isEmpty else {
+                skipped += 1
+                continue
+            }
+
+            let matched = byGoogleID[googleID]
+                ?? email.flatMap { byEmail[Self.normalize($0)] }
+                ?? phone.flatMap { byPhone[Self.normalizePhone($0)] }
+
+            if let contact = matched {
+                let changed = Self.merge(
+                    person: person,
+                    givenName: givenName,
+                    familyName: familyName,
+                    email: email,
+                    phone: phone,
+                    organization: organization,
+                    into: contact
+                )
+                if changed { updated += 1 }
+                byGoogleID[googleID] = contact
+                if let email { byEmail[Self.normalize(email)] = contact }
+                if let phone { byPhone[Self.normalizePhone(phone)] = contact }
+            } else {
+                let contact = EchoContact(
+                    systemIdentifier: googleID,
+                    givenName: givenName,
+                    familyName: familyName,
+                    phoneNumber: phone,
+                    emailAddress: email,
+                    companyName: organization?.name,
+                    jobTitle: organization?.title
+                )
+                _ = Self.mergeSocialProfiles(from: person, into: contact)
+                context.insert(contact)
+                contacts.append(contact)
+                byGoogleID[googleID] = contact
+                if let email { byEmail[Self.normalize(email)] = contact }
+                if let phone { byPhone[Self.normalizePhone(phone)] = contact }
+                added += 1
+            }
+        }
+        try context.save()
+        return GoogleContactImportResult(added: added, updated: updated, skipped: skipped)
+    }
+
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
@@ -320,7 +479,8 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
             expiresAt: .now.addingTimeInterval(response.expiresIn),
             email: nil,
             historyID: nil,
-            lastSyncAt: nil
+            lastSyncAt: nil,
+            grantedScopes: scope
         )
     }
 
@@ -445,6 +605,74 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
 
     private static func normalize(_ email: String) -> String {
         email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private static func normalizePhone(_ phone: String) -> String {
+        phone.filter(\.isNumber)
+    }
+
+    private static func merge(
+        person: GooglePerson,
+        givenName: String,
+        familyName: String,
+        email: String?,
+        phone: String?,
+        organization: GoogleOrganization?,
+        into contact: EchoContact
+    ) -> Bool {
+        var changed = false
+        func assign(_ value: String?, to keyPath: ReferenceWritableKeyPath<EchoContact, String?>) {
+            guard let value, !value.isEmpty, contact[keyPath: keyPath] != value else { return }
+            contact[keyPath: keyPath] = value
+            changed = true
+        }
+        if !givenName.isEmpty, contact.givenName != givenName {
+            contact.givenName = givenName
+            changed = true
+        }
+        if !familyName.isEmpty, contact.familyName != familyName {
+            contact.familyName = familyName
+            changed = true
+        }
+        assign(email, to: \.emailAddress)
+        assign(phone, to: \.phoneNumber)
+        assign(organization?.name, to: \.companyName)
+        assign(organization?.title, to: \.jobTitle)
+        return mergeSocialProfiles(from: person, into: contact) || changed
+    }
+
+    private static func mergeSocialProfiles(from person: GooglePerson, into contact: EchoContact) -> Bool {
+        var changed = false
+        for value in person.urls?.compactMap(\.value) ?? [] {
+            guard let platform = socialPlatform(for: value) else { continue }
+            let identifier = SocialMessagingService.normalizedIdentifier(value, for: platform)
+            guard !identifier.isEmpty, contact.socialIdentifier(for: platform) != identifier else { continue }
+            contact.setSocialIdentifier(identifier, for: platform)
+            changed = true
+        }
+        for client in person.imClients ?? [] {
+            guard let username = client.username,
+                  let platform = socialPlatform(for: [client.protocolName, client.formattedProtocol].compactMap { $0 }.joined(separator: " "))
+            else { continue }
+            let identifier = SocialMessagingService.normalizedIdentifier(username, for: platform)
+            guard !identifier.isEmpty, contact.socialIdentifier(for: platform) != identifier else { continue }
+            contact.setSocialIdentifier(identifier, for: platform)
+            changed = true
+        }
+        return changed
+    }
+
+    private static func socialPlatform(for value: String) -> SocialPlatform? {
+        let lower = value.lowercased()
+        if lower.contains("whatsapp") || lower.contains("wa.me") { return .whatsapp }
+        if lower.contains("telegram") || lower.contains("t.me") { return .telegram }
+        if lower.contains("instagram") { return .instagram }
+        if lower.contains("facebook") || lower.contains("m.me") { return .facebook }
+        if lower.contains("twitter") || lower.contains("x.com") { return .x }
+        if lower.contains("linkedin") { return .linkedin }
+        if lower.contains("reddit") { return .reddit }
+        if lower.contains("discord") { return .discord }
+        return nil
     }
 
     private static func emails(in value: String) -> Set<String> {

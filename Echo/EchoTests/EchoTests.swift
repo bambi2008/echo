@@ -213,23 +213,49 @@ final class EchoTests: XCTestCase {
         XCTAssertEqual(storedDeal.nextActionDate, nextActionDate)
     }
 
-    func testDemoDataSeedsTwoHundredRichContacts() throws {
+    func testLegacyDemoCleanupPreservesRealContacts() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
             for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self,
             configurations: configuration
         )
 
-        DemoData.seedIfNeeded(in: container.mainContext)
+        let demo = DemoContactFactory.makeContact(index: 0)
+        let real = EchoContact(
+            systemIdentifier: "real-contact",
+            givenName: "Real",
+            familyName: "Person",
+            emailAddress: "real@gmail.com"
+        )
+        container.mainContext.insert(demo)
+        container.mainContext.insert(real)
+        container.mainContext.insert(Deal(title: "Demo deal", contact: demo))
+        try container.mainContext.save()
+
+        DemoData.removeLegacyDemoContacts(in: container.mainContext)
 
         let contacts = try container.mainContext.fetch(FetchDescriptor<EchoContact>())
         let deals = try container.mainContext.fetch(FetchDescriptor<Deal>())
-        XCTAssertEqual(contacts.count, DemoData.targetContactCount)
-        XCTAssertEqual(Set(contacts.map(\.systemIdentifier)).count, DemoData.targetContactCount)
-        XCTAssertTrue(contacts.allSatisfy { !$0.tags.isEmpty })
-        XCTAssertTrue(contacts.filter { $0.systemIdentifier.hasPrefix("echo.demo.contact") }.allSatisfy {
-            !$0.interactions.isEmpty && $0.notes.count >= 2 && $0.companyName != nil
-        })
-        XCTAssertGreaterThan(deals.count, 40)
+        XCTAssertEqual(contacts.map(\.systemIdentifier), ["real-contact"])
+        XCTAssertTrue(deals.isEmpty)
+    }
+
+    func testSocialMessagingBuildsSafeDestinations() throws {
+        let telegram = try XCTUnwrap(SocialMessagingService.destination(
+            for: .telegram,
+            identifier: "@echo_friend",
+            draft: "Hello there"
+        ))
+        XCTAssertEqual(telegram.url.host, "t.me")
+        XCTAssertTrue(telegram.url.absoluteString.contains("text=Hello%20there"))
+        XCTAssertTrue(telegram.draftWasIncluded)
+
+        let linkedin = try XCTUnwrap(SocialMessagingService.destination(
+            for: .linkedin,
+            identifier: "https://www.linkedin.com/in/qin-mao/",
+            draft: "Hello"
+        ))
+        XCTAssertEqual(linkedin.url.absoluteString, "https://www.linkedin.com/in/qin-mao")
+        XCTAssertFalse(linkedin.draftWasIncluded)
     }
 }

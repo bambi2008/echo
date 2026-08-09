@@ -7,6 +7,7 @@ struct PersonalHomeView: View {
     @State private var showingNewContact = false
     @State private var showingBusinessCard = false
     @State private var importMessage: String?
+    @State private var isImporting = false
     @State private var searchText = ""
     @State private var peopleFilter: PeopleFilter = .all
 
@@ -21,9 +22,13 @@ struct PersonalHomeView: View {
     private var visibleContacts: [EchoContact] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return prioritized }
-        return prioritized.filter {
-            [$0.fullName, $0.emailAddress, $0.phoneNumber, $0.companyName, $0.jobTitle]
+        return prioritized.filter { contact in
+            let social = SocialPlatform.allCases.compactMap { platform in
+                contact.socialIdentifier(for: platform)
+            }
+            let profile = [contact.fullName, contact.emailAddress, contact.phoneNumber, contact.companyName, contact.jobTitle]
                 .compactMap { $0 }
+            return (profile + social)
                 .contains { $0.localizedCaseInsensitiveContains(query) }
         }
     }
@@ -90,20 +95,18 @@ struct PersonalHomeView: View {
             .navigationDestination(for: EchoContact.self) { ContactDetailView(contact: $0) }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        Task {
-                            do {
-                                let result = try await ContactImportService().importContacts(into: modelContext)
-                                if result.added == 0 && result.updated == 0 {
-                                    importMessage = "Your contacts are already up to date."
-                                } else {
-                                    importMessage = "Added \(result.added) and updated \(result.updated) contacts."
-                                }
-                            } catch {
-                                importMessage = "Contacts could not be imported."
-                            }
+                    Menu {
+                        Button(action: importGoogleContacts) {
+                            Label("Google contacts", systemImage: "person.2.badge.plus")
                         }
-                    } label: { Image(systemName: "person.crop.circle.badge.plus") }
+                        Button(action: importIPhoneContacts) {
+                            Label("iPhone contacts", systemImage: "iphone")
+                        }
+                    } label: {
+                        if isImporting { ProgressView() }
+                        else { Image(systemName: "person.crop.circle.badge.plus") }
+                    }
+                    .disabled(isImporting)
                     .accessibilityLabel("Import contacts")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -139,6 +142,39 @@ struct PersonalHomeView: View {
                 get: { importMessage != nil },
                 set: { if !$0 { importMessage = nil } }
             )) { Button("OK") { importMessage = nil } } message: { Text(importMessage ?? "") }
+        }
+    }
+
+    private func importIPhoneContacts() {
+        isImporting = true
+        Task {
+            defer { isImporting = false }
+            do {
+                let result = try await ContactImportService().importContacts(into: modelContext)
+                importMessage = result.added == 0 && result.updated == 0
+                    ? "Your iPhone contacts are already up to date."
+                    : "Added \(result.added) and updated \(result.updated) iPhone contacts."
+            } catch {
+                importMessage = "iPhone contacts could not be imported."
+            }
+        }
+    }
+
+    private func importGoogleContacts() {
+        isImporting = true
+        Task {
+            defer { isImporting = false }
+            do {
+                if GmailSyncService.shared.status()?.canImportContacts != true {
+                    _ = try await GmailSyncService.shared.connect()
+                }
+                let result = try await GmailSyncService.shared.importGoogleContacts(in: modelContext)
+                importMessage = result.added == 0 && result.updated == 0
+                    ? "Your Google contacts are already up to date."
+                    : "Added \(result.added) and updated \(result.updated) Google contacts."
+            } catch {
+                importMessage = error.localizedDescription
+            }
         }
     }
 }
@@ -197,6 +233,7 @@ private struct NewContactView: View {
     @State private var priority: PriorityLevel?
     @State private var relationshipDomain: RelationshipDomain = .personal
     @State private var identity: ContactIdentity?
+    @State private var socialIdentifiers: [SocialPlatform: String] = [:]
 
     private var availableIdentities: [ContactIdentity] {
         ContactIdentity.allCases.filter { relationshipDomain.includes($0.domain) }
@@ -219,6 +256,20 @@ private struct NewContactView: View {
                     .textContentType(.organizationName)
                 TextField("Role", text: $jobTitle)
                     .textContentType(.jobTitle)
+                Section {
+                    ForEach(SocialPlatform.allCases) { platform in
+                        LabeledContent {
+                            TextField(platform.fieldPrompt, text: socialBinding(for: platform))
+                                .multilineTextAlignment(.trailing)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                        } label: {
+                            Label(platform.title, systemImage: platform.symbol)
+                        }
+                    }
+                } header: {
+                    Text("Social accounts")
+                }
                 Picker("Relationship", selection: $relationshipDomain) {
                     ForEach(RelationshipDomain.allCases) { domain in
                         Label(domain.title, systemImage: domain.symbol).tag(domain)
@@ -253,6 +304,12 @@ private struct NewContactView: View {
                             jobTitle: jobTitle.trimmed.nilIfEmpty
                         )
                         contact.tags = identity.map { [$0.rawValue] } ?? []
+                        for platform in SocialPlatform.allCases {
+                            contact.setSocialIdentifier(
+                                socialIdentifiers[platform]?.trimmed.nilIfEmpty,
+                                for: platform
+                            )
+                        }
                         modelContext.insert(contact)
                         try? modelContext.save()
                         dismiss()
@@ -266,6 +323,13 @@ private struct NewContactView: View {
                 }
             }
         }
+    }
+
+    private func socialBinding(for platform: SocialPlatform) -> Binding<String> {
+        Binding(
+            get: { socialIdentifiers[platform] ?? "" },
+            set: { socialIdentifiers[platform] = $0 }
+        )
     }
 }
 

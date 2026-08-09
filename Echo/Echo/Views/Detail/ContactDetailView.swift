@@ -58,6 +58,38 @@ struct ContactDetailView: View {
                 }
             }
 
+            if !contact.availableSocialPlatforms.isEmpty {
+                Section {
+                    ForEach(contact.availableSocialPlatforms) { platform in
+                        Button {
+                            outreachChannel = .social(platform)
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: platform.symbol)
+                                    .frame(width: 28)
+                                    .foregroundStyle(.indigo)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Message on \(platform.title)")
+                                        .foregroundStyle(.primary)
+                                    Text(contact.socialIdentifier(for: platform) ?? "")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Social")
+                } footer: {
+                    Text("Echo prepares a draft, then opens the platform. Some apps require you to paste the copied draft before sending.")
+                }
+            }
+
             Section {
                 RelationshipBriefCard(contact: contact)
             } header: {

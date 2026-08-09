@@ -1,16 +1,25 @@
 import EchoAI
 import SwiftUI
+import UIKit
 
-enum OutreachChannel: String, Identifiable {
+enum OutreachChannel: Identifiable, Equatable {
     case message
     case email
+    case social(SocialPlatform)
 
-    var id: String { rawValue }
+    var id: String {
+        switch self {
+        case .message: "message"
+        case .email: "email"
+        case .social(let platform): "social-\(platform.rawValue)"
+        }
+    }
 
     var title: String {
         switch self {
         case .message: "Message"
         case .email: "Email"
+        case .social(let platform): platform.title
         }
     }
 
@@ -18,6 +27,7 @@ enum OutreachChannel: String, Identifiable {
         switch self {
         case .message: "message.fill"
         case .email: "envelope.fill"
+        case .social(let platform): platform.symbol
         }
     }
 }
@@ -126,6 +136,7 @@ struct OutreachComposerView: View {
         switch channel {
         case .message: contact.phoneNumber ?? ""
         case .email: contact.emailAddress ?? ""
+        case .social(let platform): contact.socialIdentifier(for: platform) ?? ""
         }
     }
 
@@ -169,6 +180,23 @@ struct OutreachComposerView: View {
     }
 
     private func launch() {
+        if case .social(let platform) = channel {
+            guard let destination = SocialMessagingService.destination(
+                for: platform,
+                identifier: self.destination,
+                draft: draft
+            ) else {
+                errorMessage = "Echo could not open \(platform.title). Check this person's saved username or profile URL."
+                return
+            }
+            if !destination.draftWasIncluded {
+                UIPasteboard.general.string = draft
+                errorMessage = "Your draft was copied. Paste it after \(platform.title) opens."
+            }
+            openURL(destination.url)
+            return
+        }
+
         var components = URLComponents()
         components.scheme = channel == .message ? "sms" : "mailto"
         components.path = destination
