@@ -16,6 +16,9 @@ struct EditContactView: View {
     @State private var jobTitle: String
     @State private var priority: PriorityLevel?
     @State private var relationshipDomain: RelationshipDomain
+    @State private var relationshipIntent: RelationshipIntent?
+    @State private var desiredCadenceDays: Int?
+    @State private var relationshipContext: String
     @State private var selectedIdentities: Set<ContactIdentity>
     @State private var isInEchoLayer: Bool
     @State private var socialIdentifiers: [SocialPlatform: String]
@@ -32,6 +35,9 @@ struct EditContactView: View {
         _jobTitle = State(initialValue: contact.jobTitle ?? "")
         _priority = State(initialValue: contact.priority)
         _relationshipDomain = State(initialValue: contact.relationshipDomain)
+        _relationshipIntent = State(initialValue: contact.relationshipIntent)
+        _desiredCadenceDays = State(initialValue: contact.desiredCadenceDays)
+        _relationshipContext = State(initialValue: contact.relationshipContext ?? "")
         _selectedIdentities = State(initialValue: Set(contact.tags.compactMap(ContactIdentity.init(rawValue:))))
         _isInEchoLayer = State(initialValue: contact.isInEchoLayer)
         _socialIdentifiers = State(initialValue: Dictionary(uniqueKeysWithValues: SocialPlatform.allCases.map {
@@ -91,18 +97,27 @@ struct EditContactView: View {
                             Label(domain.title, systemImage: domain.symbol).tag(domain)
                         }
                     }
-                    Picker("Priority", selection: $priority) {
-                        Text("Not set").tag(PriorityLevel?.none)
-                        ForEach(PriorityLevel.allCases) { level in
-                            Label(level.title, systemImage: level.symbol)
-                                .tag(Optional(level))
+                    Picker(String(localized: "Intention"), selection: $relationshipIntent) {
+                        Text(String(localized: "Not sure yet")).tag(RelationshipIntent?.none)
+                        ForEach(RelationshipIntent.allCases) { intent in
+                            Label(intent.title, systemImage: intent.symbol).tag(Optional(intent))
+                        }
+                    }
+                    RelationshipCadencePicker(days: $desiredCadenceDays)
+                    TextField(String(localized: "Relationship context"), text: $relationshipContext, axis: .vertical)
+                    if relationshipDomain.includes(.business) {
+                        Picker("Business priority", selection: $priority) {
+                            Text("Not set").tag(PriorityLevel?.none)
+                            ForEach(PriorityLevel.allCases) { level in
+                                Label(level.title, systemImage: level.symbol).tag(Optional(level))
+                            }
                         }
                     }
                     Toggle("Include in Echo", isOn: $isInEchoLayer)
                 } header: {
                     Text("Relationship")
                 } footer: {
-                    Text("Priority and identity determine which people appear in Echo AI smart selections.")
+                    Text(String(localized: "Relationship intention is your choice and can change over time. Priority is shown only for business relationships."))
                 }
 
                 Section("Identity") {
@@ -178,15 +193,28 @@ struct EditContactView: View {
         contact.emailAddress = emailAddress.trimmed.nilIfEmpty
         contact.companyName = companyName.trimmed.nilIfEmpty
         contact.jobTitle = jobTitle.trimmed.nilIfEmpty
-        contact.priority = priority
+        contact.priority = relationshipDomain.includes(.business) ? priority : contact.priority
         contact.relationshipDomain = relationshipDomain
+        contact.desiredCadenceDays = desiredCadenceDays
+        contact.relationshipContext = relationshipContext.trimmed.nilIfEmpty
         contact.isInEchoLayer = isInEchoLayer
         contact.tags = preservedTags + selectedIdentities.map(\.rawValue).sorted()
         for platform in SocialPlatform.allCases {
             let value = socialIdentifiers[platform]?.trimmed.nilIfEmpty
             contact.setSocialIdentifier(value, for: platform)
         }
-        try? modelContext.save()
+        if contact.relationshipIntent != relationshipIntent {
+            _ = try? RelationshipJourneyService().review(
+                contact: contact,
+                intent: relationshipIntent,
+                contextText: contact.relationshipContext,
+                theme: .ongoing,
+                journey: nil,
+                in: modelContext
+            )
+        } else {
+            try? modelContext.save()
+        }
         dismiss()
     }
 

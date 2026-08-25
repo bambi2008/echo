@@ -19,6 +19,7 @@ enum EchoEngine {
         try? context.save()
     }
 
+    @available(*, deprecated, message: "Use RelationshipGuidanceEngine for personal relationship guidance")
     static func attentionScore(for contact: EchoContact) -> Int {
         let days = contact.daysSinceContact ?? 365
         return min(100, max(0, days * 2 - min(contact.reachCount, 20)))

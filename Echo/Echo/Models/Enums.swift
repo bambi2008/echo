@@ -1,5 +1,129 @@
 import Foundation
 
+enum RelationshipIntent: String, Codable, CaseIterable, Identifiable {
+    case deepen
+    case maintain
+    case light
+    case pause
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .deepen: String(localized: "Grow closer")
+        case .maintain: String(localized: "Keep steady")
+        case .light: String(localized: "Keep it light")
+        case .pause: String(localized: "Give it space")
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .deepen: "arrow.up.right.circle.fill"
+        case .maintain: "equal.circle.fill"
+        case .light: "leaf.circle.fill"
+        case .pause: "pause.circle.fill"
+        }
+    }
+}
+
+enum ReflectionTheme: String, Codable, CaseIterable, Identifiable {
+    case protect
+    case reconnect
+    case lighten
+    case boundaries
+    case ongoing
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .protect: String(localized: "People you want to keep in view")
+        case .reconnect: String(localized: "People you want to reconnect with")
+        case .lighten: String(localized: "Relationships that can stay light")
+        case .boundaries: String(localized: "Relationships that need clearer space")
+        case .ongoing: String(localized: "A moment to reflect")
+        }
+    }
+    var question: String {
+        switch self {
+        case .protect: String(localized: "Who are the people you do not want to slowly disappear from your life?")
+        case .reconnect: String(localized: "Who have you been meaning to reconnect with or know more deeply?")
+        case .lighten: String(localized: "Who can remain in your life without needing frequent attention?")
+        case .boundaries: String(localized: "Which relationships need a little more distance or a clearer boundary?")
+        case .ongoing: String(localized: "Who has unexpectedly come to mind lately?")
+        }
+    }
+}
+
+enum RelationshipActionType: String, Codable, CaseIterable, Identifiable {
+    case message
+    case call
+    case meet
+    case remember
+    case none
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .message: String(localized: "Send a message")
+        case .call: String(localized: "Make a call")
+        case .meet: String(localized: "Plan to meet")
+        case .remember: String(localized: "Write down something to say")
+        case .none: String(localized: "No action this week")
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .message: "message.fill"
+        case .call: "phone.fill"
+        case .meet: "person.2.fill"
+        case .remember: "note.text"
+        case .none: "moon.zzz.fill"
+        }
+    }
+}
+
+enum RelationshipActionStatus: String, Codable {
+    case planned
+    case completed
+    case skipped
+
+    var localizedTitle: String {
+        switch self {
+        case .planned: String(localized: "Planned")
+        case .completed: String(localized: "Completed")
+        case .skipped: String(localized: "Let go")
+        }
+    }
+}
+
+enum ReflectionOutcome: String, Codable, CaseIterable, Identifiable {
+    case closer
+    case steady
+    case unchanged
+    case moreDistance
+    case unsure
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .closer: String(localized: "I want to grow closer")
+        case .steady: String(localized: "It feels right as it is")
+        case .unchanged: String(localized: "Not much has changed")
+        case .moreDistance: String(localized: "I want a little more distance")
+        case .unsure: String(localized: "Not sure yet")
+        }
+    }
+}
+
+enum OnboardingStage: String, Codable {
+    case philosophy
+    case coreQuestion
+    case contactSelection
+    case intentions
+    case context
+    case action
+    case completed
+}
+
 enum PriorityLevel: String, Codable, CaseIterable, Identifiable {
     case hot, warm, cold
     var id: String { rawValue }

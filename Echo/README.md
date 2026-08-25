@@ -1,61 +1,38 @@
-# Echo iOS App
+# Echo iOS
 
-## 在 Xcode 中打开
+Echo 是一款本地优先的关系反思 App。默认体验围绕四周关系梳理，而不是联系人排名、销售漏斗或 AI 功能陈列。
 
-双击 `Echo.xcodeproj`，等待 Xcode 顶部状态完成后，选择 `Echo` 和一个 iPhone 模拟器，再点击左上角的三角形运行按钮。
+## 在 Xcode 运行
 
-也可以在项目根目录执行：
+打开 `Echo/Echo.xcodeproj`，选择 `Echo` scheme 和 iPhone 模拟器后运行。工程要求 iOS 17+，使用 SwiftUI、SwiftData，并引用仓库根目录的本地 `EchoAI` Swift Package。
 
-```sh
-open Echo/Echo.xcodeproj
-```
+## 当前完整流程
 
-## AI 在哪里
+- 第一屏用“有些人不是突然离开的”引导用户停下来想一想。
+- 从系统联系人中只选择 1–10 人，或手动新建；不会强制整本通讯录权限。
+- 为每个人选择更靠近、保持、轻松保留、给些空间或暂时不知道。
+- 可键盘或语音记录一句本地关系背景。
+- 计划一件小行动，或明确选择本周不行动。
+- 在 Echo 首页恢复四周旅程、处理行动并记录结果。
+- 在 Relationships 查看全部联系人及“还没想清楚”分组，可按电话/邮箱筛选、导入 VCF、扫描名片、搜索和修改关系。
+- 在 Insights 查看完全由本地记录生成、带原因说明的模式。
 
-App 首次启动会依次完成 9 个关系现状问题、个性化结果、账户注册、4 个核心场景介绍和订阅选择；完成后，底部第二个 **Echo AI** 就是 AI 入口。第一次使用前，在底部 **Settings** 中填写 DeepSeek API Key；快速模型和高级模型都可以直接输入任意模型 ID，修改后无需重新发布 App。
+## 设置与兼容能力
 
-Echo AI 当前提供：
+- 周提醒、行动提醒和行动后回顾提醒都由本地通知完成，且只在用户主动开启相应开关后生效。
+- 完整 iPhone 通讯录导入是 Settings 中的可选操作。
+- DeepSeek API Key 为可选增强能力，保存在 Keychain；Settings 只显示 `Configured` 等状态，并可执行最小连接测试。
+- 快速模型与高级模型 ID 可随时修改，模型路由不依赖重新发布。
+- Pipeline 和既有 Deal 数据保留，但默认隐藏在 Business tools 开关后。
+- 旧联系人、笔记、Interaction（包括历史 Gmail Interaction）、VCF 导入、电话、邮件、社交跳转和模糊语音找人能力均保留并有可达入口。
 
-- 在联系人详情中选择短信或邮件时，针对这个人生成可编辑的开场白
-- 关系洞察按机会价值、重点关系、商务关系或上下文充分度筛选前 5/10 人
-- 关系健康按个人历史联系节奏的异常程度、长期未联系、互动偏少或健康活跃筛选前 5/10 人
-- 根据联系人优先级生成每日人脉简报
-- 结合 Pipeline、互动记录和备注生成销售跟进建议
-- 从 People 首页的新增菜单识别名片并添加联系人；从 Echo AI 识别保单字段
-- 图片先在设备端使用 Apple Vision 识别文字，再由 DeepSeek 整理为结构化字段
-- 在 Settings 连接 Gmail，仅同步发件人、收件人、主题和时间，并把匹配到现有联系人的邮件写入互动记录
-- People 首页可通过 Google People API 只读导入已保存联系人及 Gmail 自动积累的“其他联系人”，并自动合并同邮箱或电话的联系人
-- Settings → Google contacts & Gmail 提供明确的 Switch Google account；授权页每次都会显示账号选择器，取消换号不会破坏原连接
-- 旧版内置的 200 个演示联系人会在升级后自动删除，不再为新安装创建虚拟联系人
-- 联系人支持保存 WhatsApp、Telegram、Instagram、Facebook、X、LinkedIn、Reddit、Discord 账号；发起联系时生成可编辑草稿并打开对应平台
-- 邮件联系人可从详情页生成个性化开场白，并通过系统 `mailto` 交给 iPhone 上用户选择的邮件 App 发送
-- 电话联系人详情提供原生 Call 按钮，号码会安全标准化后交给 iPhone 系统拨号确认
-- Gmail 首次检查最近 200 封邮件，之后使用 Gmail History 增量同步；App 启动时最多每 15 分钟自动检查一次
-- People 支持按姓名、公司、邮箱或电话搜索；通讯录重复导入会更新已有联系人，不重复创建
-- People 的“想不起名字？”支持用相识地点、时间、工作、介绍人、聊天主题等记忆线索找人；先在设备端召回候选，再匿名交给 DeepSeek 复排
-- Memory Search 支持页面内实时语音输入，转写后仍可手动修改再搜索
-- Memory Search 会把中文姓名转换为拼音做同音与轻微发音误差匹配，例如语音把“茅勤”写成“毛琴”仍能找到候选人
-- Echo AI 首页会展示价值先行的 AI Pro 入口；Settings → Account & plan 可查看 7 天试用、月/年方案、恢复购买和账户入口
-- 首次使用支持 Sign in with Apple、Google OpenID 登录和本地邮件测试入口；Google 身份登录与 Gmail 邮件读取是两项独立授权
-- 首次订阅页会明确展示“今天不扣费”、第 8 天续费价格、自动续订和取消路径；订阅由 Apple 管理
-- StoreKit 2 已接入 `com.bambi2008.echo.ai.pro.monthly` 与 `com.bambi2008.echo.ai.pro.annual`；共享 Echo Scheme 已绑定 `LocalProducts.storekit`，从 Xcode 运行即可在模拟器测试本地订阅，不触发真实扣费
-- 没有 API Key 或网络不可用时，记忆搜索仍会显示本地匹配结果
-- People 可按全部、个人关系或商务关系筛选；同一个联系人可以标记为个人、商务或两者，不会重复建档
-- People 可再按全部、电话或邮件联系人筛选；同时有电话和邮箱的人仍只保存一份，不会重复建档
-- People 支持直接选择 VCF 文件，先预览新增、补全和已有联系人，再按邮箱或电话自动去重导入
-- 无真实姓名的导入记录统一显示“未命名联系人”；只有补齐真实姓名和关系资料后才会进入 Today’s Echo 推荐
-- VCF 预览可逐人纠正 Personal、Business 或 Both；导入后也能在联系人详情直接修改关系类型
-- 联系人详情支持编辑身份、优先级、公司与联系方式，也可以直接创建关联商机
-- Pipeline 只提供商务或双重关系联系人供关联，可设置下一步行动日期、修改阶段；逾期行动会醒目标记
-- 旧联系人会根据已有身份、公司和职位自动推断关系领域，不影响原有邮件、备注、互动或商机
-- Gmail 邮件在联系人时间线中标记收件/发件方向，并进入关系洞察、健康分析、每日简报和联系建议上下文
+## 明确的隐私边界
 
-## 工程说明
+- 生产启动不创建演示联系人，也不自动同步 Gmail。
+- 生产 Settings 不显示 Gmail 连接入口。
+- 选择式联系人导入不读取系统联系人 Note。
+- 核心反思、关系地图与 Insights 无网络、无 API Key 仍可使用。
+- 联系某人时先生成设备端草稿；只有用户看过上下文说明并主动点击 AI 按钮后，才会调用 DeepSeek。
+- 用户数据默认保存在设备端；关系背景不会写回系统通讯录。
 
-- iOS 17+
-- SwiftUI + SwiftData
-- 本地依赖根目录中的 `EchoAI` Swift Package
-- 联系人、互动记录、备注与交易管道保存在设备端
-- 名片与保单图片本身不上传；图片文字识别在设备端完成
-- Google OAuth Token 保存在 Apple Keychain；Google Contacts 只读导入，Echo 不修改云端联系人，也不下载 Gmail 正文和附件
-- Outlook 同步需要单独的 Microsoft Entra 应用 Client ID，尚未绑定任何虚构或共享凭据
+更完整的产品行为见仓库根目录 `product-spec.md`。

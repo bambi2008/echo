@@ -5,8 +5,10 @@
 //  Created by 茅18 on 2026/7/22.
 //
 
-import XCTest
+import EchoAI
+import Contacts
 import SwiftData
+import XCTest
 @testable import Echo
 
 @MainActor
@@ -224,7 +226,7 @@ final class EchoTests: XCTestCase {
     func testContactIdentityAndLinkedDealPersistTogether() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
-            for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self,
+            for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self, RelationshipReflection.self, RelationshipAction.self, ReflectionJourney.self,
             configurations: configuration
         )
         let contact = EchoContact(
@@ -262,7 +264,7 @@ final class EchoTests: XCTestCase {
     func testLegacyDemoCleanupPreservesRealContacts() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
-            for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self,
+            for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self, RelationshipReflection.self, RelationshipAction.self, ReflectionJourney.self,
             configurations: configuration
         )
 
@@ -314,10 +316,29 @@ final class EchoTests: XCTestCase {
         XCTAssertNil(PhoneCallService.destination(for: "not a phone"))
     }
 
+    func testAPIKeyDiagnosticReportsPresenceWithoutExposingValue() async throws {
+        let router = AIModelRouter(defaults: nil)
+        let configured = APIKeyDiagnosticService(
+            keyStore: DiagnosticKeyStore(value: "secret-value"),
+            client: DiagnosticAIClient(),
+            router: router
+        )
+        let missing = APIKeyDiagnosticService(
+            keyStore: DiagnosticKeyStore(value: nil),
+            client: DiagnosticAIClient(),
+            router: router
+        )
+
+        XCTAssertEqual(configured.presence(), .configured)
+        XCTAssertEqual(missing.presence(), .notConfigured)
+        let model = try await configured.testConnection()
+        XCTAssertEqual(model, "diagnostic-model")
+    }
+
     func testVCFImportPreviewsAndDeduplicatesByEmailAndPhone() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
-            for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self,
+            for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self, RelationshipReflection.self, RelationshipAction.self, ReflectionJourney.self,
             configurations: configuration
         )
         let existing = EchoContact(
@@ -395,7 +416,7 @@ final class EchoTests: XCTestCase {
     func testVCFContactWithoutANameStaysUnnamedAndOutOfTodaysEcho() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
-            for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self,
+            for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self, RelationshipReflection.self, RelationshipAction.self, ReflectionJourney.self,
             configurations: configuration
         )
         let vCard = """
@@ -422,5 +443,208 @@ final class EchoTests: XCTestCase {
         XCTAssertEqual(imported.givenName, "")
         XCTAssertEqual(imported.fullName, "未命名联系人")
         XCTAssertFalse(imported.isEligibleForTodaysEcho)
+    }
+
+    func testRelationshipIntentRawValueRoundTripsAndLegacyContactIsUnreviewed() {
+        for intent in RelationshipIntent.allCases {
+            XCTAssertEqual(RelationshipIntent(rawValue: intent.rawValue), intent)
+        }
+        let legacy = EchoContact(givenName: "Legacy")
+        XCTAssertNil(legacy.relationshipIntent)
+        XCTAssertNil(legacy.desiredCadenceDays)
+        XCTAssertNil(legacy.lastRelationshipReviewAt)
+        XCTAssertFalse(legacy.relationshipJourneyIncluded)
+    }
+
+    func testIntentChangeCreatesReflectionHistory() throws {
+        let container = try relationshipContainer()
+        let contact = EchoContact(givenName: "Maya")
+        container.mainContext.insert(contact)
+        let service = RelationshipJourneyService()
+        _ = try service.review(contact: contact, intent: .deepen, contextText: "Old friend", theme: .protect, journey: nil, in: container.mainContext)
+        _ = try service.review(contact: contact, intent: .maintain, contextText: "Feels steady", theme: .ongoing, journey: nil, in: container.mainContext)
+        XCTAssertEqual(contact.relationshipReflections.count, 2)
+        XCTAssertEqual(contact.relationshipReflections.sorted { $0.createdAt < $1.createdAt }.last?.previousIntent, .deepen)
+        XCTAssertEqual(contact.relationshipIntent, .maintain)
+    }
+
+    func testJourneyWeekOrderRecoveryAndRestartPreserveData() throws {
+        let container = try relationshipContainer()
+        let contact = EchoContact(givenName: "Ari")
+        let oldNote = EchoNote(content: "Keep me", contact: contact)
+        contact.notes.append(oldNote)
+        container.mainContext.insert(contact)
+        let service = RelationshipJourneyService()
+        let first = try service.startJourney(in: container.mainContext)
+        XCTAssertEqual(first.currentTheme, .protect)
+        first.activeStepRawValue = "2"
+        try container.mainContext.save()
+        XCTAssertEqual(try service.activeJourney(in: container.mainContext)?.activeStepRawValue, "2")
+        for expected in [ReflectionTheme.protect, .reconnect, .lighten, .boundaries] {
+            XCTAssertEqual(first.currentTheme, expected)
+            try service.completeWeek(first, in: container.mainContext)
+        }
+        XCTAssertTrue(first.isComplete)
+        let restarted = try service.restartJourney(in: container.mainContext)
+        XCTAssertNotEqual(first.id, restarted.id)
+        XCTAssertEqual(try container.mainContext.fetch(FetchDescriptor<EchoContact>()).count, 1)
+        XCTAssertEqual(contact.notes.first?.content, "Keep me")
+    }
+
+    func testCompletingAWeekClearsDraftProgressWithoutCreatingFailureState() throws {
+        let container = try relationshipContainer()
+        let service = RelationshipJourneyService()
+        let journey = try service.startJourney(in: container.mainContext)
+        journey.selectedContactIdentifiers = ["person-1"]
+        journey.draftIntentValues = ["person-1", RelationshipIntent.deepen.rawValue]
+        journey.draftContextValues = ["person-1", "Old friend"]
+        journey.activeStepRawValue = "2"
+
+        try service.completeWeek(journey, in: container.mainContext)
+
+        XCTAssertEqual(journey.currentWeekIndex, 2)
+        XCTAssertEqual(journey.currentTheme, .reconnect)
+        XCTAssertNil(journey.activeStepRawValue)
+        XCTAssertTrue(journey.selectedContactIdentifiers.isEmpty)
+        XCTAssertTrue(journey.draftIntentValues?.isEmpty == true)
+        XCTAssertTrue(journey.draftContextValues?.isEmpty == true)
+        XCTAssertFalse(journey.isComplete)
+    }
+
+    func testGuidanceRespectsPauseAndChosenCadence() {
+        let old = Calendar.current.date(byAdding: .day, value: -31, to: Date())!
+        let paused = EchoContact(givenName: "Pause")
+        paused.relationshipJourneyIncluded = true; paused.relationshipIntent = .pause; paused.desiredCadenceDays = 7; paused.lastRelationshipReviewAt = old
+        let deepen = EchoContact(givenName: "Deepen")
+        deepen.relationshipJourneyIncluded = true; deepen.relationshipIntent = .deepen; deepen.desiredCadenceDays = 30; deepen.lastRelationshipReviewAt = old
+        let maintain = EchoContact(givenName: "Maintain")
+        maintain.relationshipJourneyIncluded = true; maintain.relationshipIntent = .maintain; maintain.desiredCadenceDays = 30; maintain.lastRelationshipReviewAt = old
+        let ids = RelationshipGuidanceEngine.guidance(for: [paused, deepen, maintain]).map(\.contactIdentifier)
+        XCTAssertFalse(ids.contains(paused.systemIdentifier))
+        XCTAssertTrue(ids.contains(deepen.systemIdentifier))
+        XCTAssertTrue(ids.contains(maintain.systemIdentifier))
+    }
+
+    func testLocalInsightsUseOnlyRecordedLocalSignalsWithoutAIKey() {
+        let contact = EchoContact(givenName: "Mina")
+        contact.relationshipJourneyIncluded = true
+        contact.relationshipIntent = .deepen
+        contact.lastRelationshipReviewAt = .now
+        let insights = RelationshipGuidanceEngine.insights(contacts: [contact], journeys: [])
+        XCTAssertTrue(insights.contains { $0.kind == .intentionAheadOfAction })
+        XCTAssertFalse(insights.isEmpty)
+    }
+
+    func testRelationshipActionPlanCompleteCancelAndReview() throws {
+        let container = try relationshipContainer()
+        let contact = EchoContact(givenName: "Noah")
+        container.mainContext.insert(contact)
+        let service = RelationshipJourneyService()
+        let completed = try service.planAction(for: contact, type: .call, journey: nil, in: container.mainContext)
+        try service.completeAction(completed, in: container.mainContext)
+        XCTAssertEqual(completed.status, .completed)
+        XCTAssertNotNil(try service.recordOutcome(.closer, for: completed, in: container.mainContext))
+        let cancelled = try service.planAction(for: contact, type: .message, journey: nil, in: container.mainContext)
+        try service.cancelAction(cancelled, in: container.mainContext)
+        XCTAssertEqual(cancelled.status, .skipped)
+    }
+
+    func testReminderReschedulesAndCancels() async throws {
+        let scheduler = RecordingNotificationScheduler()
+        let service = ReminderService(scheduler: scheduler)
+        try await service.scheduleWeekly(weekday: 2, hour: 9, minute: 30)
+        XCTAssertEqual(scheduler.scheduled.last?.identifier, ReminderService.weeklyIdentifier)
+        XCTAssertTrue(scheduler.cancelled.contains(ReminderService.weeklyIdentifier))
+        service.cancelWeekly()
+        XCTAssertEqual(scheduler.cancelled.filter { $0 == ReminderService.weeklyIdentifier }.count, 2)
+    }
+
+    func testActionAndReviewRemindersOnlyScheduleForEligibleActionsAndCancelTogether() async throws {
+        let scheduler = RecordingNotificationScheduler()
+        let service = ReminderService(scheduler: scheduler)
+        let contact = EchoContact(givenName: "Alex")
+        let action = RelationshipAction(
+            plannedFor: Date(timeIntervalSince1970: 1_800_000_000),
+            type: .call,
+            status: .planned,
+            contact: contact
+        )
+
+        try await service.scheduleAction(action, contactName: contact.fullName)
+        XCTAssertEqual(scheduler.scheduled.last?.identifier, ReminderService.actionPrefix + action.id.uuidString)
+
+        action.status = .completed
+        try await service.scheduleReview(for: action, date: Date(timeIntervalSince1970: 1_800_086_400))
+        XCTAssertEqual(scheduler.scheduled.last?.identifier, ReminderService.reviewPrefix + action.id.uuidString)
+
+        service.cancelAction(action)
+        XCTAssertTrue(scheduler.cancelled.contains(ReminderService.actionPrefix + action.id.uuidString))
+        XCTAssertTrue(scheduler.cancelled.contains(ReminderService.reviewPrefix + action.id.uuidString))
+    }
+
+    func testOngoingQuestionsIncreaseInDepthWithoutExceedingTheBank() {
+        XCTAssertEqual(
+            OngoingReflectionQuestionBank.question(completedReflectionCount: 0),
+            String(localized: "Who has unexpectedly come to mind lately?")
+        )
+        XCTAssertEqual(
+            OngoingReflectionQuestionBank.question(completedReflectionCount: 100),
+            String(localized: "Who do you hope will still be beside you three years from now?")
+        )
+        XCTAssertGreaterThanOrEqual(OngoingReflectionQuestionBank.questions.count, 9)
+    }
+
+    func testProductionStartupDoesNotSeedOrSyncGmail() {
+        XCTAssertFalse(AppStartupPolicy.seedsDemoData)
+        XCTAssertFalse(AppStartupPolicy.automaticallySyncsGmail)
+    }
+
+    func testSelectedContactKeysExcludeNotes() {
+        XCTAssertFalse(SelectedContactImportService.requestedKeys.contains(CNContactNoteKey))
+        XCTAssertFalse(ContactImportService.requestedKeys.contains(CNContactNoteKey))
+        XCTAssertTrue(SelectedContactImportService.requestedKeys.contains(CNContactGivenNameKey))
+        XCTAssertTrue(SelectedContactImportService.requestedKeys.contains(CNContactThumbnailImageDataKey))
+        XCTAssertEqual(Set(SelectedContactImportService.requestedKeys), Set([
+            CNContactIdentifierKey,
+            CNContactGivenNameKey,
+            CNContactFamilyNameKey,
+            CNContactPhoneNumbersKey,
+            CNContactEmailAddressesKey,
+            CNContactOrganizationNameKey,
+            CNContactJobTitleKey,
+            CNContactThumbnailImageDataKey,
+        ]))
+    }
+
+    private func relationshipContainer() throws -> ModelContainer {
+        try ModelContainer(
+            for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self, RelationshipReflection.self, RelationshipAction.self, ReflectionJourney.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+    }
+}
+
+private final class RecordingNotificationScheduler: NotificationScheduling, @unchecked Sendable {
+    var scheduled: [EchoReminderRequest] = []
+    var cancelled: [String] = []
+    func requestAuthorization() async throws -> Bool { true }
+    func schedule(_ request: EchoReminderRequest) async throws { scheduled.append(request) }
+    func cancel(identifiers: [String]) { cancelled.append(contentsOf: identifiers) }
+}
+
+private struct DiagnosticKeyStore: AIAPIKeyStore {
+    let value: String?
+    func readAPIKey() throws -> String? { value }
+    func saveAPIKey(_ apiKey: String) throws {}
+    func deleteAPIKey() throws {}
+}
+
+private struct DiagnosticAIClient: AIProviderClient {
+    func complete(
+        messages: [AIMessage],
+        model: AIModelID,
+        options: AICompletionOptions
+    ) async throws -> AIResult {
+        AIResult(text: "OK", model: "diagnostic-model")
     }
 }

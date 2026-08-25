@@ -44,6 +44,12 @@ struct OutreachComposerView: View {
     @State private var model: String?
     @State private var errorMessage: String?
 
+    init(contact: EchoContact, channel: OutreachChannel) {
+        self.contact = contact
+        self.channel = channel
+        _draft = State(initialValue: EchoAIFeatures.openerFallback(personAlias: contact.givenName))
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -85,7 +91,27 @@ struct OutreachComposerView: View {
                 } header: {
                     Text("Suggested outreach")
                 } footer: {
-                    Text("Names and companies are anonymized before AI processing. Review and edit before opening \(channel.title).")
+                    Text("Review and edit before opening \(channel.title). The current starter was created on this device.")
+                }
+
+                Section {
+                    Text(aiContextDisclosure)
+                        .foregroundStyle(.secondary)
+                    Button {
+                        generate()
+                    } label: {
+                        Label(
+                            model == nil
+                                ? String(localized: "Generate with optional AI")
+                                : String(localized: "Generate again with AI"),
+                            systemImage: "sparkles"
+                        )
+                    }
+                    .disabled(isLoading)
+                } header: {
+                    Text("Optional AI suggestion")
+                } footer: {
+                    Text("Nothing is sent unless you tap the AI button. Names and companies are anonymized before processing.")
                 }
 
                 Section {
@@ -106,20 +132,6 @@ struct OutreachComposerView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        generate()
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .disabled(isLoading)
-                    .accessibilityLabel("Regenerate suggestion")
-                }
-            }
-            .task {
-                if draft.isEmpty {
-                    generate()
-                }
             }
             .alert("Echo AI", isPresented: Binding(
                 get: { errorMessage != nil },
@@ -137,6 +149,21 @@ struct OutreachComposerView: View {
         case .message: contact.phoneNumber ?? ""
         case .email: contact.emailAddress ?? ""
         case .social(let platform): contact.socialIdentifier(for: platform) ?? ""
+        }
+    }
+
+    private var aiContextDisclosure: String {
+        let hasInteraction = contact.interactions.isEmpty == false
+        let hasNote = contact.notes.isEmpty == false
+        switch (hasInteraction, hasNote) {
+        case (true, true):
+            return String(localized: "If you ask AI, Echo will use the most recent recorded interaction, one saved note, your chosen relationship direction, and time since contact.")
+        case (true, false):
+            return String(localized: "If you ask AI, Echo will use the most recent recorded interaction, your chosen relationship direction, and time since contact.")
+        case (false, true):
+            return String(localized: "If you ask AI, Echo will use one saved note, your chosen relationship direction, and time since contact.")
+        case (false, false):
+            return String(localized: "If you ask AI, Echo will use only your chosen relationship direction and time since contact.")
         }
     }
 
@@ -168,7 +195,10 @@ struct OutreachComposerView: View {
                     personAlias: alias,
                     recentNote: context,
                     daysSinceContact: contact.daysSinceContact,
-                    relationship: contact.jobTitle ?? contact.tags.first ?? "personal relationship"
+                    relationship: contact.relationshipIntent?.title
+                        ?? contact.jobTitle
+                        ?? contact.tags.first
+                        ?? "personal relationship"
                 )
                 draft = privacy.restoreAliases(in: response.text)
                 model = response.model.rawValue

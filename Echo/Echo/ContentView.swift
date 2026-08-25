@@ -1,43 +1,58 @@
 import SwiftData
 import SwiftUI
 
+enum AppStartupPolicy {
+    static let seedsDemoData = false
+    static let automaticallySyncsGmail = false
+}
+
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var contacts: [EchoContact]
-    @AppStorage("echo.onboarding.v2.complete") private var completedOnboarding = false
+    @AppStorage("echo.onboarding.v2.complete") private var legacyOnboardingComplete = false
+    @AppStorage("echo.relationship.onboarding.stage") private var onboardingStage = ""
+
+    init() {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--echo-ui-reset") {
+            UserDefaults.standard.removeObject(forKey: "echo.onboarding.v2.complete")
+            UserDefaults.standard.removeObject(forKey: "echo.relationship.onboarding.stage")
+            legacyOnboardingComplete = false
+            onboardingStage = ""
+        }
+        #endif
+    }
+
+    private var shouldShowOnboarding: Bool {
+        onboardingStage.isEmpty ? !legacyOnboardingComplete : onboardingStage != OnboardingStage.completed.rawValue
+    }
 
     var body: some View {
         TabView {
             PersonalHomeView()
-                .tabItem { Label("People", systemImage: "person.2.fill") }
+                .tabItem { Label(String(localized: "Echo"), systemImage: "circle.hexagongrid.fill") }
+
+            RelationshipsView()
+                .tabItem { Label(String(localized: "Relationships"), systemImage: "person.2.fill") }
 
             AIInsightsView()
-                .tabItem { Label("Echo AI", systemImage: "sparkles") }
-
-            PipelineView()
-                .tabItem { Label("Pipeline", systemImage: "rectangle.3.group.fill") }
+                .tabItem { Label(String(localized: "Insights"), systemImage: "sparkles") }
 
             SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+                .tabItem { Label(String(localized: "Settings"), systemImage: "gearshape.fill") }
         }
         .tint(.indigo)
-        .task {
-            DemoData.removeLegacyDemoContacts(in: modelContext)
-            guard GmailSyncService.shared.status() != nil,
-                  GmailSyncService.shared.shouldSync()
-            else { return }
-            _ = try? await GmailSyncService.shared.sync(contacts: contacts, in: modelContext)
-        }
         .fullScreenCover(isPresented: Binding(
-            get: { !completedOnboarding },
-            set: { if !$0 { completedOnboarding = true } }
+            get: { shouldShowOnboarding },
+            set: { _ in }
         )) {
-            OnboardingView { completedOnboarding = true }
+            OnboardingView {
+                onboardingStage = OnboardingStage.completed.rawValue
+                legacyOnboardingComplete = true
+            }
         }
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: [EchoContact.self, Interaction.self, EchoNote.self, Deal.self], inMemory: true)
+        .modelContainer(for: [EchoContact.self, Interaction.self, EchoNote.self, Deal.self, RelationshipReflection.self, RelationshipAction.self, ReflectionJourney.self], inMemory: true)
 }

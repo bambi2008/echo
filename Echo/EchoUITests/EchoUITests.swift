@@ -1,43 +1,37 @@
-//
-//  EchoUITests.swift
-//  EchoUITests
-//
-//  Created by 茅18 on 2026/7/22.
-//
-
 import XCTest
 
 final class EchoUITests: XCTestCase {
-
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
-        continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
-    }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-    }
+    override func setUpWithError() throws { continueAfterFailure = false }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testFirstReflectionPersistsIntoRelationshipMap() throws {
         let app = XCUIApplication()
+        app.launchArguments = ["--echo-ui-testing", "--echo-ui-reset"]
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
-    }
+        XCTAssertTrue(app.staticTexts["onboarding.philosophy.title"].waitForExistence(timeout: 5))
+        app.buttons["onboarding.continue"].tap()
+        XCTAssertTrue(app.staticTexts["onboarding.coreQuestion.title"].exists)
+        app.buttons["onboarding.takeMoment"].tap()
+        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "onboarding.contact.")).firstMatch.tap()
+        app.buttons["onboarding.contactsContinue"].tap()
+        app.buttons["onboarding.intent.deepen"].tap()
+        app.buttons["onboarding.intentionsContinue"].tap()
+        app.buttons["onboarding.contextContinue"].tap()
+        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "onboarding.actionContact.")).firstMatch.tap()
+        app.buttons["onboarding.action.message"].tap()
+        app.buttons["onboarding.planAction"].tap()
+        app.buttons["onboarding.enterEcho"].tap()
 
-    @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
-        }
+        XCTAssertTrue(app.buttons["home.continueReflection"].waitForExistence(timeout: 5))
+        app.terminate()
+        app.launchArguments = ["--echo-ui-testing"]
+        app.launch()
+        XCTAssertTrue(app.buttons["home.continueReflection"].waitForExistence(timeout: 5))
+        app.tabBars.buttons.element(boundBy: 1).tap()
+        let growCloser = app.buttons["relationships.group.deepen"]
+        XCTAssertTrue(growCloser.waitForExistence(timeout: 3))
+        growCloser.tap()
+        XCTAssertTrue(app.staticTexts["Alex Chen"].firstMatch.waitForExistence(timeout: 3))
     }
 }

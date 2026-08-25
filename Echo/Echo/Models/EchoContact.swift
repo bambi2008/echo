@@ -25,11 +25,20 @@ final class EchoContact {
     var linkedinUsername: String?
     var instagramUsername: String?
     var whatsappNumber: String?
+    var relationshipIntentRawValue: String?
+    var desiredCadenceDays: Int?
+    var lastRelationshipReviewAt: Date?
+    var relationshipContext: String?
+    var relationshipJourneyIncluded: Bool = false
 
     @Relationship(deleteRule: .cascade, inverse: \Interaction.contact)
     var interactions: [Interaction] = []
     @Relationship(deleteRule: .cascade, inverse: \EchoNote.contact)
     var notes: [EchoNote] = []
+    @Relationship(deleteRule: .cascade, inverse: \RelationshipReflection.contact)
+    var relationshipReflections: [RelationshipReflection] = []
+    @Relationship(deleteRule: .cascade, inverse: \RelationshipAction.contact)
+    var relationshipActions: [RelationshipAction] = []
 
     init(
         systemIdentifier: String = UUID().uuidString,
@@ -74,6 +83,11 @@ final class EchoContact {
         self.linkedinUsername = linkedinUsername
         self.instagramUsername = instagramUsername
         self.whatsappNumber = whatsappNumber
+        self.relationshipIntentRawValue = nil
+        self.desiredCadenceDays = nil
+        self.lastRelationshipReviewAt = nil
+        self.relationshipContext = nil
+        self.relationshipJourneyIncluded = false
     }
 
     var fullName: String {
@@ -140,6 +154,21 @@ final class EchoContact {
     var priority: PriorityLevel? {
         get { priorityRawValue.flatMap(PriorityLevel.init(rawValue:)) }
         set { priorityRawValue = newValue?.rawValue }
+    }
+
+    var relationshipIntent: RelationshipIntent? {
+        get { relationshipIntentRawValue.flatMap(RelationshipIntent.init(rawValue:)) }
+        set { relationshipIntentRawValue = newValue?.rawValue }
+    }
+
+    var desiredCadenceTitle: String {
+        switch desiredCadenceDays {
+        case 7: String(localized: "Weekly")
+        case 30: String(localized: "Monthly")
+        case 90: String(localized: "Quarterly")
+        case .some(let days): String(localized: "Every \(days) days")
+        case nil: String(localized: "No fixed rhythm")
+        }
     }
 
     var relationshipDomain: RelationshipDomain {

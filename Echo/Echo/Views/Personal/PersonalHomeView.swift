@@ -1,463 +1,237 @@
 import SwiftData
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct PersonalHomeView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \EchoContact.givenName) private var contacts: [EchoContact]
-    @State private var showingNewContact = false
-    @State private var showingBusinessCard = false
-    @State private var showingVCFImporter = false
-    @State private var vcfPreview: VCFImportPreview?
-    @State private var importMessage: String?
-    @State private var isImporting = false
-    @State private var searchText = ""
-    @State private var peopleFilter: PeopleFilter = .all
-    @State private var contactMethodFilter: ContactMethodFilter = .all
+    @Query private var contacts: [EchoContact]
+    @Query(sort: \ReflectionJourney.startedAt, order: .reverse) private var journeys: [ReflectionJourney]
+    @Query(sort: \RelationshipAction.createdAt, order: .reverse) private var actions: [RelationshipAction]
+    @State private var showingReflection = false
+    @State private var showingOngoingReflection = false
+    @State private var showingOutcome: RelationshipAction?
 
-    private var prioritized: [EchoContact] {
-        contacts.filter {
-            $0.isInEchoLayer && peopleFilter.includes($0) && contactMethodFilter.includes($0)
-        }.sorted {
-            EchoEngine.attentionScore(for: $0) > EchoEngine.attentionScore(for: $1)
-        }
-    }
-
-    private var visibleContacts: [EchoContact] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return prioritized }
-        return prioritized.filter { contact in
-            let social = SocialPlatform.allCases.compactMap { platform in
-                contact.socialIdentifier(for: platform)
-            }
-            let profile = [contact.fullName, contact.emailAddress, contact.phoneNumber, contact.companyName, contact.jobTitle]
-                .compactMap { $0 }
-            return (profile + social)
-                .contains { $0.localizedCaseInsensitiveContains(query) }
-        }
-    }
-
-    private var todaysEchoContact: EchoContact? {
-        prioritized.first(where: \.isEligibleForTodaysEcho)
-    }
+    private let service = RelationshipJourneyService()
+    private var activeJourney: ReflectionJourney? { journeys.first(where: { !$0.isComplete }) }
+    private var currentAction: RelationshipAction? { actions.first(where: { $0.status == .planned }) }
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    Picker("Contact method", selection: $contactMethodFilter) {
-                        ForEach(ContactMethodFilter.allCases) { filter in
-                            Label(filter.title, systemImage: filter.symbol).tag(filter)
-                        }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    if let journey = activeJourney {
+                        journeyCard(journey)
+                    } else {
+                        newJourneyCard
                     }
-                    .pickerStyle(.segmented)
-                    .accessibilityLabel("Contact method filter")
-
-                    Picker("People", selection: $peopleFilter) {
-                        ForEach(PeopleFilter.allCases) { filter in
-                            Text(filter.title).tag(filter)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .accessibilityLabel("Relationship filter")
+                    if let action = currentAction { actionCard(action) }
+                    mapCard
+                    guidanceCard
                 }
-
-                Section {
-                    NavigationLink {
-                        PersonRecallView(contacts: contacts)
-                    } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: "person.fill.questionmark")
-                                .font(.title2)
-                                .foregroundStyle(.indigo)
-                                .frame(width: 40, height: 40)
-                                .background(Color.indigo.opacity(0.12), in: Circle())
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Can't remember their name?")
-                                    .font(.headline)
-                                Text("Describe what you remember and let Echo find them.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
-                }
-
-                Section {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Label("Today's echo", systemImage: "wave.3.right")
-                            .font(.headline)
-                            .foregroundStyle(.indigo)
-                        Text(todaysEchoContact.map { "It may be a good day to reach out to \($0.fullName)." } ?? "Add a name and relationship details to get a meaningful suggestion.")
-                            .font(.title3.weight(.semibold))
-                        Text("Small moments keep important relationships alive.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 8)
-                }
-
-                Section(contactSectionTitle) {
-                    ForEach(visibleContacts) { contact in
-                        NavigationLink(value: contact) {
-                            ContactRow(contact: contact)
-                        }
-                    }
-                }
+                .padding()
             }
-            .navigationTitle("Echo")
-            .searchable(text: $searchText, prompt: "Name, company, email, or phone")
-            .navigationDestination(for: EchoContact.self) { ContactDetailView(contact: $0) }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Menu {
-                        Button(action: importGoogleContacts) {
-                            Label("Google contacts", systemImage: "person.2.badge.plus")
-                        }
-                        Button(action: importIPhoneContacts) {
-                            Label("iPhone contacts", systemImage: "iphone")
-                        }
-                        Button {
-                            showingVCFImporter = true
-                        } label: {
-                            Label("VCF file", systemImage: "doc.badge.plus")
-                        }
-                    } label: {
-                        if isImporting { ProgressView() }
-                        else { Image(systemName: "person.crop.circle.badge.plus") }
+            .navigationTitle(String(localized: "Echo"))
+            .sheet(isPresented: $showingReflection) {
+                WeeklyReflectionFlow(journey: activeJourney)
+            }
+            .sheet(isPresented: $showingOngoingReflection) { OngoingReflectionView() }
+            .confirmationDialog(String(localized: "How did it feel?"), isPresented: Binding(
+                get: { showingOutcome != nil },
+                set: { if !$0 { showingOutcome = nil } }
+            )) {
+                if let action = showingOutcome {
+                    ForEach(ReflectionOutcome.allCases) { outcome in
+                        Button(outcome.title) { record(outcome, for: action); showingOutcome = nil }
                     }
-                    .disabled(isImporting)
-                    .accessibilityLabel("Import contacts")
+                    Button(String(localized: "Skip for now"), role: .cancel) { complete(action); showingOutcome = nil }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button {
-                            showingNewContact = true
-                        } label: {
-                            Label("Add manually", systemImage: "person.badge.plus")
-                        }
-                        Button {
-                            showingBusinessCard = true
-                        } label: {
-                            Label("Scan business card", systemImage: "person.crop.rectangle")
-                        }
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .accessibilityLabel("Add person")
-                }
-            }
-            .sheet(isPresented: $showingNewContact) { NewContactView() }
-            .sheet(isPresented: $showingBusinessCard) {
-                NavigationStack {
-                    DocumentRecognitionView(kind: .businessCard)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Done") { showingBusinessCard = false }
-                            }
-                        }
-                }
-            }
-            .sheet(item: $vcfPreview) { preview in
-                VCFImportPreviewView(preview: preview) { result in
-                    importMessage = result.added == 0 && result.updated == 0
-                        ? "All VCF contacts already exist in Echo."
-                        : "Added \(result.added) and updated \(result.updated) VCF contacts."
-                }
-            }
-            .fileImporter(
-                isPresented: $showingVCFImporter,
-                allowedContentTypes: [.vCard],
-                allowsMultipleSelection: false
-            ) { result in
-                handleVCFSelection(result)
-            }
-            .alert("Contact import", isPresented: Binding(
-                get: { importMessage != nil },
-                set: { if !$0 { importMessage = nil } }
-            )) { Button("OK") { importMessage = nil } } message: { Text(importMessage ?? "") }
-        }
-    }
-
-    private var contactSectionTitle: String {
-        if contactMethodFilter == .all { return peopleFilter.sectionTitle }
-        return "\(contactMethodFilter.title) contacts"
-    }
-
-    private func handleVCFSelection(_ result: Result<[URL], Error>) {
-        do {
-            guard let url = try result.get().first else { return }
-            let hasAccess = url.startAccessingSecurityScopedResource()
-            defer { if hasAccess { url.stopAccessingSecurityScopedResource() } }
-            let data = try Data(contentsOf: url)
-            vcfPreview = try VCFImportService().preview(
-                data: data,
-                fileName: url.lastPathComponent,
-                in: modelContext
-            )
-        } catch {
-            importMessage = error.localizedDescription
-        }
-    }
-
-    private func importIPhoneContacts() {
-        isImporting = true
-        Task {
-            defer { isImporting = false }
-            do {
-                let result = try await ContactImportService().importContacts(into: modelContext)
-                importMessage = result.added == 0 && result.updated == 0
-                    ? "Your iPhone contacts are already up to date."
-                    : "Added \(result.added) and updated \(result.updated) iPhone contacts."
-            } catch {
-                importMessage = "iPhone contacts could not be imported."
             }
         }
     }
 
-    private func importGoogleContacts() {
-        isImporting = true
-        Task {
-            defer { isImporting = false }
-            do {
-                if GmailSyncService.shared.status()?.canImportContacts != true {
-                    _ = try await GmailSyncService.shared.connect()
-                }
-                let result = try await GmailSyncService.shared.importGoogleContacts(in: modelContext)
-                if result.savedContactsFound == 0 && result.otherContactsFound == 0 {
-                    importMessage = "Google returned no saved or Other contacts for this account. You can switch accounts in Settings."
-                } else if result.added == 0 && result.updated == 0 {
-                    importMessage = "Found \(result.savedContactsFound) saved and \(result.otherContactsFound) Other contacts; Echo is already up to date."
+    private func journeyCard(_ journey: ReflectionJourney) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(String(localized: "Week \(min(journey.currentWeekIndex, 4)) of 4"))
+                .font(.caption.bold()).foregroundStyle(.indigo)
+            Text(journey.currentTheme.title).font(.title.bold())
+            Text(journey.currentTheme.question).font(.title3).foregroundStyle(.secondary)
+            ProgressView(value: Double(journey.completedThemes.count), total: 4)
+                .tint(.indigo)
+            PrimaryButton(String(localized: "Continue this week's reflection"), identifier: "home.continueReflection") {
+                showingReflection = true
+            }
+        }
+        .echoCard()
+    }
+
+    private var newJourneyCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(journeys.isEmpty
+                 ? String(localized: "Who do you not want to slowly disappear from your life?")
+                 : ReflectionTheme.ongoing.question)
+                .font(.title.bold())
+            Text(journeys.isEmpty
+                 ? String(localized: "Choose a few people and one honest intention. Nothing becomes overdue.")
+                 : String(localized: "Your four-week map is complete. Keep returning only when a relationship comes to mind."))
+                .foregroundStyle(.secondary)
+            PrimaryButton(journeys.isEmpty
+                          ? String(localized: "Begin a four-week reflection")
+                          : String(localized: "Take a weekly moment")) {
+                if journeys.isEmpty {
+                    _ = try? service.startJourney(in: modelContext)
+                    showingReflection = true
                 } else {
-                    importMessage = "Added \(result.added) and updated \(result.updated) Google contacts."
+                    showingOngoingReflection = true
                 }
-            } catch {
-                importMessage = error.localizedDescription
             }
         }
+        .echoCard()
     }
-}
 
-private enum ContactMethodFilter: String, CaseIterable, Identifiable {
-    case all
-    case phone
-    case email
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .all: "All"
-        case .phone: "Phone"
-        case .email: "Email"
+    private func actionCard(_ action: RelationshipAction) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(String(localized: "One small action"), systemImage: "checkmark.circle")
+                .font(.headline).foregroundStyle(.indigo)
+            Text(action.type.title).font(.title3.bold())
+            if let contact = action.contact { Text(contact.fullName).foregroundStyle(.secondary) }
+            if let date = action.plannedFor {
+                Text(date, style: .date).font(.caption).foregroundStyle(.secondary)
+            }
+            HStack {
+                Button(String(localized: "Done")) { showingOutcome = action }.buttonStyle(.borderedProminent)
+                Button(String(localized: "Let go")) { cancel(action) }.buttonStyle(.bordered)
+            }
         }
+        .echoCard()
     }
 
-    var symbol: String {
-        switch self {
-        case .all: "person.2"
-        case .phone: "phone"
-        case .email: "envelope"
-        }
-    }
-
-    func includes(_ contact: EchoContact) -> Bool {
-        switch self {
-        case .all: true
-        case .phone: contact.phoneNumber?.trimmed.nilIfEmpty != nil
-        case .email: contact.emailAddress?.trimmed.nilIfEmpty != nil
-        }
-    }
-}
-
-private struct ContactRow: View {
-    let contact: EchoContact
-
-    var body: some View {
-        HStack(spacing: 14) {
-            Circle()
-                .fill(Color.indigo.opacity(0.14))
-                .frame(width: 48, height: 48)
-                .overlay(Text(contact.initials).font(.headline).foregroundStyle(.indigo))
-            VStack(alignment: .leading, spacing: 4) {
-                Text(contact.fullName).font(.headline)
-                Text(detail)
-                    .font(.subheadline)
+    private var mapCard: some View {
+        NavigationLink {
+            RelationshipMapSummaryView(contacts: contacts)
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                Label(String(localized: "Relationship map"), systemImage: "circle.grid.2x2.fill")
+                    .font(.headline).foregroundStyle(.indigo)
+                Text(String(localized: "\(contacts.count) people in view"))
+                    .font(.title2.bold()).foregroundStyle(.primary)
+                Text(String(localized: "See where you want closeness, steadiness, lightness, or space."))
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
             }
-            Spacer()
-            Image(systemName: contact.relationshipDomain.symbol)
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .accessibilityLabel(contact.relationshipDomain.title)
-            if let priority = contact.priority, priority != .cold {
-                Image(systemName: priority.symbol)
-                    .font(.caption)
-                    .foregroundStyle(priority == .hot ? .orange : .indigo)
-                    .accessibilityLabel("\(priority.title) priority")
-            }
-            if let days = contact.daysSinceContact {
-                Text("\(days)d")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(days > 21 ? .orange : .secondary)
-            }
+            .echoCard()
         }
-        .padding(.vertical, 4)
+        .buttonStyle(.plain)
     }
 
-    private var detail: String {
-        if let company = contact.companyName { return [contact.jobTitle, company].compactMap { $0 }.joined(separator: " · ") }
-        return contact.notes.last?.content ?? "Ready for your first note"
+    private var guidanceCard: some View {
+        let guidance = RelationshipGuidanceEngine.guidance(for: contacts).first
+        return VStack(alignment: .leading, spacing: 10) {
+            Label(String(localized: "A gentle nudge"), systemImage: "sparkle")
+                .font(.headline).foregroundStyle(.indigo)
+            Text(guidance?.explanation ?? String(localized: "Echo will offer a nudge only when it follows an intention or rhythm you chose."))
+                .foregroundStyle(.secondary)
+        }
+        .echoCard()
+    }
+
+    private func complete(_ action: RelationshipAction) {
+        try? service.completeAction(action, in: modelContext)
+        Task { await RelationshipReminderCoordinator().completeAction(action) }
+    }
+
+    private func record(_ outcome: ReflectionOutcome, for action: RelationshipAction) {
+        try? service.completeAction(action, in: modelContext)
+        _ = try? service.recordOutcome(outcome, for: action, in: modelContext)
+        Task { await RelationshipReminderCoordinator().completeAction(action) }
+    }
+
+    private func cancel(_ action: RelationshipAction) {
+        try? service.cancelAction(action, in: modelContext)
+        RelationshipReminderCoordinator().cancelAction(action)
     }
 }
 
-private struct NewContactView: View {
+private struct OngoingReflectionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @State private var givenName = ""
-    @State private var familyName = ""
-    @State private var phoneNumber = ""
-    @State private var emailAddress = ""
-    @State private var companyName = ""
-    @State private var jobTitle = ""
-    @State private var priority: PriorityLevel?
-    @State private var relationshipDomain: RelationshipDomain = .personal
-    @State private var identity: ContactIdentity?
-    @State private var socialIdentifiers: [SocialPlatform: String] = [:]
-
-    private var availableIdentities: [ContactIdentity] {
-        ContactIdentity.allCases.filter { relationshipDomain.includes($0.domain) }
+    @Query(sort: \EchoContact.givenName) private var contacts: [EchoContact]
+    @Query(sort: \RelationshipReflection.createdAt, order: .reverse) private var reflections: [RelationshipReflection]
+    @State private var selectedID: String?
+    @State private var actionType: RelationshipActionType = .none
+    @State private var selectedIntent: RelationshipIntent?
+    @State private var contextText = ""
+    private let service = RelationshipJourneyService()
+    private var people: [EchoContact] { contacts }
+    private var currentQuestion: String {
+        OngoingReflectionQuestionBank.question(completedReflectionCount: reflections.count)
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                TextField("First name", text: $givenName)
-                TextField("Last name", text: $familyName)
-                TextField("Phone", text: $phoneNumber)
-                    .keyboardType(.phonePad)
-                    .textContentType(.telephoneNumber)
-                TextField("Email", text: $emailAddress)
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .textContentType(.emailAddress)
-                TextField("Company", text: $companyName)
-                    .textContentType(.organizationName)
-                TextField("Role", text: $jobTitle)
-                    .textContentType(.jobTitle)
-                Section {
-                    ForEach(SocialPlatform.allCases) { platform in
-                        LabeledContent {
-                            TextField(platform.fieldPrompt, text: socialBinding(for: platform))
-                                .multilineTextAlignment(.trailing)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
-                        } label: {
-                            Label(platform.title, systemImage: platform.symbol)
-                        }
-                    }
-                } header: {
-                    Text("Social accounts")
+                Section { Text(currentQuestion).font(.title2.bold()) }
+                Picker(String(localized: "Person"), selection: $selectedID) {
+                    Text(String(localized: "Choose someone")).tag(String?.none)
+                    ForEach(people) { Text($0.fullName).tag(Optional($0.systemIdentifier)) }
                 }
-                Picker("Relationship", selection: $relationshipDomain) {
-                    ForEach(RelationshipDomain.allCases) { domain in
-                        Label(domain.title, systemImage: domain.symbol).tag(domain)
+                if people.contains(where: { $0.systemIdentifier == selectedID }) {
+                    Picker(String(localized: "Intention"), selection: $selectedIntent) {
+                        Text(String(localized: "Not sure yet")).tag(RelationshipIntent?.none)
+                        ForEach(RelationshipIntent.allCases) { Text($0.title).tag(Optional($0)) }
                     }
-                }
-                Picker("Priority", selection: $priority) {
-                    Text("Not set").tag(PriorityLevel?.none)
-                    ForEach(PriorityLevel.allCases) { level in
-                        Text(level.title).tag(Optional(level))
-                    }
-                }
-                Picker("Identity", selection: $identity) {
-                    Text("Not set").tag(ContactIdentity?.none)
-                    ForEach(availableIdentities) { item in
-                        Text(item.rawValue).tag(Optional(item))
+                    TextField(String(localized: "What has been happening between you lately?"), text: $contextText, axis: .vertical)
+                    Picker(String(localized: "One small action"), selection: $actionType) {
+                        ForEach(RelationshipActionType.allCases) { Text($0.title).tag($0) }
                     }
                 }
             }
-            .navigationTitle("New person")
+            .navigationTitle(String(localized: "A moment to reflect"))
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
-                        let contact = EchoContact(
-                            givenName: givenName.trimmed,
-                            familyName: familyName.trimmed,
-                            phoneNumber: phoneNumber.trimmed.nilIfEmpty,
-                            emailAddress: emailAddress.trimmed.nilIfEmpty,
-                            priority: priority,
-                            relationshipDomain: relationshipDomain,
-                            companyName: companyName.trimmed.nilIfEmpty,
-                            jobTitle: jobTitle.trimmed.nilIfEmpty
-                        )
-                        contact.tags = identity.map { [$0.rawValue] } ?? []
-                        for platform in SocialPlatform.allCases {
-                            contact.setSocialIdentifier(
-                                socialIdentifiers[platform]?.trimmed.nilIfEmpty,
-                                for: platform
-                            )
-                        }
-                        modelContext.insert(contact)
-                        try? modelContext.save()
-                        dismiss()
-                    }
-                    .disabled(givenName.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
+                ToolbarItem(placement: .cancellationAction) { Button(String(localized: "Cancel")) { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button(String(localized: "Save")) { save() }.disabled(selectedID == nil) }
             }
-            .onChange(of: relationshipDomain) { _, newValue in
-                if let identity, !newValue.includes(identity.domain) {
-                    self.identity = nil
-                }
-            }
+            .onChange(of: selectedID) { _, _ in loadSelectedContact() }
         }
     }
-
-    private func socialBinding(for platform: SocialPlatform) -> Binding<String> {
-        Binding(
-            get: { socialIdentifiers[platform] ?? "" },
-            set: { socialIdentifiers[platform] = $0 }
-        )
+    private func loadSelectedContact() {
+        let contact = people.first(where: { $0.systemIdentifier == selectedID })
+        selectedIntent = contact?.relationshipIntent
+        contextText = contact?.relationshipContext ?? ""
+    }
+    private func save() {
+        guard let contact = people.first(where: { $0.systemIdentifier == selectedID }) else { return }
+        _ = try? service.review(contact: contact, intent: selectedIntent, contextText: contextText, theme: .ongoing, journey: nil, in: modelContext)
+        let action = try? service.planAction(for: actionType == .none ? nil : contact, type: actionType, plannedFor: actionType == .none ? nil : Calendar.current.date(byAdding: .day, value: 2, to: .now), journey: nil, in: modelContext)
+        if let action, action.status == .planned {
+            Task { await RelationshipReminderCoordinator().schedulePlannedActionIfEnabled(action) }
+        }
+        dismiss()
     }
 }
 
-private enum PeopleFilter: String, CaseIterable, Identifiable {
-    case all
-    case personal
-    case business
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .all: "All"
-        case .personal: "Personal"
-        case .business: "Business"
+private struct RelationshipMapSummaryView: View {
+    let contacts: [EchoContact]
+    var body: some View {
+        List {
+            ForEach(RelationshipIntent.allCases) { intent in
+                Section(intent.title) {
+                    let people = contacts.filter { $0.relationshipIntent == intent }
+                    if people.isEmpty { Text(String(localized: "No one here yet")).foregroundStyle(.secondary) }
+                    ForEach(people) { Text($0.fullName) }
+                }
+            }
+            Section(String(localized: "Not sure yet")) {
+                let people = contacts.filter { $0.relationshipIntent == nil }
+                if people.isEmpty { Text(String(localized: "No one here yet")).foregroundStyle(.secondary) }
+                ForEach(people) { Text($0.fullName) }
+            }
         }
-    }
-
-    var sectionTitle: String {
-        switch self {
-        case .all: "Your people"
-        case .personal: "Personal relationships"
-        case .business: "Business relationships"
-        }
-    }
-
-    func includes(_ contact: EchoContact) -> Bool {
-        switch self {
-        case .all: true
-        case .personal: contact.isPersonalRelationship
-        case .business: contact.isBusinessRelationship
-        }
+        .navigationTitle(String(localized: "Relationship map"))
     }
 }
 
-private extension String {
-    var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
-    var nilIfEmpty: String? { isEmpty ? nil : self }
+private extension View {
+    func echoCard() -> some View {
+        self.padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22))
+    }
 }

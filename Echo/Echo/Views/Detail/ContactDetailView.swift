@@ -1,4 +1,3 @@
-import EchoAI
 import SwiftData
 import SwiftUI
 
@@ -27,6 +26,56 @@ struct ContactDetailView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
+            }
+
+            Section {
+                Picker(String(localized: "Intention"), selection: intentionBinding) {
+                    Text(String(localized: "Not sure yet")).tag(RelationshipIntent?.none)
+                    ForEach(RelationshipIntent.allCases) { intent in
+                        Label(intent.title, systemImage: intent.symbol).tag(Optional(intent))
+                    }
+                }
+                RelationshipCadencePicker(days: cadenceBinding)
+                TextField(String(localized: "What do you want to remember about this relationship?"), text: relationshipContextBinding, axis: .vertical)
+                    .lineLimit(2...6)
+                if let reviewed = contact.lastRelationshipReviewAt {
+                    LabeledContent(String(localized: "Last reflected")) { Text(reviewed, style: .relative).foregroundStyle(.secondary) }
+                }
+                if let action = contact.relationshipActions.first(where: { $0.status == .planned }) {
+                    LabeledContent(String(localized: "Planned action")) { Text(action.type.title).foregroundStyle(.indigo) }
+                }
+            } header: {
+                Text(String(localized: "Relationship now"))
+            } footer: {
+                Text(String(localized: "This is your intention, not a score assigned to the other person."))
+            }
+
+            if !contact.relationshipReflections.isEmpty || !contact.relationshipActions.isEmpty {
+                Section(String(localized: "Reflection history")) {
+                    ForEach(contact.relationshipReflections.sorted { $0.createdAt > $1.createdAt }) { reflection in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(reflection.selectedIntent?.title ?? String(localized: "Not sure yet")).font(.subheadline.bold())
+                            if let context = reflection.contextText { Text(context).foregroundStyle(.secondary) }
+                            if let outcome = reflection.outcome {
+                                Label(outcome.title, systemImage: "arrow.triangle.2.circlepath")
+                                    .font(.caption)
+                                    .foregroundStyle(.indigo)
+                            }
+                            Text(reflection.createdAt, style: .date).font(.caption).foregroundStyle(.tertiary)
+                        }
+                    }
+                    ForEach(contact.relationshipActions.sorted { $0.createdAt > $1.createdAt }) { action in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label(action.type.title, systemImage: action.type.symbol)
+                                .font(.subheadline.bold())
+                            Text(action.status.localizedTitle)
+                                .foregroundStyle(.secondary)
+                            Text(action.createdAt, style: .date)
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
             }
 
             if contact.phoneNumber != nil || contact.emailAddress != nil {
@@ -102,12 +151,6 @@ struct ContactDetailView: View {
                 }
             }
 
-            Section {
-                RelationshipBriefCard(contact: contact)
-            } header: {
-                Label("Relationship brief", systemImage: "sparkles")
-            }
-
             Section("Profile") {
                 Picker("Relationship", selection: relationshipBinding) {
                     ForEach(RelationshipDomain.allCases) { domain in
@@ -131,7 +174,7 @@ struct ContactDetailView: View {
                 if !contact.tags.isEmpty {
                     LabeledContent("Identity", value: contact.tags.joined(separator: " · "))
                 }
-                if let priority = contact.priority {
+                if contact.isBusinessRelationship, let priority = contact.priority {
                     LabeledContent {
                         Label(priority.title, systemImage: priority.symbol)
                             .foregroundStyle(priority == .hot ? .orange : .indigo)
@@ -286,201 +329,35 @@ struct ContactDetailView: View {
         )
     }
 
+    private var intentionBinding: Binding<RelationshipIntent?> {
+        Binding(
+            get: { contact.relationshipIntent },
+            set: { newValue in
+                _ = try? RelationshipJourneyService().review(
+                    contact: contact,
+                    intent: newValue,
+                    contextText: contact.relationshipContext,
+                    theme: .ongoing,
+                    journey: nil,
+                    in: modelContext
+                )
+            }
+        )
+    }
+
+    private var cadenceBinding: Binding<Int?> {
+        Binding(get: { contact.desiredCadenceDays }, set: { contact.desiredCadenceDays = $0; try? modelContext.save() })
+    }
+
+    private var relationshipContextBinding: Binding<String> {
+        Binding(get: { contact.relationshipContext ?? "" }, set: { contact.relationshipContext = $0; try? modelContext.save() })
+    }
+
     private func interactionTitle(_ interaction: Interaction) -> String {
         guard interaction.type == .emailed, let isIncoming = interaction.isIncoming else {
             return interaction.type.title
         }
         return isIncoming ? "Received email" : "Sent email"
-    }
-}
-
-private struct RelationshipBriefCard: View {
-    let contact: EchoContact
-
-    @State private var brief: RelationshipBrief
-    @State private var isAIResult = false
-    @State private var isLoading = false
-    @State private var model: String?
-    @State private var errorMessage: String?
-
-    init(contact: EchoContact) {
-        self.contact = contact
-        _brief = State(initialValue: Self.localBrief(for: contact))
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: momentumSymbol)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(momentumColor)
-                    .frame(width: 40, height: 40)
-                    .background(momentumColor.opacity(0.13), in: Circle())
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(brief.headline)
-                        .font(.headline)
-                    Text(brief.momentum.capitalized)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(momentumColor)
-                }
-                Spacer()
-                if isLoading {
-                    ProgressView()
-                } else {
-                    Button {
-                        enrichWithAI()
-                    } label: {
-                        Image(systemName: isAIResult ? "arrow.clockwise" : "sparkles")
-                    }
-                    .buttonStyle(.borderless)
-                    .accessibilityLabel(isAIResult ? "Refresh relationship brief" : "Ask Echo AI")
-                }
-            }
-
-            Label {
-                Text(brief.whyNow)
-                    .font(.subheadline)
-            } icon: {
-                Image(systemName: "clock.badge.exclamationmark")
-                    .foregroundStyle(.orange)
-            }
-
-            VStack(alignment: .leading, spacing: 7) {
-                Text("Evidence")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.secondary)
-                ForEach(Array(brief.evidence.prefix(3)), id: \.self) { item in
-                    Label(item, systemImage: "checkmark.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Label(brief.nextAction, systemImage: "arrow.turn.down.right")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.indigo)
-
-            HStack(spacing: 8) {
-                Text(isAIResult ? "AI enriched" : "On-device preview")
-                Text("·")
-                Text("Confidence \(brief.confidence)%")
-                if let model {
-                    Text("· \(model)")
-                }
-            }
-            .font(.caption2)
-            .foregroundStyle(.tertiary)
-
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
-    }
-
-    private var momentumColor: Color {
-        switch brief.momentum.lowercased() {
-        case "active": .green
-        case "cooling": .orange
-        case "dormant": .red
-        default: .indigo
-        }
-    }
-
-    private var momentumSymbol: String {
-        switch brief.momentum.lowercased() {
-        case "active": "arrow.up.right"
-        case "cooling": "thermometer.snowflake"
-        case "dormant": "pause.circle"
-        default: "wave.3.right"
-        }
-    }
-
-    private func enrichWithAI() {
-        guard !isLoading else { return }
-        isLoading = true
-        errorMessage = nil
-        Task {
-            defer { isLoading = false }
-            do {
-                let features = try EchoAIEnvironment.features()
-                let privacy = AIPrivacyContext(
-                    people: [contact.fullName],
-                    companies: contact.companyName.map { [$0] } ?? []
-                )
-                let alias = privacy.alias(for: contact.fullName) ?? "Person A"
-                let interactions = contact.interactions
-                    .sorted { $0.date > $1.date }
-                    .prefix(5)
-                    .map { interaction in
-                        let direction = interaction.isIncoming.map { $0 ? "incoming" : "outgoing" } ?? "recorded"
-                        return "\(interaction.type.title) (\(direction), \(interaction.date.formatted(date: .abbreviated, time: .omitted))): \(interaction.summary)"
-                    }
-                    .joined(separator: "; ")
-                let memories = contact.notes
-                    .sorted { $0.createdAt > $1.createdAt }
-                    .prefix(3)
-                    .map(\.content)
-                    .joined(separator: "; ")
-                let response = try await features.relationshipBrief(
-                    personAlias: alias,
-                    relationship: contact.relationshipDomain.title,
-                    lastContact: contact.daysSinceContact.map { "\($0) days ago" } ?? "unknown",
-                    interactionSummary: privacy.anonymize(interactions.nilIfEmpty ?? "No recorded interactions"),
-                    memorySummary: privacy.anonymize(memories.nilIfEmpty ?? "No saved memories")
-                )
-                let value = response.value
-                brief = RelationshipBrief(
-                    momentum: privacy.restoreAliases(in: value.momentum),
-                    headline: privacy.restoreAliases(in: value.headline),
-                    whyNow: privacy.restoreAliases(in: value.whyNow),
-                    nextAction: privacy.restoreAliases(in: value.nextAction),
-                    evidence: value.evidence.map { privacy.restoreAliases(in: $0) },
-                    confidence: min(100, max(0, value.confidence))
-                )
-                model = response.model.rawValue
-                isAIResult = true
-            } catch {
-                errorMessage = "AI is temporarily unavailable. Your on-device preview is still here."
-            }
-        }
-    }
-
-    private static func localBrief(for contact: EchoContact) -> RelationshipBrief {
-        let days = contact.daysSinceContact
-        let momentum: String
-        let headline: String
-        if days == nil {
-            momentum = "unknown"
-            headline = "Echo is still learning this relationship"
-        } else if let days, days <= 30 {
-            momentum = "active"
-            headline = "This relationship has recent momentum"
-        } else if let days, days <= 60 {
-            momentum = "steady"
-            headline = "This relationship may be ready for a light touch"
-        } else {
-            momentum = "cooling"
-            headline = "This relationship may be cooling"
-        }
-
-        let gap = days.map { "Last recorded contact was \($0) days ago" } ?? "There is no recorded contact date yet"
-        let interactions = "\(contact.interactions.count) interaction\(contact.interactions.count == 1 ? "" : "s") recorded"
-        let memory = "\(contact.notes.count) saved memor\(contact.notes.count == 1 ? "y" : "ies")"
-        let nextAction = contact.isBusinessRelationship
-            ? "Review the next business step before reaching out"
-            : "Send a low-pressure check-in when it feels natural"
-        return RelationshipBrief(
-            momentum: momentum,
-            headline: headline,
-            whyNow: days.map { $0 > 30 ? "It has been \($0) days since the last recorded contact." : "Your latest recorded contact was \($0) days ago." } ?? "Echo needs one more interaction to understand the rhythm.",
-            nextAction: nextAction,
-            evidence: [gap, interactions, memory],
-            confidence: contact.interactions.isEmpty ? 42 : min(92, 52 + contact.interactions.count * 5)
-        )
     }
 }
 

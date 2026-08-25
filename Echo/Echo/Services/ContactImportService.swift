@@ -10,6 +10,15 @@ struct ContactImportResult {
 @MainActor
 struct ContactImportService {
     private let store = CNContactStore()
+    static let requestedKeys: [String] = [
+        CNContactIdentifierKey,
+        CNContactGivenNameKey,
+        CNContactFamilyNameKey,
+        CNContactPhoneNumbersKey,
+        CNContactEmailAddressesKey,
+        CNContactOrganizationNameKey,
+        CNContactJobTitleKey,
+    ]
 
     func importContacts(into context: ModelContext) async throws -> ContactImportResult {
         let allowed = try await requestAccess()
@@ -25,15 +34,7 @@ struct ContactImportService {
         var contactsByPhone = Dictionary(grouping: storedContacts.compactMap { contact in
             contact.phoneNumber.map { (Self.normalizePhone($0), contact) }
         }, by: \.0).mapValues { $0.first!.1 }
-        let keys = [
-            CNContactIdentifierKey,
-            CNContactGivenNameKey,
-            CNContactFamilyNameKey,
-            CNContactPhoneNumbersKey,
-            CNContactEmailAddressesKey,
-            CNContactOrganizationNameKey,
-            CNContactJobTitleKey,
-        ] as [CNKeyDescriptor]
+        let keys = Self.requestedKeys as [CNKeyDescriptor]
         let request = CNContactFetchRequest(keysToFetch: keys)
         var added = 0
         var updated = 0
