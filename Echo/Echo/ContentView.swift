@@ -42,6 +42,9 @@ struct ContentView: View {
             AIInsightsView()
                 .tabItem { Label(String(localized: "Insights"), systemImage: "sparkles") }
 
+            PipelineView()
+                .tabItem { Label(String(localized: "Pipeline"), systemImage: "rectangle.3.group.fill") }
+
             SettingsView()
                 .tabItem { Label(String(localized: "Settings"), systemImage: "gearshape.fill") }
         }

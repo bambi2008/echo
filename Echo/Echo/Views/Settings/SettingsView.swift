@@ -14,7 +14,6 @@ struct SettingsView: View {
     @AppStorage("echo.relationship.reminderHour") private var reminderHour = 10
     @AppStorage(RelationshipReminderCoordinator.actionReminderKey) private var actionReminder = false
     @AppStorage(RelationshipReminderCoordinator.reviewReminderKey) private var reviewReminder = false
-    @AppStorage("echo.relationship.businessTools") private var businessTools = false
     @State private var apiKey = ""
     @State private var fastModel = "deepseek-v4-flash"
     @State private var advancedModel = "deepseek-v4-pro"
@@ -112,14 +111,6 @@ struct SettingsView: View {
                     TextField(String(localized: "Advanced model"), text: $advancedModel).textInputAutocapitalization(.never).autocorrectionDisabled()
                     Button(String(localized: "Apply models")) { applyModels() }
                 }
-
-                Section {
-                    Toggle(String(localized: "Show business tools"), isOn: $businessTools)
-                    if businessTools {
-                        NavigationLink { PipelineView() } label: { Label(String(localized: "Pipeline"), systemImage: "rectangle.3.group.fill") }
-                    }
-                } header: { Text(String(localized: "Business tools")) }
-                footer: { Text(String(localized: "Pipeline stays available for existing business data, but it is not part of the default relationship experience.")) }
 
                 Section(String(localized: "Privacy")) {
                     Label(String(localized: "Relationship data remains on this device"), systemImage: "iphone.gen3")
