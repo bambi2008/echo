@@ -12,11 +12,17 @@ struct ContentView: View {
 
     init() {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--echo-ui-reset") {
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("--echo-ui-reset") {
             UserDefaults.standard.removeObject(forKey: "echo.onboarding.v2.complete")
             UserDefaults.standard.removeObject(forKey: "echo.relationship.onboarding.stage")
             legacyOnboardingComplete = false
             onboardingStage = ""
+        }
+        if arguments.contains("--echo-skip-onboarding") {
+            UserDefaults.standard.set(OnboardingStage.completed.rawValue, forKey: "echo.relationship.onboarding.stage")
+            onboardingStage = OnboardingStage.completed.rawValue
+            legacyOnboardingComplete = true
         }
         #endif
     }
@@ -54,5 +60,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: [EchoContact.self, Interaction.self, EchoNote.self, Deal.self, RelationshipReflection.self, RelationshipAction.self, ReflectionJourney.self], inMemory: true)
+        .modelContainer(for: [EchoContact.self, Interaction.self, EchoNote.self, Deal.self, RelationshipReflection.self, RelationshipAction.self, ReflectionJourney.self, Pipeline.self, Organization.self, AgentIntelligence.self, AgentAction.self, Evidence.self], inMemory: true)
 }

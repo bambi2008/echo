@@ -13,6 +13,21 @@ import XCTest
 
 @MainActor
 final class EchoTests: XCTestCase {
+    func testPersistenceFailureDoesNotCreateAReplacementStoreAndCanRetry() {
+        var attempts = 0
+        let controller = EchoPersistenceController {
+            attempts += 1
+            throw PersistenceTestFailure.unavailable
+        }
+
+        XCTAssertNil(controller.container)
+        XCTAssertTrue(controller.couldNotOpenStore)
+        XCTAssertEqual(attempts, 1)
+        controller.retry()
+        XCTAssertNil(controller.container)
+        XCTAssertEqual(attempts, 2)
+    }
+
     func testContactDisplayValues() {
         let contact = EchoContact(givenName: "Lisa", familyName: "Park")
 
@@ -187,7 +202,7 @@ final class EchoTests: XCTestCase {
     func testNeverContactedPersonGetsMaximumAttentionScore() {
         let contact = EchoContact(givenName: "Mike", reachCount: 12)
 
-        XCTAssertEqual(EchoEngine.attentionScore(for: contact), 100)
+        XCTAssertEqual(EchoEngine.recencyAttentionScore(for: contact), 100)
     }
 
     func testIncomingEmailRefreshesRelationshipRecency() {
@@ -616,6 +631,273 @@ final class EchoTests: XCTestCase {
         ]))
     }
 
+    func testPipelineCreationAndMultiplePipelinesPersist() throws {
+        let container = try agenticContainer()
+        container.mainContext.insert(Pipeline(name: "Recruiting", objective: "Meet a teammate"))
+        container.mainContext.insert(Pipeline(name: "Projects", objective: "Move meaningful work forward", autonomyLevel: .manual))
+        try container.mainContext.save()
+
+        let stored = try container.mainContext.fetch(FetchDescriptor<Pipeline>())
+        XCTAssertEqual(Set(stored.map(\.name)), ["Recruiting", "Projects"])
+        XCTAssertEqual(stored.first { $0.name == "Projects" }?.autonomyLevel, .manual)
+        XCTAssertEqual(stored.first?.stages, DealStage.defaultAgenticStages)
+    }
+
+    func testOrganizationSupportsMultipleContactsAndItems() throws {
+        let container = try agenticContainer()
+        let organization = Organization(name: "Northstar", industry: "Design")
+        let first = EchoContact(givenName: "Mina"); let second = EchoContact(givenName: "Noah")
+        first.organization = organization; second.organization = organization
+        let pipeline = Pipeline(name: "Partnerships")
+        let item = Deal(title: "Shared studio", contact: first, pipeline: pipeline,
+                        organization: organization, relatedContacts: [first, second])
+        container.mainContext.insert(organization); container.mainContext.insert(first)
+        container.mainContext.insert(second); container.mainContext.insert(pipeline); container.mainContext.insert(item)
+        try container.mainContext.save()
+
+        let stored = try XCTUnwrap(container.mainContext.fetch(FetchDescriptor<Organization>()).first)
+        XCTAssertEqual(Set(stored.contacts.map(\.givenName)), ["Mina", "Noah"])
+        XCTAssertEqual(stored.pipelineItems.first?.title, "Shared studio")
+        XCTAssertEqual(item.allContacts.count, 2)
+    }
+
+    func testPipelineItemCanBeNonMonetaryAndCurrencyIsOptionalBehavior() {
+        let nonMonetary = Deal(title: "Introduce two friends")
+        let monetary = Deal(title: "Renewal", value: 15_000, currency: "HKD")
+        XCTAssertFalse(nonMonetary.hasMonetaryValue)
+        XCTAssertTrue(monetary.hasMonetaryValue)
+        XCTAssertEqual(monetary.resolvedCurrency, "HKD")
+    }
+
+    func testStageTransitionIsAuditedAndHumanAttentionIsFirstClass() throws {
+        let container = try agenticContainer()
+        let item = Deal(title: "Potential collaboration", stage: .qualified)
+        container.mainContext.insert(item); try container.mainContext.save()
+
+        try PipelineService().transition(item, to: .humanAttention, source: "Test agent", in: container.mainContext)
+        XCTAssertEqual(item.stage, .humanAttention)
+        XCTAssertTrue(item.humanAttentionRequired)
+        XCTAssertEqual(item.agentActions.first?.actionType, .stageChange)
+        XCTAssertTrue(item.agentActions.first?.summary.contains("Qualified") == true)
+
+        item.status = .won
+        try PipelineService().transition(item, to: .engaged, source: "Test agent", in: container.mainContext)
+        XCTAssertEqual(item.status, .active)
+
+        try PipelineService().setHumanAttention(false, for: item, reason: "Reviewed", in: container.mainContext)
+        XCTAssertFalse(item.humanAttentionRequired)
+        XCTAssertEqual(item.agentActions.filter { $0.actionType == .escalation }.count, 1)
+    }
+
+    func testAgentIntelligenceActionAndEvidencePersistSeparatelyFromHumanNotes() throws {
+        let container = try agenticContainer()
+        let item = Deal(title: "Partnership", humanNotes: "Met at a conference")
+        let intelligence = AgentIntelligence(score: 91, confidence: 0.82, summary: "Strong mutual fit",
+                                             whyItMatters: "Two warm introductions", pipelineItem: item)
+        let evidence = Evidence(title: "Public profile", url: "https://example.com", sourceType: .web,
+                                excerptOrSummary: "Leadership biography", intelligence: intelligence)
+        let action = AgentAction(actionType: .research, summary: "Reviewed public profile", source: "Research provider", pipelineItem: item)
+        item.intelligence = intelligence
+        container.mainContext.insert(item); container.mainContext.insert(intelligence)
+        container.mainContext.insert(evidence); container.mainContext.insert(action)
+        try container.mainContext.save()
+
+        let stored = try XCTUnwrap(container.mainContext.fetch(FetchDescriptor<Deal>()).first)
+        XCTAssertEqual(stored.humanNotes, "Met at a conference")
+        XCTAssertEqual(stored.intelligence?.score, 91)
+        XCTAssertEqual(stored.intelligence?.evidence.first?.sourceType, .web)
+        XCTAssertEqual(stored.agentActions.first?.source, "Research provider")
+    }
+
+    func testInteractionActorAndDirectionMetadataPersist() throws {
+        let container = try agenticContainer()
+        let interaction = Interaction(type: .emailed, summary: "Reply received", source: "gmail",
+                                      actor: .external, direction: .inbound)
+        let legacy = Interaction(type: .messaged, summary: "Legacy reply", isIncoming: true)
+        legacy.actorRawValue = nil; legacy.directionRawValue = nil
+        container.mainContext.insert(interaction); container.mainContext.insert(legacy); try container.mainContext.save()
+        let stored = try XCTUnwrap(container.mainContext.fetch(FetchDescriptor<Interaction>()).first { $0.summary == "Reply received" })
+        XCTAssertEqual(stored.actor, .external)
+        XCTAssertEqual(stored.direction, .inbound)
+        XCTAssertEqual(legacy.actor, .human)
+        XCTAssertEqual(legacy.direction, .inbound)
+    }
+
+    func testAcceptanceFixtureCoversOrganizationsStagesActionsAndInteractionsIdempotently() throws {
+        let container = try agenticContainer()
+        let service = PipelineService()
+        try service.seedAcceptanceScenario(in: container.mainContext)
+        try service.seedAcceptanceScenario(in: container.mainContext)
+
+        let organizations = try container.mainContext.fetch(FetchDescriptor<Organization>())
+        let items = try container.mainContext.fetch(FetchDescriptor<Deal>())
+        let interactions = try container.mainContext.fetch(FetchDescriptor<Interaction>())
+        let actions = try container.mainContext.fetch(FetchDescriptor<AgentAction>())
+        XCTAssertEqual(organizations.count, 2)
+        XCTAssertTrue(organizations.allSatisfy { $0.contacts.count == 2 })
+        XCTAssertEqual(Set(items.map(\.stage)), [.qualified, .opportunity])
+        XCTAssertEqual(items.filter(\.humanAttentionRequired).count, 1)
+        XCTAssertEqual(interactions.count, 2)
+        XCTAssertGreaterThanOrEqual(actions.filter { $0.actionType == .stageChange }.count, 4)
+        XCTAssertEqual(items.filter { $0.title == "Potential Partnership" }.first?.intelligence?.evidence.count, 1)
+    }
+
+    func testExistingDealMigrationAssignsDefaultPipelineAndOrganization() throws {
+        let container = try agenticContainer()
+        let contact = EchoContact(givenName: "Ava", companyName: "Harbor")
+        let legacy = Deal(title: "Legacy renewal", value: 5000, stage: .quoted, contact: contact)
+        legacy.pipeline = nil; legacy.organization = nil; legacy.updatedAt = nil; legacy.valueIsSet = nil
+        container.mainContext.insert(contact); container.mainContext.insert(legacy); try container.mainContext.save()
+
+        let pipeline = try PipelineService().migrateExistingData(in: container.mainContext)
+        XCTAssertEqual(legacy.pipeline?.id, pipeline.id)
+        XCTAssertEqual(legacy.organization?.name, "Harbor")
+        XCTAssertEqual(contact.organization?.name, "Harbor")
+        XCTAssertTrue(legacy.hasMonetaryValue)
+        XCTAssertEqual(legacy.stage, .quoted)
+    }
+
+    func testPipelineFilteringAndSortingBusinessLogic() {
+        let pipeline = Pipeline(name: "Main")
+        let other = Pipeline(name: "Other")
+        let organization = Organization(name: "Echo")
+        let urgent = Deal(title: "Urgent", stage: .engaged, nextActionDate: Date(timeIntervalSince1970: 100), pipeline: pipeline, organization: organization, priority: .urgent, humanAttentionRequired: true)
+        urgent.intelligence = AgentIntelligence(score: 75, pipelineItem: urgent)
+        let highScore = Deal(title: "High score", stage: .qualified, pipeline: pipeline, organization: organization, priority: .low)
+        highScore.intelligence = AgentIntelligence(score: 95, pipelineItem: highScore)
+        let unrelated = Deal(title: "Elsewhere", pipeline: other)
+        let source = [highScore, unrelated, urgent]
+
+        let attention = PipelineQuery.items(source, matching: PipelineFilter(pipelineID: pipeline.id, humanAttentionOnly: true), sortedBy: .newest)
+        XCTAssertEqual(attention.map(\.title), ["Urgent"])
+        let byPriority = PipelineQuery.items(source, matching: PipelineFilter(pipelineID: pipeline.id), sortedBy: .priority)
+        XCTAssertEqual(byPriority.first?.title, "Urgent")
+        let byScore = PipelineQuery.items(source, matching: PipelineFilter(pipelineID: pipeline.id), sortedBy: .aiScore)
+        XCTAssertEqual(byScore.first?.title, "High score")
+    }
+
+    func testCustomPipelineStagesRenameReorderFilterAndProtectUsedData() throws {
+        let container = try agenticContainer()
+        let pipeline = Pipeline(name: "Custom workflow")
+        let item = Deal(title: "Review relationship", stage: .qualified, pipeline: pipeline)
+        container.mainContext.insert(pipeline); container.mainContext.insert(item)
+        try container.mainContext.save()
+
+        try PipelineService().updateStages(
+            for: pipeline,
+            orderedNames: [DealStage.discovered.rawValue, "Review", DealStage.won.rawValue, DealStage.lost.rawValue],
+            renames: [DealStage.qualified.rawValue: "Review"],
+            in: container.mainContext
+        )
+        XCTAssertEqual(pipeline.stageDefinitions.map(\.title), ["Discovered", "Review", "Won", "Lost"])
+        XCTAssertEqual(item.stageIdentifier, "Review")
+        XCTAssertEqual(
+            PipelineQuery.items([item], matching: PipelineFilter(stageIdentifier: "Review"), sortedBy: .newest).map(\.title),
+            ["Review relationship"]
+        )
+
+        XCTAssertThrowsError(try PipelineService().updateStages(
+            for: pipeline,
+            orderedNames: [DealStage.discovered.rawValue, DealStage.won.rawValue, DealStage.lost.rawValue],
+            renames: [:],
+            in: container.mainContext
+        ))
+        XCTAssertEqual(item.stageIdentifier, "Review")
+    }
+
+    func testDeepSeekPipelineAgentPersistsStructuredIntelligenceAndAudit() async throws {
+        let container = try agenticContainer()
+        let organization = Organization(name: "Private Company")
+        let contact = EchoContact(givenName: "Ava", familyName: "Lee", companyName: organization.name)
+        contact.organization = organization
+        let item = Deal(title: "Potential collaboration", contact: contact,
+                        organization: organization, humanNotes: "Met at an event", relatedContacts: [contact])
+        container.mainContext.insert(organization); container.mainContext.insert(contact); container.mainContext.insert(item)
+        try container.mainContext.save()
+        let client = PipelineAIClient(text: #"{"score":82,"confidence":0.7,"intent_level":"medium","summary":"Useful context","why_it_matters":"A follow-up is timely","recommended_next_action":"Ask for a short call","risk_notes":"Budget is unknown"}"#)
+        let features = EchoAIFeatures(service: AIService(client: client, router: AIModelRouter(defaults: nil)))
+
+        try await DeepSeekPipelineAgentService(features: features).evaluate(item: item, in: container.mainContext)
+
+        XCTAssertEqual(item.intelligence?.score, 82)
+        XCTAssertEqual(item.intelligence?.recommendedNextAction, "Ask for a short call")
+        XCTAssertEqual(item.humanNotes, "Met at an event")
+        XCTAssertEqual(item.agentActions.last?.status, .completed)
+        let requestedModel = await client.requestedTaskModel
+        XCTAssertEqual(requestedModel, "deepseek-v4-pro")
+    }
+
+    func testResearchCoordinatorPersistsEvidenceAndCompletedAudit() async throws {
+        let container = try agenticContainer()
+        let organization = Organization(name: "Source Org", website: "https://example.com")
+        let item = Deal(title: "Research", organization: organization)
+        container.mainContext.insert(organization); container.mainContext.insert(item); try container.mainContext.save()
+
+        try await PipelineResearchCoordinator().research(item: item, provider: PipelineResearchStub(), in: container.mainContext)
+
+        XCTAssertEqual(item.intelligence?.evidence.first?.sourceType, .web)
+        XCTAssertEqual(item.intelligence?.evidence.first?.url, "https://example.com")
+        XCTAssertEqual(item.agentActions.first?.status, .completed)
+    }
+
+    func testApprovedEmailIsRecordedOnlyAfterProviderSuccess() async throws {
+        let container = try agenticContainer()
+        let contact = EchoContact(givenName: "Mina", emailAddress: "mina@example.com")
+        let item = Deal(title: "Follow-up", contact: contact)
+        container.mainContext.insert(contact); container.mainContext.insert(item); try container.mainContext.save()
+        let outreach = PreparedOutreach(subject: "Hello", body: "A reviewed message", model: "test-model")
+        let sentAt = Date(timeIntervalSince1970: 1_800_000_000)
+
+        _ = try await PipelineEmailService().send(outreach, for: item,
+            using: PipelineEmailStub(result: .success(OutreachDeliveryReceipt(externalIdentifier: "message-1", sentAt: sentAt))),
+            in: container.mainContext)
+
+        let interactions = try container.mainContext.fetch(FetchDescriptor<Interaction>())
+        XCTAssertEqual(interactions.count, 1)
+        XCTAssertEqual(interactions.first?.direction, .outbound)
+        XCTAssertEqual(interactions.first?.externalIdentifier, "gmail:message-1:\(contact.systemIdentifier)")
+        XCTAssertEqual(item.agentActions.filter { $0.status == .completed }.count, 1)
+
+        do {
+            _ = try await PipelineEmailService().send(outreach, for: item,
+                using: PipelineEmailStub(result: .failure(PipelineEmailTestError.rejected)),
+                in: container.mainContext)
+            XCTFail("A rejected provider must throw")
+        } catch { }
+        XCTAssertEqual(try container.mainContext.fetch(FetchDescriptor<Interaction>()).count, 1)
+        XCTAssertEqual(item.agentActions.filter { $0.status == .failed }.count, 1)
+    }
+
+    func testGmailMessageEncodingPreventsHeaderInjectionAndPreservesUnicode() throws {
+        XCTAssertThrowsError(try GmailMessageEncoder.encodedMessage(
+            to: "person@example.com\r\nBcc: attacker@example.com",
+            subject: "Hello",
+            body: "Body"
+        ))
+        let raw = try GmailMessageEncoder.encodedMessage(
+            to: "person@example.com",
+            subject: "你好\r\nBcc: hidden@example.com",
+            body: "关系跟进：下周见"
+        )
+        let padded = raw.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+            + String(repeating: "=", count: (4 - raw.count % 4) % 4)
+        let decodedData = try XCTUnwrap(Data(base64Encoded: padded))
+        let decoded = String(decoding: decodedData, as: UTF8.self)
+
+        XCTAssertTrue(decoded.contains("To: person@example.com\r\n"))
+        XCTAssertFalse(decoded.contains("\r\nBcc: hidden@example.com\r\n"))
+        XCTAssertTrue(decoded.contains("Content-Type: text/plain; charset=UTF-8"))
+    }
+
+    private func agenticContainer() throws -> ModelContainer {
+        try ModelContainer(
+            for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self,
+            RelationshipReflection.self, RelationshipAction.self, ReflectionJourney.self,
+            Pipeline.self, Organization.self, AgentIntelligence.self, AgentAction.self, Evidence.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+    }
+
     private func relationshipContainer() throws -> ModelContainer {
         try ModelContainer(
             for: EchoContact.self, Interaction.self, EchoNote.self, Deal.self, RelationshipReflection.self, RelationshipAction.self, ReflectionJourney.self,
@@ -630,6 +912,31 @@ private final class RecordingNotificationScheduler: NotificationScheduling, @unc
     func requestAuthorization() async throws -> Bool { true }
     func schedule(_ request: EchoReminderRequest) async throws { scheduled.append(request) }
     func cancel(identifiers: [String]) { cancelled.append(contentsOf: identifiers) }
+}
+
+private actor PipelineAIClient: AIProviderClient {
+    let text: String
+    private(set) var requestedTaskModel: AIModelID?
+    init(text: String) { self.text = text }
+    func complete(messages: [AIMessage], model: AIModelID, options: AICompletionOptions) async throws -> AIResult {
+        requestedTaskModel = model
+        return AIResult(text: text, model: model)
+    }
+}
+
+private struct PipelineResearchStub: ResearchProvider {
+    func research(organization: Organization) async throws -> [Evidence] {
+        [Evidence(title: "Source", url: organization.website, sourceType: .web, excerptOrSummary: "Verified fixture")]
+    }
+}
+
+private enum PipelineEmailTestError: Error { case rejected }
+private enum PersistenceTestFailure: Error { case unavailable }
+private struct PipelineEmailStub: EmailDeliveryProvider {
+    let result: Result<OutreachDeliveryReceipt, Error>
+    func send(_ outreach: PreparedOutreach, to recipient: String) async throws -> OutreachDeliveryReceipt {
+        try result.get()
+    }
 }
 
 private struct DiagnosticKeyStore: AIAPIKeyStore {

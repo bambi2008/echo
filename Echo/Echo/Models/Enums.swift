@@ -211,12 +211,22 @@ enum ContactIdentity: String, CaseIterable, Identifiable {
 }
 
 enum DealStage: String, Codable, CaseIterable, Identifiable {
-    case lead, contacted, quoted, negotiating, closedWon, closedLost
+    case discovered, qualified, contacted, engaged, interested, opportunity, humanAttention, won, lost
+    // Kept readable for existing stores and callers. New pipelines do not use these by default.
+    case lead, quoted, negotiating, closedWon, closedLost
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .lead: "Lead"
+        case .discovered: "Discovered"
+        case .qualified: "Qualified"
         case .contacted: "Contacted"
+        case .engaged: "Engaged"
+        case .interested: "Interested"
+        case .opportunity: "Opportunity"
+        case .humanAttention: "Human Attention"
+        case .won: "Won"
+        case .lost: "Lost"
+        case .lead: "Lead"
         case .quoted: "Quoted"
         case .negotiating: "Negotiating"
         case .closedWon: "Won"
@@ -225,13 +235,99 @@ enum DealStage: String, Codable, CaseIterable, Identifiable {
     }
     var symbol: String {
         switch self {
-        case .lead: "sparkle.magnifyingglass"
+        case .discovered, .lead: "sparkle.magnifyingglass"
+        case .qualified: "checkmark.circle.fill"
         case .contacted: "message.fill"
+        case .engaged: "person.2.fill"
+        case .interested: "hand.thumbsup.fill"
+        case .opportunity: "scope"
+        case .humanAttention: "person.crop.circle.badge.exclamationmark"
+        case .won: "checkmark.seal.fill"
+        case .lost: "xmark.circle.fill"
         case .quoted: "doc.text.fill"
         case .negotiating: "arrow.left.arrow.right"
         case .closedWon: "checkmark.seal.fill"
         case .closedLost: "xmark.circle.fill"
         }
+    }
+
+    static let defaultAgenticStages: [DealStage] = [
+        .discovered, .qualified, .contacted, .engaged, .interested,
+        .opportunity, .humanAttention, .won, .lost,
+    ]
+
+    var isClosed: Bool {
+        [.won, .lost, .closedWon, .closedLost].contains(self)
+    }
+}
+
+enum AgentAutonomyLevel: String, Codable, CaseIterable, Identifiable {
+    case manual, assist, supervised, autonomous
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+    var explanation: String {
+        switch self {
+        case .manual: "No agent actions"
+        case .assist: "Analyze and recommend"
+        case .supervised: "Prepare actions for approval"
+        case .autonomous: "Act only within an explicit policy"
+        }
+    }
+}
+
+enum PipelineItemStatus: String, Codable, CaseIterable, Identifiable {
+    case active, paused, won, lost, archived
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+}
+
+enum WorkPriority: String, Codable, CaseIterable, Identifiable {
+    case low, medium, high, urgent
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+    var rank: Int {
+        switch self { case .low: 0; case .medium: 1; case .high: 2; case .urgent: 3 }
+    }
+}
+
+enum InteractionActor: String, Codable, CaseIterable, Identifiable {
+    case human, agent, external
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+}
+
+enum InteractionDirection: String, Codable, CaseIterable, Identifiable {
+    case inbound, outbound, internalDirection = "internal"
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+}
+
+enum AgentActionType: String, Codable, CaseIterable, Identifiable {
+    case research, analysis, recommendation, outreach, followUp, messageReceived
+    case stageChange, scoreChange, escalation, other
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .followUp: "Follow up"
+        case .messageReceived: "Message received"
+        case .stageChange: "Stage change"
+        case .scoreChange: "Score change"
+        default: rawValue.capitalized
+        }
+    }
+}
+
+enum AgentActionStatus: String, Codable, CaseIterable, Identifiable {
+    case proposed, approved, running, completed, failed, cancelled
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+}
+
+enum EvidenceSourceType: String, Codable, CaseIterable, Identifiable {
+    case web, document, email, userProvided, system, other
+    var id: String { rawValue }
+    var title: String {
+        switch self { case .userProvided: "User provided"; default: rawValue.capitalized }
     }
 }
 

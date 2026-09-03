@@ -163,8 +163,8 @@ private enum RelationshipSelectionRule: String, CaseIterable, Identifiable {
     func orders(_ left: EchoContact, before right: EchoContact, mode: RelationshipAnalysisMode) -> Bool {
         let leftDays = left.daysSinceContact ?? 365
         let rightDays = right.daysSinceContact ?? 365
-        let leftAttention = EchoEngine.attentionScore(for: left)
-        let rightAttention = EchoEngine.attentionScore(for: right)
+        let leftAttention = EchoEngine.recencyAttentionScore(for: left)
+        let rightAttention = EchoEngine.recencyAttentionScore(for: right)
 
         switch self {
         case .opportunity, .contextRich:
@@ -258,7 +258,7 @@ private enum RelationshipMetrics {
         }
         let business = contact.isBusinessRelationship ? 18 : 0
         let context = min(contact.interactions.count * 3 + contact.notes.count * 4, 24)
-        return priority + business + context + min(EchoEngine.attentionScore(for: contact), 25)
+        return priority + business + context + min(EchoEngine.recencyAttentionScore(for: contact), 25)
     }
 
     static func averageCadenceDays(for contact: EchoContact) -> Double? {
@@ -346,7 +346,7 @@ struct RelationshipAnalysisView: View {
                             Text(rule.metric(for: contact, mode: mode))
                                 .font(.caption.bold())
                                 .foregroundStyle(.indigo)
-                            Text("Attention \(EchoEngine.attentionScore(for: contact))")
+                            Text("Attention \(EchoEngine.recencyAttentionScore(for: contact))")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -457,13 +457,13 @@ struct DailyBriefingView: View {
         Array(contacts.filter {
             $0.relationshipDomain == .personal
         }.sorted {
-            EchoEngine.attentionScore(for: $0) > EchoEngine.attentionScore(for: $1)
+            EchoEngine.recencyAttentionScore(for: $0) > EchoEngine.recencyAttentionScore(for: $1)
         }.prefix(3))
     }
 
     private var businessPriorityContacts: [EchoContact] {
         Array(contacts.filter(\.isBusinessRelationship).sorted {
-            EchoEngine.attentionScore(for: $0) > EchoEngine.attentionScore(for: $1)
+            EchoEngine.recencyAttentionScore(for: $0) > EchoEngine.recencyAttentionScore(for: $1)
         }.prefix(3))
     }
 

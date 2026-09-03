@@ -30,6 +30,7 @@ final class EchoContact {
     var lastRelationshipReviewAt: Date?
     var relationshipContext: String?
     var relationshipJourneyIncluded: Bool = false
+    var organization: Organization?
 
     @Relationship(deleteRule: .cascade, inverse: \Interaction.contact)
     var interactions: [Interaction] = []

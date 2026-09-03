@@ -6,6 +6,7 @@ struct PersonalHomeView: View {
     @Query private var contacts: [EchoContact]
     @Query(sort: \ReflectionJourney.startedAt, order: .reverse) private var journeys: [ReflectionJourney]
     @Query(sort: \RelationshipAction.createdAt, order: .reverse) private var actions: [RelationshipAction]
+    @Query(sort: \Deal.createdAt, order: .reverse) private var pipelineItems: [Deal]
     @State private var showingReflection = false
     @State private var showingOngoingReflection = false
     @State private var showingOutcome: RelationshipAction?
@@ -13,11 +14,13 @@ struct PersonalHomeView: View {
     private let service = RelationshipJourneyService()
     private var activeJourney: ReflectionJourney? { journeys.first(where: { !$0.isComplete }) }
     private var currentAction: RelationshipAction? { actions.first(where: { $0.status == .planned }) }
+    private var attentionItems: [Deal] { pipelineItems.filter(\.humanAttentionRequired) }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    if !attentionItems.isEmpty { humanAttentionCard }
                     if let journey = activeJourney {
                         journeyCard(journey)
                     } else {
@@ -46,6 +49,20 @@ struct PersonalHomeView: View {
                 }
             }
         }
+    }
+
+    private var humanAttentionCard: some View {
+        NavigationLink { PipelineView(initialPipelineID: attentionItems.first?.pipeline?.id) } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                Label(String(localized: "Human Attention"), systemImage: "person.crop.circle.badge.exclamationmark")
+                    .font(.headline).foregroundStyle(.indigo)
+                Text(String(localized: "\(attentionItems.count) relationship items need your judgment"))
+                    .font(.title2.bold()).foregroundStyle(.primary)
+                if let first = attentionItems.first {
+                    Text(first.organization?.name ?? first.title).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }.echoCard()
+        }.buttonStyle(.plain).accessibilityIdentifier("home.humanAttention")
     }
 
     private func journeyCard(_ journey: ReflectionJourney) -> some View {

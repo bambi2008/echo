@@ -10,6 +10,37 @@ struct GmailConnectionStatus {
     let expiresAt: Date
     let lastSyncAt: Date?
     let canImportContacts: Bool
+    let canSendEmail: Bool
+}
+
+struct GmailSendResult {
+    let messageID: String
+    let threadID: String?
+    let sentAt: Date
+}
+
+enum GmailMessageEncoder {
+    static func encodedMessage(to recipient: String, subject: String, body: String) throws -> String {
+        let cleanRecipient = recipient.replacingOccurrences(of: "\r", with: "").replacingOccurrences(of: "\n", with: "")
+        let matches = GmailSyncService.emails(in: cleanRecipient)
+        let normalizedRecipient = cleanRecipient.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard matches.count == 1, matches.first == normalizedRecipient else {
+            throw GmailSyncError.provider(statusCode: 400, message: "The recipient email address is invalid.")
+        }
+        let cleanSubject = subject.replacingOccurrences(of: "\r", with: " ").replacingOccurrences(of: "\n", with: " ")
+        let encodedSubject = Data(cleanSubject.utf8).base64EncodedString()
+        let encodedBody = Data(body.utf8).base64EncodedString(options: .endLineWithCarriageReturn)
+        let message = [
+            "To: \(cleanRecipient)",
+            "Subject: =?UTF-8?B?\(encodedSubject)?=",
+            "MIME-Version: 1.0",
+            "Content-Type: text/plain; charset=UTF-8",
+            "Content-Transfer-Encoding: base64",
+            "",
+            encodedBody,
+        ].joined(separator: "\r\n")
+        return Data(message.utf8).base64URLEncoded
+    }
 }
 
 struct GmailSyncResult {
@@ -71,6 +102,11 @@ private struct GmailMessageList: Decodable {
 
 private struct GmailMessageReference: Decodable {
     let id: String
+}
+
+private struct GmailSentMessage: Decodable {
+    let id: String
+    let threadId: String?
 }
 
 private struct GmailMessage: Decodable {
@@ -195,6 +231,7 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
     private let callbackScheme = "com.googleusercontent.apps.584656353169-ih6dd4dth5lo17aigac05k5l5qju6nr5"
     private let scope = [
         "https://www.googleapis.com/auth/gmail.metadata",
+        "https://www.googleapis.com/auth/gmail.send",
         "https://www.googleapis.com/auth/contacts.readonly",
         "https://www.googleapis.com/auth/contacts.other.readonly",
     ].joined(separator: " ")
@@ -207,7 +244,8 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
             email: email,
             expiresAt: token.expiresAt,
             lastSyncAt: token.lastSyncAt,
-            canImportContacts: Self.hasContactScopes(token.grantedScopes)
+            canImportContacts: Self.hasContactScopes(token.grantedScopes),
+            canSendEmail: Self.hasSendScope(token.grantedScopes)
         )
     }
 
@@ -241,12 +279,28 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
             email: token.email ?? "",
             expiresAt: token.expiresAt,
             lastSyncAt: token.lastSyncAt,
-            canImportContacts: true
+            canImportContacts: true,
+            canSendEmail: true
         )
     }
 
     func disconnect() throws {
         try tokenStore.delete()
+    }
+
+    func sendEmail(to recipient: String, subject: String, body: String) async throws -> GmailSendResult {
+        let token = try await validToken()
+        guard Self.hasSendScope(token.grantedScopes) else {
+            throw GmailSyncError.provider(statusCode: 403, message: "Reconnect Google to approve sending email from Echo.")
+        }
+        let raw = try GmailMessageEncoder.encodedMessage(to: recipient, subject: subject, body: body)
+        var request = URLRequest(url: URL(string: "https://gmail.googleapis.com/gmail/v1/users/me/messages/send")!)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["raw": raw])
+        let sent: GmailSentMessage = try await decode(request)
+        return GmailSendResult(messageID: sent.id, threadID: sent.threadId, sentAt: .now)
     }
 
     func shouldSync(minimumInterval: TimeInterval = 15 * 60) -> Bool {
@@ -645,6 +699,10 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
         return scopes.contains("contacts.readonly") && scopes.contains("contacts.other.readonly")
     }
 
+    private static func hasSendScope(_ scopes: String?) -> Bool {
+        scopes?.contains("gmail.send") == true
+    }
+
     private static func normalizePhone(_ phone: String) -> String {
         phone.filter(\.isNumber)
     }
@@ -713,7 +771,7 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
         return nil
     }
 
-    private static func emails(in value: String) -> Set<String> {
+    static func emails(in value: String) -> Set<String> {
         let pattern = #"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#
         let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive)
         let range = NSRange(value.startIndex..., in: value)

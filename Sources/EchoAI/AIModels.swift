@@ -28,6 +28,8 @@ public enum AITask: String, Codable, CaseIterable, Sendable {
     case policyOCR = "policy_ocr"
     case salesCoach = "sales_coach"
     case dailyBriefing = "daily_briefing"
+    case pipelineIntelligence = "pipeline_intelligence"
+    case pipelineOutreach = "pipeline_outreach"
 }
 
 public struct AIModelPolicy: Codable, Equatable, Sendable {
@@ -81,6 +83,8 @@ public struct AIModelConfiguration: Codable, Equatable, Sendable {
         .policyOCR: .init(primary: "deepseek-v4-pro", fallbacks: ["deepseek-v4-flash"], temperature: 0, maxOutputTokens: 1_500),
         .salesCoach: .init(primary: "deepseek-v4-pro", fallbacks: ["deepseek-v4-flash"], temperature: 0.4, maxOutputTokens: 1_200),
         .dailyBriefing: .init(primary: "deepseek-v4-flash", fallbacks: ["deepseek-v4-pro"], temperature: 0.5, maxOutputTokens: 1_000),
+        .pipelineIntelligence: .init(primary: "deepseek-v4-pro", fallbacks: ["deepseek-v4-flash"], temperature: 0.2, maxOutputTokens: 1_200),
+        .pipelineOutreach: .init(primary: "deepseek-v4-flash", fallbacks: ["deepseek-v4-pro"], temperature: 0.4, maxOutputTokens: 700),
     ])
 }
 

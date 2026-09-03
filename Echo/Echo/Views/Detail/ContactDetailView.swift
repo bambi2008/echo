@@ -307,7 +307,7 @@ struct ContactDetailView: View {
             }
         }
         .sheet(isPresented: $showingNewDeal) {
-            NewDealView(contact: contact)
+            PipelineItemEditor(pipeline: nil, presetContact: contact)
         }
     }
 

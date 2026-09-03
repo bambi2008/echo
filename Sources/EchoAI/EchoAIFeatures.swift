@@ -266,6 +266,40 @@ public struct EchoAIFeatures: Sendable {
         )
     }
 
+    public func pipelineIntelligence(
+        context: String,
+        modelOverride: AIModelID? = nil
+    ) async throws -> AIStructuredResult<PipelineIntelligenceResult> {
+        let result = try await service.chat(
+            task: .pipelineIntelligence,
+            systemPrompt: """
+            Analyze one relationship-centered pipeline item using only supplied facts. Return only valid JSON:
+            {"score":null,"confidence":null,"intent_level":null,"summary":"","why_it_matters":"","recommended_next_action":"","risk_notes":""}
+            Score is optional 0-100. Confidence is optional 0-1. Separate evidence from inference, state uncertainty, never invent research, and never claim an external action happened.
+            """,
+            userMessage: context,
+            modelOverride: modelOverride
+        )
+        return try decode(PipelineIntelligenceResult.self, from: result, task: .pipelineIntelligence)
+    }
+
+    public func pipelineOutreach(
+        context: String,
+        modelOverride: AIModelID? = nil
+    ) async throws -> AIStructuredResult<PipelineOutreachResult> {
+        let result = try await service.chat(
+            task: .pipelineOutreach,
+            systemPrompt: """
+            Draft a concise, natural email for a relationship-centered follow-up. Use only supplied facts and do not invent commitments. Return only valid JSON:
+            {"subject":"","body":""}
+            The user will review and explicitly approve before sending.
+            """,
+            userMessage: context,
+            modelOverride: modelOverride
+        )
+        return try decode(PipelineOutreachResult.self, from: result, task: .pipelineOutreach)
+    }
+
     /// Safe local fallback for a failed opener request. The app can substitute
     /// the real first name only after the cloud request has finished.
     public static func openerFallback(personAlias: String) -> String {
@@ -365,6 +399,40 @@ public struct RelationshipBrief: Codable, Equatable, Sendable {
         case whyNow = "why_now"
         case nextAction = "next_action"
         case evidence, confidence
+    }
+}
+
+public struct PipelineIntelligenceResult: Codable, Equatable, Sendable {
+    public let score: Int?
+    public let confidence: Double?
+    public let intentLevel: String?
+    public let summary: String
+    public let whyItMatters: String
+    public let recommendedNextAction: String
+    public let riskNotes: String
+
+    public init(score: Int?, confidence: Double?, intentLevel: String?, summary: String,
+                whyItMatters: String, recommendedNextAction: String, riskNotes: String) {
+        self.score = score; self.confidence = confidence; self.intentLevel = intentLevel
+        self.summary = summary; self.whyItMatters = whyItMatters
+        self.recommendedNextAction = recommendedNextAction; self.riskNotes = riskNotes
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case score, confidence, summary
+        case intentLevel = "intent_level"
+        case whyItMatters = "why_it_matters"
+        case recommendedNextAction = "recommended_next_action"
+        case riskNotes = "risk_notes"
+    }
+}
+
+public struct PipelineOutreachResult: Codable, Equatable, Sendable {
+    public let subject: String
+    public let body: String
+
+    public init(subject: String, body: String) {
+        self.subject = subject; self.body = body
     }
 }
 

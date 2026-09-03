@@ -7,6 +7,7 @@ private enum APIConnectionState { case notTested, connected(String), failed }
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Query private var contacts: [EchoContact]
     @AppStorage("echo.relationship.onboarding.stage") private var onboardingStage = OnboardingStage.completed.rawValue
     @AppStorage("echo.relationship.weeklyReminder") private var weeklyReminder = false
     @AppStorage("echo.relationship.reminderWeekday") private var reminderWeekday = 1
@@ -23,6 +24,8 @@ struct SettingsView: View {
     @State private var isTestingAPIConnection = false
     @State private var isImporting = false
     @State private var confirmingRestart = false
+    @State private var gmailStatus: GmailConnectionStatus?
+    @State private var isWorkingWithGoogle = false
     private let diagnostics = APIKeyDiagnosticService()
 
     var body: some View {
@@ -60,6 +63,30 @@ struct SettingsView: View {
                     }
                 } header: { Text(String(localized: "Contact management")) }
                 footer: { Text(String(localized: "The reflective flow imports only people you select. Full address-book import is optional here.")) }
+
+                Section {
+                    if let gmailStatus {
+                        LabeledContent("Account", value: gmailStatus.email)
+                        LabeledContent("Contact import", value: gmailStatus.canImportContacts ? "Ready" : "Reconnect required")
+                        LabeledContent("Send email", value: gmailStatus.canSendEmail ? "Ready" : "Reconnect required")
+                        Button("Import Google contacts") { importGoogleContacts() }.disabled(isWorkingWithGoogle)
+                        Button("Sync Gmail history") { syncGmail() }.disabled(isWorkingWithGoogle)
+                        if !gmailStatus.canSendEmail {
+                            Button("Reconnect Google for email sending") { connectGoogle() }.disabled(isWorkingWithGoogle)
+                        }
+                        Button("Disconnect Google", role: .destructive) { disconnectGoogle() }.disabled(isWorkingWithGoogle)
+                    } else {
+                        Button { connectGoogle() } label: {
+                            if isWorkingWithGoogle { ProgressView() }
+                            else { Label("Connect Google", systemImage: "envelope.badge") }
+                        }
+                        .disabled(isWorkingWithGoogle)
+                    }
+                } header: {
+                    Text("Google and Gmail")
+                } footer: {
+                    Text("Echo requests contact and Gmail metadata access. Email sending is used only after you review a draft and confirm Send.")
+                }
 
                 Section {
                     LabeledContent(String(localized: "API Key")) {
@@ -101,7 +128,7 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle(String(localized: "Settings"))
-            .task { refreshAPIKeyPresence(); await loadModels() }
+            .task { refreshAPIKeyPresence(); gmailStatus = GmailSyncService.shared.status(); await loadModels() }
             .confirmationDialog(String(localized: "Start a new four-week reflection?"), isPresented: $confirmingRestart) {
                 Button(String(localized: "Restart")) { _ = try? RelationshipJourneyService().restartJourney(in: modelContext) }
                 Button(String(localized: "Cancel"), role: .cancel) {}
@@ -142,6 +169,44 @@ struct SettingsView: View {
             } catch { statusMessage = String(localized: "iPhone contacts could not be imported.") }
         }
     }
+    private func connectGoogle() {
+        isWorkingWithGoogle = true
+        Task {
+            defer { isWorkingWithGoogle = false }
+            do {
+                gmailStatus = try await GmailSyncService.shared.connect()
+                statusMessage = "Google connected. Contact import, history sync, and approved Gmail sending are ready."
+            } catch { statusMessage = error.localizedDescription }
+        }
+    }
+    private func disconnectGoogle() {
+        do {
+            try GmailSyncService.shared.disconnect()
+            gmailStatus = nil
+            statusMessage = "Google disconnected from this device."
+        } catch { statusMessage = error.localizedDescription }
+    }
+    private func importGoogleContacts() {
+        isWorkingWithGoogle = true
+        Task {
+            defer { isWorkingWithGoogle = false }
+            do {
+                let result = try await GmailSyncService.shared.importGoogleContacts(in: modelContext)
+                statusMessage = "Imported \(result.added), updated \(result.updated), and skipped \(result.skipped) Google contacts."
+            } catch { statusMessage = error.localizedDescription }
+        }
+    }
+    private func syncGmail() {
+        isWorkingWithGoogle = true
+        Task {
+            defer { isWorkingWithGoogle = false }
+            do {
+                let result = try await GmailSyncService.shared.sync(contacts: contacts, in: modelContext)
+                gmailStatus = GmailSyncService.shared.status()
+                statusMessage = "Gmail sync added \(result.importedInteractions) relationship interactions."
+            } catch { statusMessage = error.localizedDescription }
+        }
+    }
     private func saveAPIKey() {
         do { try KeychainAPIKeyStore().saveAPIKey(apiKey); apiKey = ""; refreshAPIKeyPresence(); apiConnectionState = .notTested; statusMessage = String(localized: "API key saved securely.") }
         catch { apiKeyPresence = .unavailable; statusMessage = String(localized: "The API key could not be saved.") }
@@ -159,7 +224,7 @@ struct SettingsView: View {
     private var apiKeyStatusSymbol: String { switch apiKeyPresence { case .configured: "checkmark.circle.fill"; case .notConfigured: "minus.circle"; case .unavailable: "exclamationmark.triangle.fill"; case nil: "hourglass" } }
     private var apiKeyStatusColor: Color { switch apiKeyPresence { case .configured: .green; case .unavailable: .orange; default: .secondary } }
     private func applyModels() {
-        Task { do { let router = AIModelRouter(); for task in [AITask.generalChat, .conversationOpener, .relationshipInsight, .dailyBriefing] { try await router.setModel(AIModelID(rawValue: fastModel), for: task, fallbacks: [AIModelID(rawValue: advancedModel)]) }; for task in [AITask.relationshipHealth, .businessCardOCR, .policyOCR, .salesCoach] { try await router.setModel(AIModelID(rawValue: advancedModel), for: task, fallbacks: [AIModelID(rawValue: fastModel)]) }; statusMessage = String(localized: "Model routing updated.") } catch { statusMessage = String(localized: "Model IDs could not be saved.") } }
+        Task { do { let router = AIModelRouter(); for task in [AITask.generalChat, .conversationOpener, .relationshipInsight, .dailyBriefing, .pipelineOutreach] { try await router.setModel(AIModelID(rawValue: fastModel), for: task, fallbacks: [AIModelID(rawValue: advancedModel)]) }; for task in [AITask.relationshipHealth, .businessCardOCR, .policyOCR, .salesCoach, .pipelineIntelligence] { try await router.setModel(AIModelID(rawValue: advancedModel), for: task, fallbacks: [AIModelID(rawValue: fastModel)]) }; statusMessage = String(localized: "Model routing updated.") } catch { statusMessage = String(localized: "Model IDs could not be saved.") } }
     }
     private func loadModels() async {
         let router = AIModelRouter()

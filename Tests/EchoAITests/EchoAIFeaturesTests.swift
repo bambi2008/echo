@@ -232,6 +232,23 @@ struct EchoAIFeaturesTests {
             try await features.businessCard(imageData: Data([1]))
         }
     }
+
+    @Test("Pipeline intelligence and outreach decode structured provider output")
+    func pipelineFeatures() async throws {
+        let client = QueueClient(responses: [
+            AIResult(text: #"{"score":84,"confidence":0.75,"intent_level":"high","summary":"Warm context","why_it_matters":"Timing is useful","recommended_next_action":"Ask for a call","risk_notes":"Decision maker unknown"}"#, model: "deepseek-v4-pro"),
+            AIResult(text: #"{"subject":"A short follow-up","body":"Would you be open to a call?"}"#, model: "deepseek-v4-flash"),
+        ])
+        let features = EchoAIFeatures(service: AIService(client: client, router: AIModelRouter(defaults: nil)))
+
+        let intelligence = try await features.pipelineIntelligence(context: "Recorded facts")
+        let outreach = try await features.pipelineOutreach(context: "Approved relationship context")
+
+        #expect(intelligence.value.score == 84)
+        #expect(intelligence.value.recommendedNextAction == "Ask for a call")
+        #expect(outreach.value.subject == "A short follow-up")
+        #expect(await client.models == ["deepseek-v4-pro", "deepseek-v4-flash"])
+    }
 }
 
 private actor QueueClient: AIProviderClient {
