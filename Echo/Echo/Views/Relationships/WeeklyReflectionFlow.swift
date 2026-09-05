@@ -115,15 +115,23 @@ struct WeeklyReflectionFlow: View {
     private var intentStep: some View {
         List {
             Section {
-                Text(String(localized: "Choose the intention that feels true now."))
+                Text(String(localized: "Choose the direction that feels true now."))
                     .font(.title2.bold())
+                Text(String(localized: "The choices are tailored to this week's question, so protecting a relationship is not treated the same as creating distance."))
+                    .foregroundStyle(.secondary)
             }
             ForEach(selectedContacts) { contact in
                 Section(contact.fullName) {
                     Picker(String(localized: "Intention"), selection: intentBinding(contact)) {
                         Text(String(localized: "Not sure yet")).tag(RelationshipIntent?.none)
-                        ForEach(RelationshipIntent.allCases) { intent in
-                            Text(intent.title).tag(Optional(intent))
+                        ForEach(journey?.currentTheme.intentChoices ?? RelationshipIntent.allCases) { intent in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(intent.title)
+                                Text(journey?.currentTheme.intentGuidance(for: intent) ?? "")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .tag(Optional(intent))
                         }
                     }
                     TextField(String(localized: "Optional context"), text: contextBinding(contact), axis: .vertical)

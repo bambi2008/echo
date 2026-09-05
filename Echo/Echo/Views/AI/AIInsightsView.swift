@@ -6,7 +6,11 @@ struct AIInsightsView: View {
     @Query(sort: \ReflectionJourney.startedAt, order: .reverse) private var journeys: [ReflectionJourney]
 
     private var insights: [LocalRelationshipInsight] {
-        RelationshipGuidanceEngine.insights(contacts: contacts, journeys: journeys)
+        RelationshipGuidanceEngine.insights(contacts: activeContacts, journeys: journeys)
+    }
+
+    private var activeContacts: [EchoContact] {
+        contacts.filter { $0.isInEchoLayer && $0.hasRealName }
     }
 
     var body: some View {
@@ -20,6 +24,27 @@ struct AIInsightsView: View {
                             .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 6)
+                }
+                Section {
+                    NavigationLink {
+                        RelationshipAnalysisView(mode: .insight, contacts: activeContacts)
+                    } label: {
+                        Label("Relationship insight", systemImage: "person.text.rectangle")
+                    }
+                    NavigationLink {
+                        RelationshipAnalysisView(mode: .health, contacts: activeContacts)
+                    } label: {
+                        Label("Relationship health", systemImage: "heart.text.clipboard")
+                    }
+                    NavigationLink {
+                        DailyBriefingView(contacts: activeContacts)
+                    } label: {
+                        Label("Today's relationship briefing", systemImage: "sun.max.fill")
+                    }
+                } header: {
+                    Text("AI tools")
+                } footer: {
+                    Text("Choose a rule and let Echo rank a small group before sending any AI request. Nothing is sent automatically.")
                 }
                 ForEach(insights) { insight in
                     Section {

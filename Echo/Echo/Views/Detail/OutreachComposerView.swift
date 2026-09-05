@@ -1,5 +1,6 @@
 import EchoAI
 import SwiftUI
+import SwiftData
 import UIKit
 
 enum OutreachChannel: Identifiable, Equatable {
@@ -35,6 +36,7 @@ enum OutreachChannel: Identifiable, Equatable {
 struct OutreachComposerView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(\.modelContext) private var modelContext
 
     let contact: EchoContact
     let channel: OutreachChannel
@@ -210,6 +212,8 @@ struct OutreachComposerView: View {
     }
 
     private func launch() {
+        let interactionType: InteractionType = channel == .email ? .emailed : .messaged
+        EchoEngine.markReachedOut(to: contact, type: interactionType, note: nil, in: modelContext)
         if case .social(let platform) = channel {
             guard let destination = SocialMessagingService.destination(
                 for: platform,

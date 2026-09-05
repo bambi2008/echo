@@ -30,6 +30,9 @@ final class EchoContact {
     var lastRelationshipReviewAt: Date?
     var relationshipContext: String?
     var relationshipJourneyIncluded: Bool = false
+    /// The last time the user explicitly decided whether this person should
+    /// remain in Echo after a long period without contact.
+    var lastEchoInclusionReviewedAt: Date?
     var organization: Organization?
 
     @Relationship(deleteRule: .cascade, inverse: \Interaction.contact)
@@ -89,6 +92,7 @@ final class EchoContact {
         self.lastRelationshipReviewAt = nil
         self.relationshipContext = nil
         self.relationshipJourneyIncluded = false
+        self.lastEchoInclusionReviewedAt = nil
     }
 
     var fullName: String {
@@ -205,6 +209,15 @@ final class EchoContact {
         let latestInteraction = interactions.map(\.date).max()
         guard let latest = [lastReachedOut, latestInteraction].compactMap({ $0 }).max() else { return nil }
         return Calendar.current.dateComponents([.day], from: latest, to: .now).day
+    }
+
+    var needsEchoInclusionReview: Bool {
+        guard isInEchoLayer, hasRealName, let daysSinceContact, daysSinceContact >= 100 else { return false }
+        guard let reviewedAt = lastEchoInclusionReviewedAt else { return true }
+        let latestActivity = [lastReachedOut, interactions.map(\.date).max()]
+            .compactMap { $0 }
+            .max()
+        return latestActivity.map { $0 > reviewedAt } ?? false
     }
 
     var availableSocialPlatforms: [SocialPlatform] {

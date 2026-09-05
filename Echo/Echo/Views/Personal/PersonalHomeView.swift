@@ -15,6 +15,7 @@ struct PersonalHomeView: View {
     private var activeJourney: ReflectionJourney? { journeys.first(where: { !$0.isComplete }) }
     private var currentAction: RelationshipAction? { actions.first(where: { $0.status == .planned }) }
     private var attentionItems: [Deal] { pipelineItems.filter(\.humanAttentionRequired) }
+    private var activeContacts: [EchoContact] { contacts.filter(\.isInEchoLayer) }
 
     var body: some View {
         NavigationStack {
@@ -123,12 +124,12 @@ struct PersonalHomeView: View {
 
     private var mapCard: some View {
         NavigationLink {
-            RelationshipMapSummaryView(contacts: contacts)
+            RelationshipMapSummaryView(contacts: activeContacts)
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 Label(String(localized: "Relationship map"), systemImage: "circle.grid.2x2.fill")
                     .font(.headline).foregroundStyle(.indigo)
-                Text(String(localized: "\(contacts.count) people in view"))
+                Text(String(localized: "\(activeContacts.count) people in view"))
                     .font(.title2.bold()).foregroundStyle(.primary)
                 Text(String(localized: "See where you want closeness, steadiness, lightness, or space."))
                     .foregroundStyle(.secondary)
@@ -139,7 +140,7 @@ struct PersonalHomeView: View {
     }
 
     private var guidanceCard: some View {
-        let guidance = RelationshipGuidanceEngine.guidance(for: contacts).first
+        let guidance = RelationshipGuidanceEngine.guidance(for: activeContacts).first
         return VStack(alignment: .leading, spacing: 10) {
             Label(String(localized: "A gentle nudge"), systemImage: "sparkle")
                 .font(.headline).foregroundStyle(.indigo)
@@ -176,7 +177,7 @@ private struct OngoingReflectionView: View {
     @State private var selectedIntent: RelationshipIntent?
     @State private var contextText = ""
     private let service = RelationshipJourneyService()
-    private var people: [EchoContact] { contacts }
+    private var people: [EchoContact] { contacts.filter(\.isInEchoLayer) }
     private var currentQuestion: String {
         OngoingReflectionQuestionBank.question(completedReflectionCount: reflections.count)
     }

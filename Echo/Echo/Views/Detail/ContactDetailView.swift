@@ -84,6 +84,7 @@ struct ContactDetailView: View {
                         if let phoneNumber = contact.phoneNumber,
                            let callURL = PhoneCallService.destination(for: phoneNumber) {
                             Button {
+                                EchoEngine.markReachedOut(to: contact, type: .called, note: nil, in: modelContext)
                                 openURL(callURL)
                             } label: {
                                 Label("Call", systemImage: "phone.fill")
@@ -260,7 +261,10 @@ struct ContactDetailView: View {
                 }
             }
 
-            Section("Log a moment") {
+            Section("Record a connection") {
+                Text("Echo cannot read the iPhone call or Messages history. When you connect outside Echo, record it here so future recommendations have the right context.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Picker("How did you connect?", selection: $selectedType) {
                     ForEach(InteractionType.allCases) { type in
                         Label(type.title, systemImage: type.symbol).tag(type)
@@ -268,7 +272,7 @@ struct ContactDetailView: View {
                 }
                 TextField("A note to remember…", text: $note, axis: .vertical)
                     .lineLimit(3...6)
-                Button("Save interaction") {
+                Button("Save connection") {
                     EchoEngine.markReachedOut(to: contact, type: selectedType, note: note, in: modelContext)
                     note = ""
                 }

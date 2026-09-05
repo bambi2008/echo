@@ -3,7 +3,7 @@
 ## Automated in the repository
 
 - Marketing version: `1.1`
-- Build number: `2026090302`
+- Build number: `2026090501`
 - Bundle identifier: `com.bambi2008.Echo`
 - Apple team: `4V982CAJ45`
 - iPhone and iPad targets enabled
@@ -21,7 +21,7 @@
 - Put both products in the same subscription group and configure a seven-day free introductory offer.
 - Add localized product names, prices, review screenshots, subscription terms, Privacy Policy URL, and Terms of Use URL.
 - Complete App Privacy answers so they agree with `PrivacyInfo.xcprivacy` and actual DeepSeek/Google behavior.
-- Archive with the Release configuration, validate the archive, then upload build `2026090302`.
+- Archive with the Release configuration, validate the archive, then upload build `2026090501`.
 
 ## Google Cloud — requires account access
 

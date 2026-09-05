@@ -51,6 +51,38 @@ enum ReflectionTheme: String, Codable, CaseIterable, Identifiable {
         case .ongoing: String(localized: "Who has unexpectedly come to mind lately?")
         }
     }
+
+    /// Each reflection question has a different decision boundary. Keeping
+    /// the same four answers for every question made “protect” and
+    /// “boundaries” feel interchangeable, even though they ask for opposite
+    /// decisions.
+    var intentChoices: [RelationshipIntent] {
+        switch self {
+        case .protect: [.deepen, .maintain, .light]
+        case .reconnect: [.deepen, .maintain, .light]
+        case .lighten: [.light, .maintain, .deepen]
+        case .boundaries: [.pause, .light, .maintain]
+        case .ongoing: RelationshipIntent.allCases
+        }
+    }
+
+    func intentGuidance(for intent: RelationshipIntent) -> String {
+        switch (self, intent) {
+        case (.protect, .deepen): "Make more room for this person."
+        case (.protect, .maintain): "Keep the relationship in your regular rhythm."
+        case (.protect, .light): "Keep a warm connection without adding pressure."
+        case (.reconnect, .deepen): "Choose a small step toward a more active connection."
+        case (.reconnect, .maintain): "Reconnect gently, then let the rhythm settle."
+        case (.reconnect, .light): "Reach out lightly without forcing a reset."
+        case (.lighten, .light): "Let this stay easy and low-pressure."
+        case (.lighten, .maintain): "Keep the connection steady without over-investing."
+        case (.lighten, .deepen): "This relationship may deserve more attention than you expected."
+        case (.boundaries, .pause): "Give yourself clear space for now."
+        case (.boundaries, .light): "Keep contact limited and intentional."
+        case (.boundaries, .maintain): "Keep the boundary while preserving a steady connection."
+        default: "Choose the direction that feels most honest today."
+        }
+    }
 }
 
 enum RelationshipActionType: String, Codable, CaseIterable, Identifiable {

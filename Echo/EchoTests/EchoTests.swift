@@ -225,6 +225,28 @@ final class EchoTests: XCTestCase {
         XCTAssertEqual(contact.interactions.first?.isIncoming, true)
     }
 
+    func testStaleContactNeedsInclusionDecisionOnlyWhenLastContactIsKnown() {
+        let unknown = EchoContact(givenName: "Unknown history")
+        XCTAssertFalse(unknown.needsEchoInclusionReview)
+
+        let stale = EchoContact(
+            givenName: "Stale",
+            lastReachedOut: Calendar.current.date(byAdding: .day, value: -101, to: .now)
+        )
+        XCTAssertTrue(stale.needsEchoInclusionReview)
+        stale.lastEchoInclusionReviewedAt = .now
+        XCTAssertFalse(stale.needsEchoInclusionReview)
+        stale.lastReachedOut = Calendar.current.date(byAdding: .day, value: -102, to: .now)
+        XCTAssertFalse(stale.needsEchoInclusionReview)
+    }
+
+    func testReflectionThemesUseDifferentDecisionBoundaries() {
+        XCTAssertFalse(ReflectionTheme.protect.intentChoices.contains(.pause))
+        XCTAssertEqual(ReflectionTheme.boundaries.intentChoices.first, .pause)
+        XCTAssertEqual(ReflectionTheme.lighten.intentChoices.first, .light)
+        XCTAssertNotEqual(ReflectionTheme.protect.intentChoices, ReflectionTheme.boundaries.intentChoices)
+    }
+
     func testGmailSyncResultReportsUnmatchedMessages() {
         let result = GmailSyncResult(
             importedInteractions: 3,

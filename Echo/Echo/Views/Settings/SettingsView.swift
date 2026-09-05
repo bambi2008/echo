@@ -14,6 +14,7 @@ struct SettingsView: View {
     @AppStorage("echo.relationship.reminderHour") private var reminderHour = 10
     @AppStorage(RelationshipReminderCoordinator.actionReminderKey) private var actionReminder = false
     @AppStorage(RelationshipReminderCoordinator.reviewReminderKey) private var reviewReminder = false
+    @AppStorage("echo.contacts.autoSync") private var autoSyncContacts = false
     @State private var apiKey = ""
     @State private var fastModel = "deepseek-v4-flash"
     @State private var advancedModel = "deepseek-v4-pro"
@@ -50,6 +51,7 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Toggle("Refresh iPhone Contacts on launch", isOn: $autoSyncContacts)
                     Button { importAllContacts() } label: {
                         if isImporting { ProgressView() }
                         else { Label(String(localized: "Import full iPhone address book"), systemImage: "person.2.badge.plus") }
@@ -61,7 +63,7 @@ struct SettingsView: View {
                         }
                     }
                 } header: { Text(String(localized: "Contact management")) }
-                footer: { Text(String(localized: "The reflective flow imports only people you select. Full address-book import is optional here.")) }
+                footer: { Text(String(localized: "Echo can refresh the iPhone address book when the Relationships tab opens. No contacts are uploaded by this setting.")) }
 
                 Section {
                     if let gmailStatus {

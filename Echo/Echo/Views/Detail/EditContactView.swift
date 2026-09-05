@@ -4,6 +4,7 @@ import SwiftUI
 struct EditContactView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @StateObject private var speech = SpeechRecognitionService()
 
     let contact: EchoContact
     let onDelete: () -> Void
@@ -23,6 +24,7 @@ struct EditContactView: View {
     @State private var isInEchoLayer: Bool
     @State private var socialIdentifiers: [SocialPlatform: String]
     @State private var confirmingDelete = false
+    @State private var voiceTextBeforeRecording = ""
 
     init(contact: EchoContact, onDelete: @escaping () -> Void) {
         self.contact = contact
@@ -105,6 +107,18 @@ struct EditContactView: View {
                     }
                     RelationshipCadencePicker(days: $desiredCadenceDays)
                     TextField(String(localized: "Relationship context"), text: $relationshipContext, axis: .vertical)
+                        .lineLimit(2...6)
+                    Button {
+                        toggleVoiceContext()
+                    } label: {
+                        Label(
+                            speech.isRecording
+                                ? String(localized: "Stop listening")
+                                : String(localized: "Describe this relationship by voice"),
+                            systemImage: speech.isRecording ? "stop.fill" : "mic.fill"
+                        )
+                    }
+                    .tint(speech.isRecording ? .red : .indigo)
                     if relationshipDomain.includes(.business) {
                         Picker("Business priority", selection: $priority) {
                             Text("Not set").tag(PriorityLevel?.none)
@@ -169,6 +183,21 @@ struct EditContactView: View {
             .onChange(of: relationshipDomain) { _, newValue in
                 selectedIdentities = selectedIdentities.filter { newValue.includes($0.domain) }
             }
+            .onChange(of: speech.transcript) { _, transcript in
+                relationshipContext = VoiceTranscriptComposer.combine(
+                    existing: voiceTextBeforeRecording,
+                    spoken: transcript
+                )
+            }
+            .onDisappear { speech.stop() }
+            .alert(String(localized: "Voice input"), isPresented: Binding(
+                get: { speech.errorMessage != nil },
+                set: { if !$0 { speech.errorMessage = nil } }
+            )) {
+                Button(String(localized: "OK")) { speech.errorMessage = nil }
+            } message: {
+                Text(speech.errorMessage ?? "")
+            }
         }
     }
 
@@ -185,6 +214,7 @@ struct EditContactView: View {
     }
 
     private func save() {
+        speech.stop()
         let knownTags = Set(ContactIdentity.allCases.map(\.rawValue))
         let preservedTags = contact.tags.filter { !knownTags.contains($0) }
         contact.givenName = givenName.trimmed
@@ -216,6 +246,15 @@ struct EditContactView: View {
             try? modelContext.save()
         }
         dismiss()
+    }
+
+    private func toggleVoiceContext() {
+        if speech.isRecording {
+            speech.stop()
+            return
+        }
+        voiceTextBeforeRecording = relationshipContext
+        Task { await speech.start() }
     }
 
     private func socialBinding(for platform: SocialPlatform) -> Binding<String> {
