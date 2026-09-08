@@ -17,7 +17,7 @@ struct EditContactView: View {
     @State private var jobTitle: String
     @State private var priority: PriorityLevel?
     @State private var relationshipDomain: RelationshipDomain
-    @State private var relationshipIntent: RelationshipIntent?
+    @State private var businessRole: BusinessContactRole
     @State private var desiredCadenceDays: Int?
     @State private var relationshipContext: String
     @State private var selectedIdentities: Set<ContactIdentity>
@@ -36,8 +36,8 @@ struct EditContactView: View {
         _companyName = State(initialValue: contact.companyName ?? "")
         _jobTitle = State(initialValue: contact.jobTitle ?? "")
         _priority = State(initialValue: contact.priority)
-        _relationshipDomain = State(initialValue: contact.relationshipDomain)
-        _relationshipIntent = State(initialValue: contact.relationshipIntent)
+        _relationshipDomain = State(initialValue: .business)
+        _businessRole = State(initialValue: contact.businessRole)
         _desiredCadenceDays = State(initialValue: contact.desiredCadenceDays)
         _relationshipContext = State(initialValue: contact.relationshipContext ?? "")
         _selectedIdentities = State(initialValue: Set(contact.tags.compactMap(ContactIdentity.init(rawValue:))))
@@ -94,19 +94,13 @@ struct EditContactView: View {
                 }
 
                 Section {
-                    Picker("Relationship", selection: $relationshipDomain) {
-                        ForEach(RelationshipDomain.allCases) { domain in
-                            Label(domain.title, systemImage: domain.symbol).tag(domain)
-                        }
-                    }
-                    Picker(String(localized: "Intention"), selection: $relationshipIntent) {
-                        Text(String(localized: "Not sure yet")).tag(RelationshipIntent?.none)
-                        ForEach(RelationshipIntent.allCases) { intent in
-                            Label(intent.title, systemImage: intent.symbol).tag(Optional(intent))
+                    Picker("Business role", selection: $businessRole) {
+                        ForEach(BusinessContactRole.allCases) { role in
+                            Label(role.title, systemImage: role.symbol).tag(role)
                         }
                     }
                     RelationshipCadencePicker(days: $desiredCadenceDays)
-                    TextField(String(localized: "Relationship context"), text: $relationshipContext, axis: .vertical)
+                    TextField("Business context or next objective", text: $relationshipContext, axis: .vertical)
                         .lineLimit(2...6)
                     Button {
                         toggleVoiceContext()
@@ -129,28 +123,9 @@ struct EditContactView: View {
                     }
                     Toggle("Include in Echo", isOn: $isInEchoLayer)
                 } header: {
-                    Text("Relationship")
+                    Text("Business profile")
                 } footer: {
-                    Text(String(localized: "Relationship intention is your choice and can change over time. Priority is shown only for business relationships."))
-                }
-
-                Section("Identity") {
-                    ForEach(availableIdentities) { identity in
-                        Button {
-                            toggle(identity)
-                        } label: {
-                            HStack {
-                                Label(identity.rawValue, systemImage: identity.symbol)
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                if selectedIdentities.contains(identity) {
-                                    Image(systemName: "checkmark")
-                                        .fontWeight(.semibold)
-                                        .foregroundStyle(.indigo)
-                                }
-                            }
-                        }
-                    }
+                    Text("Choose the commercial role, follow-up rhythm, and context that should guide your next action.")
                 }
 
                 Section {
@@ -180,9 +155,6 @@ struct EditContactView: View {
             } message: {
                 Text("Its notes and interaction history will also be deleted. Linked deals will remain.")
             }
-            .onChange(of: relationshipDomain) { _, newValue in
-                selectedIdentities = selectedIdentities.filter { newValue.includes($0.domain) }
-            }
             .onChange(of: speech.transcript) { _, transcript in
                 relationshipContext = VoiceTranscriptComposer.combine(
                     existing: voiceTextBeforeRecording,
@@ -201,18 +173,6 @@ struct EditContactView: View {
         }
     }
 
-    private var availableIdentities: [ContactIdentity] {
-        ContactIdentity.allCases.filter { relationshipDomain.includes($0.domain) }
-    }
-
-    private func toggle(_ identity: ContactIdentity) {
-        if selectedIdentities.contains(identity) {
-            selectedIdentities.remove(identity)
-        } else {
-            selectedIdentities.insert(identity)
-        }
-    }
-
     private func save() {
         speech.stop()
         let knownTags = Set(ContactIdentity.allCases.map(\.rawValue))
@@ -223,8 +183,9 @@ struct EditContactView: View {
         contact.emailAddress = emailAddress.trimmed.nilIfEmpty
         contact.companyName = companyName.trimmed.nilIfEmpty
         contact.jobTitle = jobTitle.trimmed.nilIfEmpty
-        contact.priority = relationshipDomain.includes(.business) ? priority : contact.priority
-        contact.relationshipDomain = relationshipDomain
+        contact.priority = priority
+        contact.relationshipDomain = .business
+        contact.businessRole = businessRole
         contact.desiredCadenceDays = desiredCadenceDays
         contact.relationshipContext = relationshipContext.trimmed.nilIfEmpty
         contact.isInEchoLayer = isInEchoLayer
@@ -233,18 +194,7 @@ struct EditContactView: View {
             let value = socialIdentifiers[platform]?.trimmed.nilIfEmpty
             contact.setSocialIdentifier(value, for: platform)
         }
-        if contact.relationshipIntent != relationshipIntent {
-            _ = try? RelationshipJourneyService().review(
-                contact: contact,
-                intent: relationshipIntent,
-                contextText: contact.relationshipContext,
-                theme: .ongoing,
-                journey: nil,
-                in: modelContext
-            )
-        } else {
-            try? modelContext.save()
-        }
+        try? modelContext.save()
         dismiss()
     }
 

@@ -39,7 +39,9 @@ struct ManualRelationshipContactView: View {
                             givenName: givenName.trimmed,
                             familyName: familyName.trimmed,
                             phoneNumber: phone.trimmed.nilIfEmpty,
-                            emailAddress: email.trimmed.nilIfEmpty
+                            emailAddress: email.trimmed.nilIfEmpty,
+                            relationshipDomain: .business,
+                            businessRole: .prospect
                         )
                         contact.relationshipJourneyIncluded = true
                         modelContext.insert(contact)

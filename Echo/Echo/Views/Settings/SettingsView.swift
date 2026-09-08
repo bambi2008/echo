@@ -23,7 +23,7 @@ struct SettingsView: View {
     @State private var apiConnectionState: APIConnectionState = .notTested
     @State private var isTestingAPIConnection = false
     @State private var isImporting = false
-    @State private var confirmingRestart = false
+    @State private var confirmingWorkspaceReset = false
     @State private var gmailStatus: GmailConnectionStatus?
     @State private var isWorkingWithGoogle = false
     private let diagnostics = APIKeyDiagnosticService()
@@ -31,23 +31,18 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section(String(localized: "Reflection journey")) {
-                    Toggle(String(localized: "Weekly reflection reminder"), isOn: $weeklyReminder)
-                        .onChange(of: weeklyReminder) { _, enabled in updateReminder(enabled) }
-                    Picker(String(localized: "Day"), selection: $reminderWeekday) {
-                        ForEach(1...7, id: \.self) { day in Text(weekdayName(day)).tag(day) }
-                    }
-                    .onChange(of: reminderWeekday) { _, _ in if weeklyReminder { updateReminder(true) } }
-                    Picker(String(localized: "Time"), selection: $reminderHour) {
-                        ForEach(7...22, id: \.self) { hour in Text(String(format: "%02d:00", hour)).tag(hour) }
-                    }
-                    .onChange(of: reminderHour) { _, _ in if weeklyReminder { updateReminder(true) } }
-                    Toggle(String(localized: "Action reminders"), isOn: $actionReminder)
+                Section {
+                    Toggle("Follow-up reminders", isOn: $actionReminder)
                         .onChange(of: actionReminder) { _, enabled in validateReminderPermission(enabled, value: $actionReminder) }
-                    Toggle(String(localized: "Weekend review reminders"), isOn: $reviewReminder)
-                        .onChange(of: reviewReminder) { _, enabled in validateReminderPermission(enabled, value: $reviewReminder) }
-                    Button(String(localized: "Restart the four-week reflection")) { confirmingRestart = true }
-                    Button(String(localized: "Replay the opening reflection")) { onboardingStage = OnboardingStage.philosophy.rawValue }
+                    Button("Replay business onboarding") {
+                        UserDefaults.standard.set(false, forKey: "echo.onboarding.v2.complete")
+                        onboardingStage = OnboardingStage.businessWelcome.rawValue
+                    }
+                    Button("Start with an empty workspace", role: .destructive) { confirmingWorkspaceReset = true }
+                } header: {
+                    Text("Business workspace")
+                } footer: {
+                    Text("Reset removes contacts, notes, interactions, opportunities, and local business records saved by Echo. It never deletes iPhone Contacts, Gmail, or other source data.")
                 }
 
                 Section {
@@ -63,7 +58,7 @@ struct SettingsView: View {
                         }
                     }
                 } header: { Text(String(localized: "Contact management")) }
-                footer: { Text(String(localized: "Echo can refresh the iPhone address book when the Relationships tab opens. No contacts are uploaded by this setting.")) }
+                footer: { Text("Echo can refresh the iPhone address book when the Contacts tab opens. No source contacts are deleted or uploaded by this setting.") }
 
                 Section {
                     if let gmailStatus {
@@ -106,7 +101,7 @@ struct SettingsView: View {
                     }.disabled(apiKeyPresence != .configured || isTestingAPIConnection)
                     Button(String(localized: "Remove API key"), role: .destructive) { removeAPIKey() }
                 } header: { Text(String(localized: "Optional AI")) }
-                footer: { Text(String(localized: "Core reflection, relationship mapping, and local insights work without an API key. The key remains in Apple Keychain.")) }
+                footer: { Text("Business contact ranking and local follow-up tools work without an API key. The key remains in Apple Keychain.") }
 
                 Section(String(localized: "Model routing")) {
                     TextField(String(localized: "Fast model"), text: $fastModel).textInputAutocapitalization(.never).autocorrectionDisabled()
@@ -115,17 +110,17 @@ struct SettingsView: View {
                 }
 
                 Section(String(localized: "Privacy")) {
-                    Label(String(localized: "Relationship data remains on this device"), systemImage: "iphone.gen3")
+                    Label(String(localized: "Business data remains on this device"), systemImage: "iphone.gen3")
                     Label(String(localized: "No automatic Gmail sync at launch"), systemImage: "envelope.badge.shield.half.filled")
                     Label(String(localized: "Local insights do not call an AI service"), systemImage: "lock.shield.fill")
                 }
             }
             .navigationTitle(String(localized: "Settings"))
             .task { refreshAPIKeyPresence(); gmailStatus = GmailSyncService.shared.status(); await loadModels() }
-            .confirmationDialog(String(localized: "Start a new four-week reflection?"), isPresented: $confirmingRestart) {
-                Button(String(localized: "Restart")) { _ = try? RelationshipJourneyService().restartJourney(in: modelContext) }
+            .confirmationDialog("Start with an empty Echo workspace?", isPresented: $confirmingWorkspaceReset) {
+                Button("Clear Echo workspace", role: .destructive) { clearWorkspace() }
                 Button(String(localized: "Cancel"), role: .cancel) {}
-            } message: { Text(String(localized: "Your contacts, notes, history, actions, and business data will stay intact.")) }
+            } message: { Text("This clears only data saved inside Echo. Your iPhone Contacts and Gmail account are not changed.") }
             .alert(String(localized: "Echo"), isPresented: Binding(get: { statusMessage != nil }, set: { if !$0 { statusMessage = nil } })) {
                 Button(String(localized: "OK")) { statusMessage = nil }
             } message: { Text(statusMessage ?? "") }
@@ -133,6 +128,28 @@ struct SettingsView: View {
     }
 
     private func weekdayName(_ day: Int) -> String { Calendar.current.weekdaySymbols[max(0, min(6, day - 1))] }
+
+    private func clearWorkspace() {
+        // Delete Echo-owned records only. Source address books and Gmail are
+        // intentionally outside this operation.
+        (try? modelContext.fetch(FetchDescriptor<Deal>()))?.forEach(modelContext.delete)
+        (try? modelContext.fetch(FetchDescriptor<Interaction>()))?.forEach(modelContext.delete)
+        (try? modelContext.fetch(FetchDescriptor<EchoNote>()))?.forEach(modelContext.delete)
+        (try? modelContext.fetch(FetchDescriptor<RelationshipReflection>()))?.forEach(modelContext.delete)
+        (try? modelContext.fetch(FetchDescriptor<RelationshipAction>()))?.forEach(modelContext.delete)
+        (try? modelContext.fetch(FetchDescriptor<ReflectionJourney>()))?.forEach(modelContext.delete)
+        (try? modelContext.fetch(FetchDescriptor<AgentIntelligence>()))?.forEach(modelContext.delete)
+        (try? modelContext.fetch(FetchDescriptor<AgentAction>()))?.forEach(modelContext.delete)
+        (try? modelContext.fetch(FetchDescriptor<Evidence>()))?.forEach(modelContext.delete)
+        (try? modelContext.fetch(FetchDescriptor<Pipeline>()))?.forEach(modelContext.delete)
+        (try? modelContext.fetch(FetchDescriptor<Organization>()))?.forEach(modelContext.delete)
+        contacts.forEach(modelContext.delete)
+        try? modelContext.save()
+        UserDefaults.standard.set(true, forKey: "echo.business.workspace.reset.v1")
+        onboardingStage = OnboardingStage.businessWelcome.rawValue
+        UserDefaults.standard.set(false, forKey: "echo.onboarding.v2.complete")
+        statusMessage = "Echo is ready for a fresh business workspace."
+    }
     private func updateReminder(_ enabled: Bool) {
         Task {
             let reminders = ReminderService()
@@ -196,7 +213,7 @@ struct SettingsView: View {
             do {
                 let result = try await GmailSyncService.shared.sync(contacts: contacts, in: modelContext)
                 gmailStatus = GmailSyncService.shared.status()
-                statusMessage = "Gmail sync added \(result.importedInteractions) relationship interactions."
+                statusMessage = "Gmail sync added \(result.importedInteractions) business interactions."
             } catch { statusMessage = error.localizedDescription }
         }
     }

@@ -29,53 +29,23 @@ struct ContactDetailView: View {
             }
 
             Section {
-                Picker(String(localized: "Intention"), selection: intentionBinding) {
-                    Text(String(localized: "Not sure yet")).tag(RelationshipIntent?.none)
-                    ForEach(RelationshipIntent.allCases) { intent in
-                        Label(intent.title, systemImage: intent.symbol).tag(Optional(intent))
+                Picker("Business role", selection: businessRoleBinding) {
+                    ForEach(BusinessContactRole.allCases) { role in
+                        Label(role.title, systemImage: role.symbol).tag(role)
                     }
                 }
                 RelationshipCadencePicker(days: cadenceBinding)
-                TextField(String(localized: "What do you want to remember about this relationship?"), text: relationshipContextBinding, axis: .vertical)
+                TextField("Business context or next objective", text: relationshipContextBinding, axis: .vertical)
                     .lineLimit(2...6)
-                if let reviewed = contact.lastRelationshipReviewAt {
-                    LabeledContent(String(localized: "Last reflected")) { Text(reviewed, style: .relative).foregroundStyle(.secondary) }
-                }
-                if let action = contact.relationshipActions.first(where: { $0.status == .planned }) {
-                    LabeledContent(String(localized: "Planned action")) { Text(action.type.title).foregroundStyle(.indigo) }
+                if let priority = contact.priority {
+                    LabeledContent("Priority") {
+                        Label(priority.title, systemImage: priority.symbol).foregroundStyle(priority == .hot ? .orange : .indigo)
+                    }
                 }
             } header: {
-                Text(String(localized: "Relationship now"))
+                Text("Business profile")
             } footer: {
-                Text(String(localized: "This is your intention, not a score assigned to the other person."))
-            }
-
-            if !contact.relationshipReflections.isEmpty || !contact.relationshipActions.isEmpty {
-                Section(String(localized: "Reflection history")) {
-                    ForEach(contact.relationshipReflections.sorted { $0.createdAt > $1.createdAt }) { reflection in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(reflection.selectedIntent?.title ?? String(localized: "Not sure yet")).font(.subheadline.bold())
-                            if let context = reflection.contextText { Text(context).foregroundStyle(.secondary) }
-                            if let outcome = reflection.outcome {
-                                Label(outcome.title, systemImage: "arrow.triangle.2.circlepath")
-                                    .font(.caption)
-                                    .foregroundStyle(.indigo)
-                            }
-                            Text(reflection.createdAt, style: .date).font(.caption).foregroundStyle(.tertiary)
-                        }
-                    }
-                    ForEach(contact.relationshipActions.sorted { $0.createdAt > $1.createdAt }) { action in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Label(action.type.title, systemImage: action.type.symbol)
-                                .font(.subheadline.bold())
-                            Text(action.status.localizedTitle)
-                                .foregroundStyle(.secondary)
-                            Text(action.createdAt, style: .date)
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-                }
+                Text("Use this profile to decide who needs a follow-up and what to do next.")
             }
 
             if contact.phoneNumber != nil || contact.emailAddress != nil {
@@ -153,13 +123,7 @@ struct ContactDetailView: View {
             }
 
             Section("Profile") {
-                Picker("Relationship", selection: relationshipBinding) {
-                    ForEach(RelationshipDomain.allCases) { domain in
-                        Label(domain.title, systemImage: domain.symbol).tag(domain)
-                    }
-                }
-                .pickerStyle(.menu)
-                .tint(.indigo)
+                LabeledContent("Role", value: contact.businessRole.title)
                 if let phoneNumber = contact.phoneNumber {
                     LabeledContent("Phone", value: phoneNumber)
                 }
@@ -174,14 +138,6 @@ struct ContactDetailView: View {
                 }
                 if !contact.tags.isEmpty {
                     LabeledContent("Identity", value: contact.tags.joined(separator: " · "))
-                }
-                if contact.isBusinessRelationship, let priority = contact.priority {
-                    LabeledContent {
-                        Label(priority.title, systemImage: priority.symbol)
-                            .foregroundStyle(priority == .hot ? .orange : .indigo)
-                    } label: {
-                        Text("Priority")
-                    }
                 }
             }
 
@@ -328,6 +284,17 @@ struct ContactDetailView: View {
             get: { contact.relationshipDomain },
             set: { newValue in
                 contact.relationshipDomain = newValue
+                try? modelContext.save()
+            }
+        )
+    }
+
+    private var businessRoleBinding: Binding<BusinessContactRole> {
+        Binding(
+            get: { contact.businessRole },
+            set: { newValue in
+                contact.businessRole = newValue
+                contact.relationshipDomain = .business
                 try? modelContext.save()
             }
         )

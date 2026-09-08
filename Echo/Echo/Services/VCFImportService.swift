@@ -235,7 +235,9 @@ struct VCFImportService {
     }
 
     private static func suggestedRelationship(for draft: Draft) -> RelationshipDomain {
-        draft.companyName != nil || draft.jobTitle != nil ? .business : .personal
+        // Imported contacts enter the commercial workspace by default. Users
+        // can refine the business role after previewing the import.
+        .business
     }
 
     private static func updateRelationship(

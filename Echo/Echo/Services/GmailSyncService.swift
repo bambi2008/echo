@@ -500,6 +500,7 @@ final class GmailSyncService: NSObject, ASWebAuthenticationPresentationContextPr
                     familyName: familyName,
                     phoneNumber: phone,
                     emailAddress: email,
+                    relationshipDomain: .business,
                     companyName: organization?.name,
                     jobTitle: organization?.title
                 )

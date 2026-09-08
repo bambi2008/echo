@@ -17,7 +17,7 @@ struct ContentView: View {
             UserDefaults.standard.removeObject(forKey: "echo.onboarding.v2.complete")
             UserDefaults.standard.removeObject(forKey: "echo.relationship.onboarding.stage")
             legacyOnboardingComplete = false
-            onboardingStage = ""
+            onboardingStage = OnboardingStage.businessWelcome.rawValue
         }
         if arguments.contains("--echo-skip-onboarding") {
             UserDefaults.standard.set(OnboardingStage.completed.rawValue, forKey: "echo.relationship.onboarding.stage")
@@ -33,16 +33,18 @@ struct ContentView: View {
 
     var body: some View {
         TabView {
-            PersonalHomeView()
-                .tabItem { Label(String(localized: "Echo"), systemImage: "circle.hexagongrid.fill") }
+            BusinessHomeView()
+                .tabItem { Label("Home", systemImage: "briefcase.fill") }
 
             RelationshipsView()
-                .tabItem { Label(String(localized: "Relationships"), systemImage: "person.2.fill") }
+                .tabItem { Label("Contacts", systemImage: "person.2.fill") }
 
             AIInsightsView()
-                .tabItem { Label(String(localized: "Insights"), systemImage: "sparkles") }
+                .tabItem { Label("AI Brief", systemImage: "sparkles") }
 
-            PipelineView()
+            NavigationStack {
+                PipelineView()
+            }
                 .tabItem { Label(String(localized: "Pipeline"), systemImage: "rectangle.3.group.fill") }
 
             SettingsView()

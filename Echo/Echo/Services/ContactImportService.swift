@@ -60,6 +60,7 @@ struct ContactImportService {
                 familyName: contact.familyName,
                 phoneNumber: phone,
                 emailAddress: email,
+                relationshipDomain: .business,
                 companyName: contact.organizationName.isEmpty ? nil : contact.organizationName,
                 jobTitle: contact.jobTitle.isEmpty ? nil : contact.jobTitle
             )

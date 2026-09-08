@@ -12,6 +12,7 @@ final class EchoContact {
     var isInEchoLayer: Bool
     var priorityRawValue: String?
     var relationshipDomainRawValue: String?
+    var businessRoleRawValue: String?
     var lastReachedOut: Date?
     var reachCount: Int
     var tags: [String]
@@ -53,6 +54,7 @@ final class EchoContact {
         isInEchoLayer: Bool = true,
         priority: PriorityLevel? = nil,
         relationshipDomain: RelationshipDomain? = nil,
+        businessRole: BusinessContactRole? = nil,
         lastReachedOut: Date? = nil,
         reachCount: Int = 0,
         companyName: String? = nil,
@@ -74,6 +76,7 @@ final class EchoContact {
         self.isInEchoLayer = isInEchoLayer
         self.priorityRawValue = priority?.rawValue
         self.relationshipDomainRawValue = relationshipDomain?.rawValue
+        self.businessRoleRawValue = businessRole?.rawValue
         self.lastReachedOut = lastReachedOut
         self.reachCount = reachCount
         self.tags = []
@@ -185,6 +188,20 @@ final class EchoContact {
         set { relationshipDomainRawValue = newValue.rawValue }
     }
 
+    var businessRole: BusinessContactRole {
+        get {
+            if let role = businessRoleRawValue.flatMap(BusinessContactRole.init(rawValue:)) {
+                return role
+            }
+            if let identity = tags.compactMap(ContactIdentity.init(rawValue:)).first,
+               let role = BusinessContactRole(rawValue: identity.rawValue.lowercased()) {
+                return role
+            }
+            return .other
+        }
+        set { businessRoleRawValue = newValue.rawValue }
+    }
+
     var isPersonalRelationship: Bool {
         relationshipDomain.includes(.personal)
     }
@@ -202,7 +219,12 @@ final class EchoContact {
 
         if hasPersonalIdentity && hasBusinessIdentity { return .both }
         if hasBusinessIdentity { return .business }
-        return .personal
+        // Preserve an explicit legacy personal tag while the user migrates
+        // an older workspace. New imports and manual records always write a
+        // business domain explicitly, so unclassified records remain
+        // business-first without erasing the old profile inference.
+        if hasPersonalIdentity { return .personal }
+        return .business
     }
 
     var daysSinceContact: Int? {

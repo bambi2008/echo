@@ -77,7 +77,7 @@ struct OutreachComposerView: View {
                     if isLoading {
                         HStack {
                             ProgressView()
-                            Text("Writing from your relationship context…")
+                            Text("Writing from your business context…")
                                 .foregroundStyle(.secondary)
                         }
                     } else {
@@ -159,13 +159,13 @@ struct OutreachComposerView: View {
         let hasNote = contact.notes.isEmpty == false
         switch (hasInteraction, hasNote) {
         case (true, true):
-            return String(localized: "If you ask AI, Echo will use the most recent recorded interaction, one saved note, your chosen relationship direction, and time since contact.")
+            return "If you ask AI, Echo will use the most recent interaction, one saved business note, the contact's commercial role, and time since contact."
         case (true, false):
-            return String(localized: "If you ask AI, Echo will use the most recent recorded interaction, your chosen relationship direction, and time since contact.")
+            return "If you ask AI, Echo will use the most recent interaction, the contact's commercial role, and time since contact."
         case (false, true):
-            return String(localized: "If you ask AI, Echo will use one saved note, your chosen relationship direction, and time since contact.")
+            return "If you ask AI, Echo will use one saved business note, the contact's commercial role, and time since contact."
         case (false, false):
-            return String(localized: "If you ask AI, Echo will use only your chosen relationship direction and time since contact.")
+            return "If you ask AI, Echo will use only the contact's commercial role and time since contact."
         }
     }
 
@@ -197,10 +197,7 @@ struct OutreachComposerView: View {
                     personAlias: alias,
                     recentNote: context,
                     daysSinceContact: contact.daysSinceContact,
-                    relationship: contact.relationshipIntent?.title
-                        ?? contact.jobTitle
-                        ?? contact.tags.first
-                        ?? "personal relationship"
+                    relationship: contact.businessRole.title
                 )
                 draft = privacy.restoreAliases(in: response.text)
                 model = response.model.rawValue

@@ -58,7 +58,21 @@ struct PipelineView: View {
             .sheet(isPresented: $showingFilters) { PipelineFiltersView(filter: $filter, pipeline: selectedPipeline, organizations: organizations) }
             .sheet(isPresented: $showingStageEditor) { if let selectedPipeline { PipelineStageEditor(pipeline: selectedPipeline) } }
             .task {
-                do { let fallback = try PipelineService().migrateExistingData(in: modelContext); if selectedPipelineID == nil { selectedPipelineID = fallback.id } }
+                do {
+                    let service = PipelineService()
+                    let fallback = try service.migrateExistingData(in: modelContext)
+                    #if DEBUG
+                    if ProcessInfo.processInfo.arguments.contains("--echo-agentic-demo") {
+                        try service.seedAcceptanceScenario(in: modelContext)
+                        let seededDeals = try modelContext.fetch(FetchDescriptor<Deal>())
+                        selectedPipelineID = seededDeals.first(where: { $0.humanNotes == "echo.agentic.acceptance" })?.pipeline?.id ?? fallback.id
+                    } else if selectedPipelineID == nil {
+                        selectedPipelineID = fallback.id
+                    }
+                    #else
+                    if selectedPipelineID == nil { selectedPipelineID = fallback.id }
+                    #endif
+                }
                 catch { errorMessage = "Pipeline data could not be prepared: \(error.localizedDescription)" }
             }
             .alert("Pipeline", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) { Button("OK") {} } message: { Text(errorMessage ?? "") }
@@ -70,7 +84,7 @@ struct PipelineView: View {
                 PipelineSummary(items: allPipelineItems, usesMonetaryValue: selectedPipeline?.usesMonetaryValue == true)
                 attentionSection
                 if items.isEmpty {
-                    ContentUnavailableView("No matching items", systemImage: "rectangle.3.group", description: Text("Adjust filters or add a relationship opportunity."))
+                ContentUnavailableView("No matching items", systemImage: "rectangle.3.group", description: Text("Adjust filters or add a business opportunity."))
                         .frame(minHeight: 240)
                 } else {
                     ForEach(stages) { stage in
@@ -103,7 +117,7 @@ struct PipelineView: View {
         if !attention.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 Label("Human Attention", systemImage: "person.crop.circle.badge.exclamationmark").font(.title3.bold()).foregroundStyle(.indigo)
-                Text("Items where judgment or a personal touch matters now.").font(.subheadline).foregroundStyle(.secondary)
+                Text("Items that need a human decision or a direct commercial follow-up.").font(.subheadline).foregroundStyle(.secondary)
                 ForEach(attention.prefix(3)) { PipelineItemCard(item: $0) }
                 if attention.count > 3 { Button("Show all \(attention.count)") { filter.humanAttentionOnly = true } }
             }.padding(16).background(Color.indigo.opacity(0.08), in: RoundedRectangle(cornerRadius: 20)).accessibilityIdentifier("pipeline.humanAttention")
@@ -263,7 +277,7 @@ struct OrganizationDetailView: View {
             Section("Organization") { LabeledContent("Name", value: organization.name); if let industry = organization.industry, !industry.isEmpty { LabeledContent("Industry", value: industry) }; if let location = organization.location, !location.isEmpty { LabeledContent("Location", value: location) }; if let raw = organization.website, let url = URL(string: raw) { Link("Open website", destination: url) }; if let notes = organization.notes, !notes.isEmpty { Text(notes) } }
             Section("People") { if organization.contacts.isEmpty { Text("No people linked").foregroundStyle(.secondary) }; ForEach(organization.contacts) { contact in NavigationLink(contact.fullName) { ContactDetailView(contact: contact) } } }
             Section("Active items") { let active = organization.pipelineItems.filter { $0.status == .active || $0.status == .paused }; if active.isEmpty { Text("No active items").foregroundStyle(.secondary) }; ForEach(active) { item in NavigationLink { PipelineItemDetailView(item: item) } label: { VStack(alignment: .leading, spacing: 3) { Text(item.title); if let summary = item.intelligence?.summary, !summary.isEmpty { Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(2) } } } } }
-            Section("Recent relationship activity") { if recent.isEmpty { Text("No recent activity").foregroundStyle(.secondary) }; ForEach(recent) { interaction in LabeledContent(localizedPipelineValue(interaction.type.title), value: interaction.date.formatted(date: .abbreviated, time: .omitted)) } }
+            Section("Recent business activity") { if recent.isEmpty { Text("No recent activity").foregroundStyle(.secondary) }; ForEach(recent) { interaction in LabeledContent(localizedPipelineValue(interaction.type.title), value: interaction.date.formatted(date: .abbreviated, time: .omitted)) } }
         }.navigationTitle(organization.name)
     }
 }

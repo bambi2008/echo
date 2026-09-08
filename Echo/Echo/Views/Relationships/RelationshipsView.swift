@@ -46,9 +46,9 @@ struct RelationshipsView: View {
             List {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(String(localized: "Your relationship map"))
+                        Text("Your business contacts")
                             .font(.title2.bold())
-                        Text(String(localized: "A map of the people you chose to keep in view — not a scorecard."))
+                        Text("Keep partners, prospects, clients, and other commercial contacts in one place." )
                             .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 6)
@@ -63,7 +63,7 @@ struct RelationshipsView: View {
                 }
                 if !staleContacts.isEmpty {
                     Section {
-                        Text(String(localized: "Echo is for active relationships. These people have been quiet for 100+ days — keep them in view or remove them from Echo."))
+                        Text("These contacts have had no recorded activity for 100+ days. Keep them in your workspace or remove them from Echo." )
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         ForEach(staleContacts.prefix(5)) { contact in
@@ -113,7 +113,7 @@ struct RelationshipsView: View {
                     NavigationLink {
                         PersonRecallView(contacts: visible)
                     } label: {
-                        Label(String(localized: "I remember the person, not the name"), systemImage: "person.fill.questionmark")
+                            Label("Find a contact by voice or memory", systemImage: "person.fill.questionmark")
                     }
                     NavigationLink {
                         DocumentRecognitionView(kind: .businessCard)
@@ -122,7 +122,7 @@ struct RelationshipsView: View {
                     }
                 }
             }
-            .navigationTitle(String(localized: "Relationships"))
+            .navigationTitle("Contacts")
             .task {
                 guard autoSyncContacts, !didAutoSync else { return }
                 didAutoSync = true
@@ -166,7 +166,7 @@ struct RelationshipsView: View {
                             Label(String(localized: "Choose from iPhone Contacts"), systemImage: "person.crop.circle.badge.plus")
                         }
                         Button { showingManual = true } label: {
-                            Label(String(localized: "Add someone manually"), systemImage: "square.and.pencil")
+                            Label("Add business contact", systemImage: "square.and.pencil")
                         }
                         Button { showingVCFImporter = true } label: {
                             Label(String(localized: "Import a VCF file"), systemImage: "doc.badge.plus")
@@ -329,42 +329,58 @@ private enum RelationshipContactMethodFilter: String, CaseIterable, Identifiable
 }
 
 private enum RelationshipMapGroup: CaseIterable, Identifiable {
-    case deepen, maintain, light, pause, unsure
+    case prospect, client, partner, supplier, investor, advisor, colleague, referral, other
     var id: String { title }
     var identifier: String {
         switch self {
-        case .deepen: "deepen"
-        case .maintain: "maintain"
-        case .light: "light"
-        case .pause: "pause"
-        case .unsure: "unsure"
+        case .prospect: "prospect"
+        case .client: "client"
+        case .partner: "partner"
+        case .supplier: "supplier"
+        case .investor: "investor"
+        case .advisor: "advisor"
+        case .colleague: "colleague"
+        case .referral: "referral"
+        case .other: "other"
         }
     }
     var title: String {
         switch self {
-        case .deepen: String(localized: "Grow closer")
-        case .maintain: String(localized: "Keep steady")
-        case .light: String(localized: "Keep it light")
-        case .pause: String(localized: "Give it space")
-        case .unsure: String(localized: "Not sure yet")
+        case .prospect: BusinessContactRole.prospect.title
+        case .client: BusinessContactRole.client.title
+        case .partner: BusinessContactRole.partner.title
+        case .supplier: BusinessContactRole.supplier.title
+        case .investor: BusinessContactRole.investor.title
+        case .advisor: BusinessContactRole.advisor.title
+        case .colleague: BusinessContactRole.colleague.title
+        case .referral: BusinessContactRole.referral.title
+        case .other: BusinessContactRole.other.title
         }
     }
     var symbol: String {
         switch self {
-        case .deepen: "arrow.up.heart"
-        case .maintain: "equal.circle"
-        case .light: "wind"
-        case .pause: "pause.circle"
-        case .unsure: "questionmark.circle"
+        case .prospect: BusinessContactRole.prospect.symbol
+        case .client: BusinessContactRole.client.symbol
+        case .partner: BusinessContactRole.partner.symbol
+        case .supplier: BusinessContactRole.supplier.symbol
+        case .investor: BusinessContactRole.investor.symbol
+        case .advisor: BusinessContactRole.advisor.symbol
+        case .colleague: BusinessContactRole.colleague.symbol
+        case .referral: BusinessContactRole.referral.symbol
+        case .other: BusinessContactRole.other.symbol
         }
     }
     func includes(_ contact: EchoContact) -> Bool {
         switch self {
-        case .deepen: contact.relationshipIntent == .deepen
-        case .maintain: contact.relationshipIntent == .maintain
-        case .light: contact.relationshipIntent == .light
-        case .pause: contact.relationshipIntent == .pause
-        case .unsure: contact.relationshipIntent == nil
+        case .prospect: contact.businessRole == .prospect
+        case .client: contact.businessRole == .client
+        case .partner: contact.businessRole == .partner
+        case .supplier: contact.businessRole == .supplier
+        case .investor: contact.businessRole == .investor
+        case .advisor: contact.businessRole == .advisor
+        case .colleague: contact.businessRole == .colleague
+        case .referral: contact.businessRole == .referral
+        case .other: contact.businessRole == .other
         }
     }
 }

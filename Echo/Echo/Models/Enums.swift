@@ -147,6 +147,12 @@ enum ReflectionOutcome: String, Codable, CaseIterable, Identifiable {
 }
 
 enum OnboardingStage: String, Codable {
+    case businessWelcome
+    case businessSetup
+    case businessContacts
+    case businessTour
+    // Legacy values are retained so an upgraded store can safely fall back to
+    // the new business onboarding instead of crashing on an unknown raw value.
     case philosophy
     case coreQuestion
     case contactSelection
@@ -194,6 +200,51 @@ enum RelationshipDomain: String, Codable, CaseIterable, Identifiable {
 
     func includes(_ domain: RelationshipDomain) -> Bool {
         self == .both || self == domain
+    }
+}
+
+/// Commercial role used by the business workspace. The legacy relationship
+/// domain remains in the data model for backwards compatibility, but all new
+/// contacts and screens are business-first.
+enum BusinessContactRole: String, Codable, CaseIterable, Identifiable {
+    case prospect
+    case client
+    case partner
+    case supplier
+    case investor
+    case advisor
+    case colleague
+    case referral
+    case other
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .prospect: "Prospect"
+        case .client: "Client"
+        case .partner: "Partner"
+        case .supplier: "Supplier"
+        case .investor: "Investor"
+        case .advisor: "Advisor"
+        case .colleague: "Colleague"
+        case .referral: "Referral source"
+        case .other: "Other business contact"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .prospect: "scope"
+        case .client: "person.crop.circle.badge.checkmark"
+        case .partner: "person.2.fill"
+        case .supplier: "shippingbox.fill"
+        case .investor: "chart.line.uptrend.xyaxis"
+        case .advisor: "lightbulb.fill"
+        case .colleague: "briefcase.fill"
+        case .referral: "arrow.triangle.branch"
+        case .other: "building.2.fill"
+        }
     }
 }
 

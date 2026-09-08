@@ -14,7 +14,7 @@ struct VCFImportPreviewView: View {
         self.preview = preview
         self.onComplete = onComplete
         _relationships = State(initialValue: Dictionary(uniqueKeysWithValues: preview.contacts.map {
-            ($0.id, $0.relationshipDomain)
+            ($0.id, RelationshipDomain.business)
         }))
     }
 
@@ -59,14 +59,9 @@ struct VCFImportPreviewView: View {
                                 Text(label(for: contact.action))
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(color(for: contact.action))
-                                Picker("Relationship", selection: relationshipBinding(for: contact)) {
-                                    ForEach(RelationshipDomain.allCases) { domain in
-                                        Label(domain.title, systemImage: domain.symbol).tag(domain)
-                                    }
-                                }
-                                .labelsHidden()
-                                .pickerStyle(.menu)
-                                .fixedSize()
+                                Label("Business", systemImage: "briefcase.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.indigo)
                             }
                         }
                         .padding(.vertical, 3)

@@ -65,68 +65,83 @@ enum RelationshipGuidanceEngine {
         contacts: [EchoContact],
         journeys: [ReflectionJourney]
     ) -> [LocalRelationshipInsight] {
-        let reviewed = contacts.filter { $0.lastRelationshipReviewAt != nil }
+        let reviewed = contacts.filter { $0.isBusinessRelationship && ($0.lastRelationshipReviewAt != nil || !$0.notes.isEmpty || !$0.interactions.isEmpty) }
         guard !reviewed.isEmpty else {
             return [LocalRelationshipInsight(
                 id: "insufficient",
                 kind: .insufficientData,
-                title: String(localized: "There is not enough reflection data yet"),
-                detail: String(localized: "After you review a few relationships and record actions in Echo, patterns may begin to appear. There is nothing to adjust yet."),
+                title: "Not enough business activity yet",
+                detail: "Add a role, a note, or a completed follow-up to a few business contacts before asking Echo to find patterns.",
                 contactIdentifiers: []
             )]
         }
 
         var insights: [LocalRelationshipInsight] = []
-        let deepenWithoutActions = reviewed.filter {
-            $0.relationshipIntent == .deepen && !$0.relationshipActions.contains(where: { $0.status == .completed })
+        let priorityWithoutActions = reviewed.filter {
+            ($0.priority == .hot || $0.priority == .warm)
+                && !$0.relationshipActions.contains(where: { $0.status == .completed })
         }
-        if !deepenWithoutActions.isEmpty {
+        if !priorityWithoutActions.isEmpty {
             insights.append(LocalRelationshipInsight(
                 id: "deepen-gap",
                 kind: .intentionAheadOfAction,
-                title: String(localized: "Your intention may be ahead of your actions"),
-                detail: String(localized: "You placed \(deepenWithoutActions.count) people in Grow closer, but actions recorded in Echo have not followed yet. Would you like to choose one?"),
-                contactIdentifiers: deepenWithoutActions.map(\.systemIdentifier)
+                title: "Priority contacts need a next step",
+                detail: "\(priorityWithoutActions.count) Hot or Warm contacts have no completed follow-up recorded in Echo yet.",
+                contactIdentifiers: priorityWithoutActions.map(\.systemIdentifier)
             ))
         }
 
-        let spaceWithActions = reviewed.filter { contact in
-            contact.relationshipIntent == .pause && contact.relationshipActions.filter { $0.status == .completed }.count >= 2
+        let cooling = reviewed.filter { contact in
+            guard let days = contact.daysSinceContact else { return false }
+            return days >= 60
         }
-        if !spaceWithActions.isEmpty {
+        if !cooling.isEmpty {
             insights.append(LocalRelationshipInsight(
                 id: "space-gap",
                 kind: .spaceMismatch,
-                title: String(localized: "Your recent effort may not match the space you wanted"),
-                detail: String(localized: "Echo contains several completed actions for relationships you placed in Give it space. Would you like to revisit that intention?"),
-                contactIdentifiers: spaceWithActions.map(\.systemIdentifier)
+                title: "Business contacts are cooling",
+                detail: "\(cooling.count) commercial contacts have no recorded activity for 60 days or more. Review Pipeline and set a next action where needed.",
+                contactIdentifiers: cooling.map(\.systemIdentifier)
             ))
         }
 
-        let changed = reviewed.filter { contact in
-            let values = contact.relationshipReflections.compactMap(\.selectedIntentRawValue)
-            return Set(values).count > 1
-        }
-        if !changed.isEmpty {
+        let unclassified = reviewed.filter { $0.businessRole == .other }
+        if !unclassified.isEmpty {
             insights.append(LocalRelationshipInsight(
-                id: "changed",
+                id: "unclassified",
                 kind: .intentChanged,
-                title: String(localized: "Some relationships have changed shape"),
-                detail: String(localized: "You changed your intention for \(changed.count) relationships. Would you like to look at what shifted?"),
-                contactIdentifiers: changed.map(\.systemIdentifier)
+                title: "Some contacts need a business role",
+                detail: "Classify \(unclassified.count) contacts as prospects, clients, partners, or another role so Echo can rank them accurately.",
+                contactIdentifiers: unclassified.map(\.systemIdentifier)
             ))
         }
 
-        let completedThemes = journeys.flatMap(\.completedThemeRawValues).count
-        let deepenCount = reviewed.filter { $0.relationshipIntent == .deepen }.count
-        let maintainCount = reviewed.filter { $0.relationshipIntent == .maintain }.count
-        let lightCount = reviewed.filter { $0.relationshipIntent == .light }.count
-        let pauseCount = reviewed.filter { $0.relationshipIntent == .pause }.count
+        // Keep a useful compatibility signal for records created by the
+        // previous reflection flow. The current UI does not expose those
+        // personal concepts, but an existing commercial contact may still
+        // carry a chosen intent and needs a next business action.
+        let legacyIntentContacts = reviewed.filter {
+            $0.relationshipJourneyIncluded && $0.relationshipIntent != nil
+        }
+        if !legacyIntentContacts.isEmpty && !insights.contains(where: { $0.kind == .intentionAheadOfAction }) {
+            insights.append(LocalRelationshipInsight(
+                id: "legacy-intent",
+                kind: .intentionAheadOfAction,
+                title: "Business intent needs a next step",
+                detail: "(legacyIntentContacts.count) commercial contacts have a recorded intent but no new follow-up decision in the business workspace.",
+                contactIdentifiers: legacyIntentContacts.map(\.systemIdentifier)
+            ))
+        }
+
+        let roleSummary = BusinessContactRole.allCases.compactMap { role -> String? in
+            let count = reviewed.filter { $0.businessRole == role }.count
+            return count > 0 ? "\(count) \(role.title)" : nil
+        }.joined(separator: ", ")
         insights.append(LocalRelationshipInsight(
             id: "progress",
             kind: .journeyProgress,
-            title: String(localized: "Your relationship map is becoming clearer"),
-            detail: String(localized: "You have reviewed \(reviewed.count) relationships across \(completedThemes) weekly themes. The current map has \(deepenCount) Grow closer, \(maintainCount) Keep steady, \(lightCount) Keep it light, and \(pauseCount) Give it space. This reflects only what you chose and recorded in Echo. Would you like to adjust anything?"),
+            title: "Your business network is taking shape",
+            detail: "Echo has context for \(reviewed.count) commercial contacts: \(roleSummary).",
             contactIdentifiers: reviewed.map(\.systemIdentifier)
         ))
         return insights

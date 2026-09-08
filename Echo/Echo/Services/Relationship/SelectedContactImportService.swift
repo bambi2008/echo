@@ -44,6 +44,7 @@ struct SelectedContactImportService {
                 familyName: source.familyName,
                 phoneNumber: phone,
                 emailAddress: email,
+                relationshipDomain: .business,
                 companyName: source.organizationName.nilIfEmpty,
                 jobTitle: source.jobTitle.nilIfEmpty
             )

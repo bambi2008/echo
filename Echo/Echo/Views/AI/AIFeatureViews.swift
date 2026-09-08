@@ -43,22 +43,21 @@ enum RelationshipAnalysisMode {
 
     var title: String {
         switch self {
-        case .insight: "Relationship insight"
-        case .health: "Relationship health"
+        case .insight: "Account insight"
+        case .health: "Account health"
         }
     }
 
     var symbol: String {
         switch self {
         case .insight: "person.text.rectangle"
-        case .health: "heart.text.clipboard"
+        case .health: "chart.bar.xaxis"
         }
     }
 }
 
 private enum RelationshipScope: String, CaseIterable, Identifiable {
     case all
-    case personal
     case business
 
     var id: String { rawValue }
@@ -66,7 +65,6 @@ private enum RelationshipScope: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .all: "All"
-        case .personal: "Personal"
         case .business: "Business"
         }
     }
@@ -74,7 +72,6 @@ private enum RelationshipScope: String, CaseIterable, Identifiable {
     func includes(_ contact: EchoContact) -> Bool {
         switch self {
         case .all: true
-        case .personal: contact.isPersonalRelationship
         case .business: contact.isBusinessRelationship
         }
     }
@@ -108,8 +105,8 @@ private enum RelationshipSelectionRule: String, CaseIterable, Identifiable {
         case .contextRich: "Enough context"
         case .cooling: "Cooling unusually"
         case .overdue: "Long time no contact"
-        case .priority: "Priority relationships"
-        case .business: "Business relationships"
+        case .priority: "Priority contacts"
+        case .business: "Business contacts"
         case .quiet: "Low interaction"
         case .active: "Healthy momentum"
         case .all: "Everyone"
@@ -119,16 +116,16 @@ private enum RelationshipSelectionRule: String, CaseIterable, Identifiable {
     func description(for mode: RelationshipAnalysisMode) -> String {
         switch self {
         case .opportunity: "Combines Hot/Warm priority, business relevance, saved context, and current attention."
-        case .contextRich: "People with at least three interactions or two notes, so the analysis has useful evidence."
-        case .cooling: "Ranks people whose current gap is unusually long compared with your past rhythm with them."
+        case .contextRich: "Commercial contacts with at least three interactions or two notes, so the analysis has useful evidence."
+        case .cooling: "Ranks contacts whose current gap is unusually long compared with their past follow-up rhythm."
         case .overdue: "People you have not contacted for at least 60 days."
         case .priority: "People marked Hot or Warm, sorted by urgency."
-        case .business: "Clients, prospects, partners, investors, and professional contacts."
-        case .quiet: "Relationships with two or fewer recorded interactions."
-        case .active: "Relationships with at least three interactions and contact within the last 30 days."
+        case .business: "Clients, prospects, partners, investors, and other commercial contacts."
+        case .quiet: "Contacts with two or fewer recorded interactions."
+        case .active: "Contacts with at least three interactions and contact within the last 30 days."
         case .all:
             mode == .insight
-                ? "The full contact list, ranked by relationship opportunity."
+                ? "The full business contact list, ranked by commercial opportunity."
                 : "The full contact list, ranked by health risk relative to past cadence."
         }
     }
@@ -365,7 +362,7 @@ struct RelationshipAnalysisView: View {
                 }
                 .disabled(isLoading || selectedContacts.isEmpty)
             } footer: {
-                Text("Echo analyzes the selected group in one DeepSeek request.")
+                Text("Echo analyzes the selected commercial group in one DeepSeek request.")
             }
 
             if let result {
@@ -453,39 +450,24 @@ struct DailyBriefingView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
 
-    private var personalPriorityContacts: [EchoContact] {
-        Array(contacts.filter {
-            $0.relationshipDomain == .personal
-        }.sorted {
-            EchoEngine.recencyAttentionScore(for: $0) > EchoEngine.recencyAttentionScore(for: $1)
-        }.prefix(3))
-    }
-
     private var businessPriorityContacts: [EchoContact] {
         Array(contacts.filter(\.isBusinessRelationship).sorted {
             EchoEngine.recencyAttentionScore(for: $0) > EchoEngine.recencyAttentionScore(for: $1)
         }.prefix(3))
     }
 
-    private var priorityContacts: [EchoContact] {
-        personalPriorityContacts + businessPriorityContacts
-    }
+    private var priorityContacts: [EchoContact] { businessPriorityContacts }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 AIHero(
-                    title: "Start with the people who matter",
-                    subtitle: "Echo weighs time since contact, relationship context, and your latest notes.",
+                    title: "Start with the business contacts that matter",
+                    subtitle: "Echo weighs time since contact, commercial role, pipeline context, and your latest notes.",
                     symbol: "sun.max.fill",
                     color: .orange
                 )
 
-                briefingGroup(
-                    title: "Personal relationships",
-                    symbol: "heart.fill",
-                    contacts: personalPriorityContacts
-                )
                 briefingGroup(
                     title: "Business follow-ups",
                     symbol: "briefcase.fill",
@@ -529,7 +511,7 @@ struct DailyBriefingView: View {
         VStack(alignment: .leading, spacing: 12) {
             Label(title, systemImage: symbol).font(.headline)
             if contacts.isEmpty {
-                Text("No relationships need attention here today.")
+                Text("No business follow-ups need attention here today.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -876,6 +858,8 @@ struct DocumentRecognitionView: View {
             familyName: parts.count > 1 ? parts[1] : "",
             phoneNumber: card.phone.nilIfEmpty,
             emailAddress: card.email.nilIfEmpty,
+            relationshipDomain: .business,
+            businessRole: .prospect,
             companyName: card.company.nilIfEmpty,
             jobTitle: card.title.nilIfEmpty
         )
