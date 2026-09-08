@@ -1,0 +1,4 @@
+/* Simplified Chinese permission copy. */
+"NSContactsUsageDescription" = "Echo 只导入你选择的联系人，帮助你管理和推进商务关系。";
+"NSMicrophoneUsageDescription" = "Echo 只在你口述内容、用于查找联系人时使用麦克风。";
+"NSSpeechRecognitionUsageDescription" = "Echo 会将你的语音内容转换为文字，方便你查找联系人。";

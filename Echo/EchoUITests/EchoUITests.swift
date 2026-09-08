@@ -12,10 +12,10 @@ final class EchoUITests: XCTestCase {
         ]
         app.launch()
 
-        let retry = app.buttons["Try again"]
+        let retry = app.buttons["重试"]
         XCTAssertTrue(retry.waitForExistence(timeout: 5))
         retry.tap()
-        XCTAssertTrue(app.buttons["Try again"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["重试"].waitForExistence(timeout: 3))
     }
 
     @MainActor
@@ -34,7 +34,7 @@ final class EchoUITests: XCTestCase {
         app.buttons["onboarding.enterEcho"].tap()
         XCTAssertTrue(app.buttons["onboarding.finish"].waitForExistence(timeout: 5))
         app.buttons["onboarding.finish"].tap()
-        XCTAssertTrue(app.staticTexts["Business workspace"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["商务工作区"].waitForExistence(timeout: 5))
     }
 
     @MainActor

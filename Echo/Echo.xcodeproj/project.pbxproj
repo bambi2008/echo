@@ -198,10 +198,10 @@
 				};
 			};
 			buildConfigurationList = 6872BE2E301119EF00977DF8 /* Build configuration list for PBXProject "Echo" */;
-			developmentRegion = en;
+			developmentRegion = "zh-Hans";
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
+				"zh-Hans",
 				Base,
 			);
 			mainGroup = 6872BE2A301119EF00977DF8;
@@ -410,7 +410,7 @@
 				CODE_SIGN_ENTITLEMENTS = Echo/Echo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 4V982CAJ45;
-				CURRENT_PROJECT_VERSION = 2026090801;
+				CURRENT_PROJECT_VERSION = 2026090802;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "EchoApp-Info.plist";
@@ -445,7 +445,7 @@
 				CODE_SIGN_ENTITLEMENTS = Echo/Echo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 4V982CAJ45;
-				CURRENT_PROJECT_VERSION = 2026090801;
+				CURRENT_PROJECT_VERSION = 2026090802;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "EchoApp-Info.plist";

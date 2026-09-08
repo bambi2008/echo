@@ -3,7 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<string>zh-Hans</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>zh-Hans</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>Echo</string>
 	<key>CFBundleExecutable</key>
@@ -34,11 +38,11 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSContactsUsageDescription</key>
-	<string>Echo imports contacts you choose so it can help you remember and strengthen relationships.</string>
+	<string>Echo 只导入你选择的联系人，帮助你管理和推进商务关系。</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Echo uses the microphone only while you dictate a memory to help find a contact.</string>
+	<string>Echo 只在你口述内容、用于查找联系人时使用麦克风。</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Echo converts your spoken memory into text so you can search for a contact.</string>
+	<string>Echo 会将你的语音内容转换为文字，方便你查找联系人。</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
