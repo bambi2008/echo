@@ -203,21 +203,21 @@ enum GmailSyncError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notConnected: "Connect Gmail before syncing."
-        case .invalidConfiguration: "Gmail OAuth is not configured correctly."
-        case .authorizationFailed: "Google authorization did not complete."
+        case .notConnected: String(localized: "Connect Gmail before syncing.")
+        case .invalidConfiguration: String(localized: "Gmail OAuth is not configured correctly.")
+        case .authorizationFailed: String(localized: "Google authorization did not complete.")
         case .provider(let statusCode, let message):
             switch statusCode {
             case 401:
-                "Google access has expired. Disconnect Gmail and connect it again."
+                String(localized: "Google access has expired. Disconnect Gmail and connect it again.")
             case 403:
                 message.contains("Reconnect")
-                    ? message
-                    : "Google did not allow this request. Reconnect Google and make sure People API is enabled."
+                    ? String(localized: String.LocalizationValue(message))
+                    : String(localized: "Google did not allow this request. Reconnect Google and make sure People API is enabled.")
             case 429:
-                "Gmail is temporarily rate-limiting Echo. Wait a moment and try again."
+                String(localized: "Gmail is temporarily rate-limiting Echo. Wait a moment and try again.")
             default:
-                message
+                String(localized: "Gmail request failed: \(message)")
             }
         }
     }

@@ -40,10 +40,10 @@ enum SocialPlatform: String, CaseIterable, Identifiable, Codable {
 
     var fieldPrompt: String {
         switch self {
-        case .whatsapp: "Phone number with country code"
-        case .discord: "Username or numeric user ID"
-        case .linkedin: "Profile name or URL"
-        default: "Username or profile URL"
+        case .whatsapp: String(localized: "Phone number with country code")
+        case .discord: String(localized: "Username or numeric user ID")
+        case .linkedin: String(localized: "Profile name or URL")
+        default: String(localized: "Username or profile URL")
         }
     }
 }

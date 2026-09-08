@@ -11,22 +11,22 @@ enum EchoPlan: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .monthly: "Monthly"
-        case .annual: "Annual"
+        case .monthly: String(localized: "Monthly")
+        case .annual: String(localized: "Annual")
         }
     }
 
     var fallbackPrice: String {
         switch self {
-        case .monthly: "$3.99 / month"
-        case .annual: "$29.99 / year"
+        case .monthly: "$3.99 / 月"
+        case .annual: "$29.99 / 年"
         }
     }
 
     var valueNote: String {
         switch self {
-        case .monthly: "Flexible month to month"
-        case .annual: "Best value · save about 37%"
+        case .monthly: String(localized: "Flexible month to month")
+        case .annual: String(localized: "Best value · save about 37%")
         }
     }
 }

@@ -22,7 +22,7 @@ final class SpeechRecognitionService: ObservableObject {
         guard let recognizer = SFSpeechRecognizer(locale: recognitionLocale),
               recognizer.isAvailable
         else {
-            errorMessage = "Speech recognition is currently unavailable. Please try again later."
+            errorMessage = String(localized: "Speech recognition is currently unavailable. Please try again later.")
             return
         }
 
@@ -43,7 +43,7 @@ final class SpeechRecognitionService: ObservableObject {
             let inputNode = audioEngine.inputNode
             let recordingFormat = inputNode.outputFormat(forBus: 0)
             guard recordingFormat.sampleRate > 0, recordingFormat.channelCount > 0 else {
-                errorMessage = "No microphone input is available on this device."
+                errorMessage = String(localized: "No microphone input is available on this device.")
                 stop()
                 return
             }
@@ -118,7 +118,7 @@ final class SpeechRecognitionService: ObservableObject {
 
         let microphoneGranted = await microphonePermissionGranted()
         guard microphoneGranted else {
-            errorMessage = "Microphone access is off. Enable it in Settings to dictate a memory."
+            errorMessage = String(localized: "Microphone access is off. Enable it in Settings to dictate a memory.")
             return false
         }
         return true
@@ -147,22 +147,22 @@ final class SpeechRecognitionService: ObservableObject {
     ) -> String {
         switch status {
         case .denied, .restricted:
-            return "Speech recognition access is off. Enable it in Settings to dictate a memory."
+            return String(localized: "Speech recognition access is off. Enable it in Settings to dictate a memory.")
         case .notDetermined:
-            return "Speech recognition permission was not completed. Please try again."
+            return String(localized: "Speech recognition permission was not completed. Please try again.")
         case .authorized:
             return ""
         @unknown default:
-            return "Speech recognition is unavailable on this device."
+            return String(localized: "Speech recognition is unavailable on this device.")
         }
     }
 
     private func friendlyMessage(for error: Error) -> String {
         let nsError = error as NSError
         if nsError.domain == "kAFAssistantErrorDomain", nsError.code == 1110 {
-            return "I couldn't hear any speech. Tap the microphone and try again."
+            return String(localized: "I couldn't hear any speech. Tap the microphone and try again.")
         }
-        return "Voice input stopped unexpectedly. Your typed text is still here."
+        return String(localized: "Voice input stopped unexpectedly. Your typed text is still here.")
     }
 }
 

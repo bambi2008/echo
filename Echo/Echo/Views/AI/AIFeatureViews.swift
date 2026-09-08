@@ -16,21 +16,21 @@ enum EchoAIEnvironment {
 
     static func message(for error: Error) -> String {
         guard let error = error as? AIServiceError else {
-            return "Unexpected error: \(error.localizedDescription)"
+            return String(localized: "Unexpected error: \(error.localizedDescription)")
         }
         switch error {
         case .noAPIKey:
-            return "Add your DeepSeek API key in Settings first."
+            return String(localized: "Add your DeepSeek API key in Settings first.")
         case .http(statusCode: 401, _), .http(statusCode: 403, _):
-            return "DeepSeek rejected the API key. Check the key in Settings and save it again."
+            return String(localized: "DeepSeek rejected the API key. Check the key in Settings and save it again.")
         case .http(statusCode: 402, _):
-            return "Your DeepSeek account has insufficient balance. Add credit, then try again."
+            return String(localized: "Your DeepSeek account has insufficient balance. Add credit, then try again.")
         case .http(statusCode: 404, _):
-            return "The selected model is unavailable. Use deepseek-v4-flash and deepseek-v4-pro in Settings."
+            return String(localized: "The selected model is unavailable. Use deepseek-v4-flash and deepseek-v4-pro in Settings.")
         case .http(statusCode: 429, _):
-            return "DeepSeek is rate-limiting requests. Wait briefly and try again."
+            return String(localized: "DeepSeek is rate-limiting requests. Wait briefly and try again.")
         case .transport(let message):
-            return "Could not reach DeepSeek: \(message)"
+            return String(localized: "Could not reach DeepSeek: \(message)")
         default:
             return error.localizedDescription
         }
@@ -43,8 +43,8 @@ enum RelationshipAnalysisMode {
 
     var title: String {
         switch self {
-        case .insight: "Account insight"
-        case .health: "Account health"
+        case .insight: String(localized: "Account insight")
+        case .health: String(localized: "Account health")
         }
     }
 
@@ -64,8 +64,8 @@ private enum RelationshipScope: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .all: "All"
-        case .business: "Business"
+        case .all: String(localized: "All")
+        case .business: String(localized: "Business")
         }
     }
 
@@ -101,32 +101,32 @@ private enum RelationshipSelectionRule: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .opportunity: "Best opportunities"
-        case .contextRich: "Enough context"
-        case .cooling: "Cooling unusually"
-        case .overdue: "Long time no contact"
-        case .priority: "Priority contacts"
-        case .business: "Business contacts"
-        case .quiet: "Low interaction"
-        case .active: "Healthy momentum"
-        case .all: "Everyone"
+        case .opportunity: String(localized: "Best opportunities")
+        case .contextRich: String(localized: "Enough context")
+        case .cooling: String(localized: "Cooling unusually")
+        case .overdue: String(localized: "Long time no contact")
+        case .priority: String(localized: "Priority contacts")
+        case .business: String(localized: "Business contacts")
+        case .quiet: String(localized: "Low interaction")
+        case .active: String(localized: "Healthy momentum")
+        case .all: String(localized: "Everyone")
         }
     }
 
     func description(for mode: RelationshipAnalysisMode) -> String {
         switch self {
-        case .opportunity: "Combines Hot/Warm priority, business relevance, saved context, and current attention."
-        case .contextRich: "Commercial contacts with at least three interactions or two notes, so the analysis has useful evidence."
-        case .cooling: "Ranks contacts whose current gap is unusually long compared with their past follow-up rhythm."
-        case .overdue: "People you have not contacted for at least 60 days."
-        case .priority: "People marked Hot or Warm, sorted by urgency."
-        case .business: "Clients, prospects, partners, investors, and other commercial contacts."
-        case .quiet: "Contacts with two or fewer recorded interactions."
-        case .active: "Contacts with at least three interactions and contact within the last 30 days."
+        case .opportunity: String(localized: "Combines Hot/Warm priority, business relevance, saved context, and current attention.")
+        case .contextRich: String(localized: "Commercial contacts with at least three interactions or two notes, so the analysis has useful evidence.")
+        case .cooling: String(localized: "Ranks contacts whose current gap is unusually long compared with their past follow-up rhythm.")
+        case .overdue: String(localized: "People you have not contacted for at least 60 days.")
+        case .priority: String(localized: "People marked Hot or Warm, sorted by urgency.")
+        case .business: String(localized: "Clients, prospects, partners, investors, and other commercial contacts.")
+        case .quiet: String(localized: "Contacts with two or fewer recorded interactions.")
+        case .active: String(localized: "Contacts with at least three interactions and contact within the last 30 days.")
         case .all:
             mode == .insight
-                ? "The full business contact list, ranked by commercial opportunity."
-                : "The full contact list, ranked by health risk relative to past cadence."
+                ? String(localized: "The full business contact list, ranked by commercial opportunity.")
+                : String(localized: "The full contact list, ranked by health risk relative to past cadence.")
         }
     }
 
@@ -218,24 +218,24 @@ private enum RelationshipSelectionRule: String, CaseIterable, Identifiable {
     func metric(for contact: EchoContact, mode: RelationshipAnalysisMode) -> String {
         switch self {
         case .opportunity:
-            "Score \(RelationshipMetrics.opportunityScore(for: contact))"
+            "评分 \(RelationshipMetrics.opportunityScore(for: contact))"
         case .contextRich:
-            "\(contact.interactions.count + contact.notes.count) records"
+            "\(contact.interactions.count + contact.notes.count) 条记录"
         case .cooling:
             RelationshipMetrics.cadenceLabel(for: contact)
         case .overdue:
-            contact.daysSinceContact.map { "\($0)d gap" } ?? "Unknown gap"
+            contact.daysSinceContact.map { "间隔 \($0) 天" } ?? "未知间隔"
         case .priority:
             contact.priority?.title ?? "Not set"
         case .business:
-            contact.companyName ?? contact.tags.first ?? "Business"
+            contact.companyName ?? contact.tags.first ?? "商务联系人"
         case .quiet:
-            "\(contact.interactions.count) interactions"
+            "\(contact.interactions.count) 次互动"
         case .active:
-            contact.daysSinceContact.map { "\($0)d recent" } ?? "Active"
+            contact.daysSinceContact.map { "最近 \($0) 天" } ?? "活跃"
         case .all:
             mode == .insight
-                ? "Score \(RelationshipMetrics.opportunityScore(for: contact))"
+                ? "评分 \(RelationshipMetrics.opportunityScore(for: contact))"
                 : RelationshipMetrics.cadenceLabel(for: contact)
         }
     }
@@ -274,9 +274,9 @@ private enum RelationshipMetrics {
 
     static func cadenceLabel(for contact: EchoContact) -> String {
         guard averageCadenceDays(for: contact) != nil else {
-            return contact.daysSinceContact.map { "\($0)d gap" } ?? "Limited history"
+            return contact.daysSinceContact.map { "间隔 \($0) 天" } ?? "记录较少"
         }
-        return "\(gapRatio(for: contact).formatted(.number.precision(.fractionLength(1))))× cadence"
+        return "节奏差距 \(gapRatio(for: contact).formatted(.number.precision(.fractionLength(1))) ) 倍"
     }
 }
 
@@ -307,14 +307,14 @@ struct RelationshipAnalysisView: View {
 
     var body: some View {
         Form {
-            Section("Smart selection") {
-                Picker("People", selection: $scope) {
+            Section(String(localized: "Smart selection")) {
+                Picker(String(localized: "People"), selection: $scope) {
                     ForEach(RelationshipScope.allCases) { option in
                         Text(option.title).tag(option)
                     }
                 }
                 .pickerStyle(.segmented)
-                Picker("Rule", selection: $rule) {
+                Picker(String(localized: "Rule"), selection: $rule) {
                     ForEach(RelationshipSelectionRule.options(for: mode)) { option in
                         Text(option.title).tag(option)
                     }
@@ -322,19 +322,19 @@ struct RelationshipAnalysisView: View {
                 Text(rule.description(for: mode))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Picker("Batch size", selection: $limit) {
-                    Text("Top 5").tag(5)
-                    Text("Top 10").tag(10)
+                Picker(String(localized: "Batch size"), selection: $limit) {
+                    Text(String(localized: "Top 5")).tag(5)
+                    Text(String(localized: "Top 10")).tag(10)
                 }
                 .pickerStyle(.segmented)
             }
 
-            Section("\(selectedContacts.count) people selected") {
+            Section(String(localized: "\(selectedContacts.count) people selected")) {
                 ForEach(selectedContacts) { contact in
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(contact.fullName).font(.subheadline.bold())
-                            Text(contact.jobTitle ?? contact.tags.first ?? "Contact")
+                            Text(contact.jobTitle ?? contact.tags.first ?? String(localized: "Contact"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -343,7 +343,7 @@ struct RelationshipAnalysisView: View {
                             Text(rule.metric(for: contact, mode: mode))
                                 .font(.caption.bold())
                                 .foregroundStyle(.indigo)
-                            Text("Attention \(EchoEngine.recencyAttentionScore(for: contact))")
+                            Text(String(localized: "Attention \(EchoEngine.recencyAttentionScore(for: contact))"))
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -357,12 +357,12 @@ struct RelationshipAnalysisView: View {
                 } label: {
                     HStack {
                         if isLoading { ProgressView() }
-                        Label("Analyze \(selectedContacts.count) people", systemImage: "sparkles")
+                        Label(String(localized: "Analyze \(selectedContacts.count) people"), systemImage: "sparkles")
                     }
                 }
                 .disabled(isLoading || selectedContacts.isEmpty)
             } footer: {
-                Text("Echo analyzes the selected commercial group in one DeepSeek request.")
+                Text(String(localized: "Echo analyzes the selected commercial group in one DeepSeek request."))
             }
 
             if let result {
@@ -377,11 +377,11 @@ struct RelationshipAnalysisView: View {
         .onChange(of: scope) { _, _ in result = nil }
         .onChange(of: rule) { _, _ in result = nil }
         .onChange(of: limit) { _, _ in result = nil }
-        .alert("Echo AI", isPresented: Binding(
+        .alert(String(localized: "Echo AI"), isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
         )) {
-            Button("OK") { errorMessage = nil }
+            Button(String(localized: "OK")) { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
         }
@@ -462,14 +462,14 @@ struct DailyBriefingView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 AIHero(
-                    title: "Start with the business contacts that matter",
-                    subtitle: "Echo weighs time since contact, commercial role, pipeline context, and your latest notes.",
+                    title: String(localized: "Start with the business contacts that matter"),
+                    subtitle: String(localized: "Echo weighs time since contact, commercial role, pipeline context, and your latest notes."),
                     symbol: "sun.max.fill",
                     color: .orange
                 )
 
                 briefingGroup(
-                    title: "Business follow-ups",
+                    title: String(localized: "Business follow-ups"),
                     symbol: "briefcase.fill",
                     contacts: businessPriorityContacts
                 )
@@ -477,7 +477,7 @@ struct DailyBriefingView: View {
                 Button(action: generate) {
                     HStack {
                         if isLoading { ProgressView().tint(.white) }
-                        Text("Create today's briefing")
+                        Text(String(localized: "Create today's briefing"))
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -491,13 +491,13 @@ struct DailyBriefingView: View {
             }
             .padding()
         }
-        .navigationTitle("Daily briefing")
+        .navigationTitle(String(localized: "Daily briefing"))
         .navigationBarTitleDisplayMode(.inline)
-        .alert("Echo AI", isPresented: Binding(
+        .alert(String(localized: "Echo AI"), isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
         )) {
-            Button("OK") { errorMessage = nil }
+            Button(String(localized: "OK")) { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
         }
@@ -511,7 +511,7 @@ struct DailyBriefingView: View {
         VStack(alignment: .leading, spacing: 12) {
             Label(title, systemImage: symbol).font(.headline)
             if contacts.isEmpty {
-                Text("No business follow-ups need attention here today.")
+                Text(String(localized: "No business follow-ups need attention here today."))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -519,7 +519,7 @@ struct DailyBriefingView: View {
                     HStack {
                         VStack(alignment: .leading) {
                             Text(contact.fullName).font(.subheadline.bold())
-                            Text(contact.jobTitle ?? contact.tags.first ?? "Contact")
+                            Text(contact.jobTitle ?? contact.tags.first ?? String(localized: "Contact"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -587,33 +587,33 @@ struct SalesCoachingView: View {
         Form {
             if deals.isEmpty {
                 ContentUnavailableView(
-                    "No deals yet",
+                    String(localized: "No deals yet"),
                     systemImage: "chart.line.uptrend.xyaxis",
-                    description: Text("Add a deal in Pipeline first.")
+                    description: Text(String(localized: "Add a deal in Pipeline first."))
                 )
             } else {
-                Section("Deal") {
-                    Picker("Opportunity", selection: $selectedIndex) {
+                Section(String(localized: "Deal")) {
+                    Picker(String(localized: "Opportunity"), selection: $selectedIndex) {
                         ForEach(Array(deals.enumerated()), id: \.offset) { index, deal in
                             Text(deal.title).tag(index)
                         }
                     }
                     if let deal = selectedDeal {
-                        LabeledContent("Stage", value: deal.stage.title)
+                        LabeledContent(String(localized: "Stage"), value: deal.stage.localizedTitle)
                         LabeledContent(
-                            "Value",
+                            String(localized: "Value"),
                             value: deal.value.formatted(.currency(code: "USD").precision(.fractionLength(0)))
                         )
                         if let contact = deal.contact {
-                            LabeledContent("Contact", value: contact.fullName)
+                            LabeledContent(String(localized: "Contact"), value: contact.fullName)
                         }
                     }
                 }
 
-                Section("Conversation or follow-up notes") {
+                Section(String(localized: "Conversation or follow-up notes")) {
                     TextEditor(text: $transcript)
                         .frame(minHeight: 150)
-                    Text("Paste a call summary, message thread, or your planned follow-up.")
+                    Text(String(localized: "Paste a call summary, message thread, or your planned follow-up."))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -622,7 +622,7 @@ struct SalesCoachingView: View {
                     Button(action: generate) {
                         HStack {
                             if isLoading { ProgressView() }
-                            Label("Get follow-up advice", systemImage: "sparkles")
+                            Label(String(localized: "Get follow-up advice"), systemImage: "sparkles")
                         }
                     }
                     .disabled(isLoading || transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -635,15 +635,15 @@ struct SalesCoachingView: View {
                 }
             }
         }
-        .navigationTitle("Sales follow-up")
+        .navigationTitle(String(localized: "Sales follow-up"))
         .navigationBarTitleDisplayMode(.inline)
         .task { loadDefaultTranscript() }
         .onChange(of: selectedIndex) { _, _ in loadDefaultTranscript() }
-        .alert("Echo AI", isPresented: Binding(
+        .alert(String(localized: "Echo AI"), isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
         )) {
-            Button("OK") { errorMessage = nil }
+            Button(String(localized: "OK")) { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
         }
@@ -695,8 +695,8 @@ enum DocumentRecognitionKind {
 
     var title: String {
         switch self {
-        case .businessCard: "Business card"
-        case .policy: "Policy scan"
+        case .businessCard: String(localized: "Business card")
+        case .policy: String(localized: "Policy scan")
         }
     }
 
@@ -725,15 +725,15 @@ struct DocumentRecognitionView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 AIHero(
-                    title: kind == .businessCard ? "Turn a card into a contact" : "Understand a policy at a glance",
-                    subtitle: "Text recognition happens on this device. DeepSeek structures the extracted text after you choose a photo.",
+                    title: kind == .businessCard ? String(localized: "Turn a card into a contact") : String(localized: "Understand a policy at a glance"),
+                    subtitle: String(localized: "Text recognition happens on this device. DeepSeek structures the extracted text after you choose a photo."),
                     symbol: kind.symbol,
                     color: kind == .businessCard ? .blue : .teal
                 )
 
                 PhotosPicker(selection: $selectedPhoto, matching: .images) {
                     Label(
-                        extractedText.isEmpty ? "Choose photo" : "Choose another photo",
+                        extractedText.isEmpty ? String(localized: "Choose photo") : String(localized: "Choose another photo"),
                         systemImage: "photo.on.rectangle"
                     )
                     .frame(maxWidth: .infinity)
@@ -745,7 +745,7 @@ struct DocumentRecognitionView: View {
                 if isLoading {
                     HStack(spacing: 12) {
                         ProgressView()
-                        Text("Reading and structuring the document…")
+                        Text(String(localized: "Reading and structuring the document…"))
                             .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity)
@@ -753,7 +753,7 @@ struct DocumentRecognitionView: View {
                 }
 
                 if !extractedText.isEmpty {
-                    DisclosureGroup("Recognized text") {
+                    DisclosureGroup(String(localized: "Recognized text")) {
                         Text(extractedText)
                             .font(.footnote.monospaced())
                             .textSelection(.enabled)
@@ -765,17 +765,17 @@ struct DocumentRecognitionView: View {
 
                 if let card {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Card details").font(.headline)
-                        ResultRow("Name", card.name)
-                        ResultRow("Company", card.company)
-                        ResultRow("Title", card.title)
-                        ResultRow("Phone", card.phone)
-                        ResultRow("Email", card.email)
-                        ResultRow("Website", card.website)
+                        Text(String(localized: "Card details")).font(.headline)
+                        ResultRow(String(localized: "Name"), card.name)
+                        ResultRow(String(localized: "Company"), card.company)
+                        ResultRow(String(localized: "Title"), card.title)
+                        ResultRow(String(localized: "Phone"), card.phone)
+                        ResultRow(String(localized: "Email"), card.email)
+                        ResultRow(String(localized: "Website"), card.website)
                         if let model {
                             Text(model).font(.caption2).foregroundStyle(.tertiary)
                         }
-                        Button(saved ? "Saved to People" : "Save to People", action: saveCard)
+                        Button(saved ? String(localized: "Saved to People") : String(localized: "Save to People"), action: saveCard)
                             .buttonStyle(.borderedProminent)
                             .disabled(saved || card.name.isEmpty)
                     }
@@ -785,16 +785,16 @@ struct DocumentRecognitionView: View {
 
                 if let policy {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Policy details").font(.headline)
-                        ResultRow("Policy number", policy.policyNumber)
-                        ResultRow("Insured", policy.insuredName)
-                        ResultRow("Type", policy.insuranceType)
-                        ResultRow("Premium", policy.premiumAmount)
-                        ResultRow("Coverage", policy.coverageAmount)
-                        ResultRow("Effective", policy.effectiveDate)
-                        ResultRow("Expiry", policy.expiryDate)
-                        ResultRow("Beneficiary", policy.beneficiary)
-                        ResultRow("Notes", policy.notes)
+                        Text(String(localized: "Policy details")).font(.headline)
+                        ResultRow(String(localized: "Policy number"), policy.policyNumber)
+                        ResultRow(String(localized: "Insured"), policy.insuredName)
+                        ResultRow(String(localized: "Type"), policy.insuranceType)
+                        ResultRow(String(localized: "Premium"), policy.premiumAmount)
+                        ResultRow(String(localized: "Coverage"), policy.coverageAmount)
+                        ResultRow(String(localized: "Effective"), policy.effectiveDate)
+                        ResultRow(String(localized: "Expiry"), policy.expiryDate)
+                        ResultRow(String(localized: "Beneficiary"), policy.beneficiary)
+                        ResultRow(String(localized: "Notes"), policy.notes)
                         if let model {
                             Text(model).font(.caption2).foregroundStyle(.tertiary)
                         }
@@ -811,11 +811,11 @@ struct DocumentRecognitionView: View {
             guard let item else { return }
             recognize(item)
         }
-        .alert("Echo AI", isPresented: Binding(
+        .alert(String(localized: "Echo AI"), isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
         )) {
-            Button("OK") { errorMessage = nil }
+            Button(String(localized: "OK")) { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
         }

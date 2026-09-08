@@ -145,9 +145,9 @@ struct VCFImportPreviewView: View {
 
     private func label(for action: VCFContactCandidate.Action) -> String {
         switch action {
-        case .add: "New"
-        case .update: "Update"
-        case .unchanged: "Exists"
+        case .add: String(localized: "New")
+        case .update: String(localized: "Update")
+        case .unchanged: String(localized: "Exists")
         }
     }
 

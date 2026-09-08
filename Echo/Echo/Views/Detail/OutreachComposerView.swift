@@ -18,8 +18,8 @@ enum OutreachChannel: Identifiable, Equatable {
 
     var title: String {
         switch self {
-        case .message: "Message"
-        case .email: "Email"
+        case .message: String(localized: "Message")
+        case .email: String(localized: "Email")
         case .social(let platform): platform.title
         }
     }

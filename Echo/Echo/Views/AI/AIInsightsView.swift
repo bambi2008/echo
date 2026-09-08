@@ -18,9 +18,9 @@ struct AIInsightsView: View {
             List {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Business signals, not guesses")
+                        Text(String(localized: "Business signals, not guesses"))
                             .font(.title2.bold())
-                        Text("These observations use only the commercial context and activity you recorded in Echo. No API key is needed for local ranking.")
+                        Text(String(localized: "These observations use only the commercial context and activity you recorded in Echo. No API key is needed for local ranking."))
                             .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 6)
@@ -29,22 +29,22 @@ struct AIInsightsView: View {
                     NavigationLink {
                         RelationshipAnalysisView(mode: .insight, contacts: activeContacts)
                     } label: {
-                        Label("Account insight", systemImage: "person.text.rectangle")
+                        Label(String(localized: "Account insight"), systemImage: "person.text.rectangle")
                     }
                     NavigationLink {
                         RelationshipAnalysisView(mode: .health, contacts: activeContacts)
                     } label: {
-                        Label("Account health", systemImage: "chart.bar.xaxis")
+                        Label(String(localized: "Account health"), systemImage: "chart.bar.xaxis")
                     }
                     NavigationLink {
                         DailyBriefingView(contacts: activeContacts)
                     } label: {
-                        Label("Today's business brief", systemImage: "sun.max.fill")
+                        Label(String(localized: "Today's business brief"), systemImage: "sun.max.fill")
                     }
                 } header: {
-                    Text("AI tools")
+                    Text(String(localized: "AI tools"))
                 } footer: {
-                    Text("Choose a rule and let Echo rank a small group before sending any AI request. Outreach is never sent automatically.")
+                    Text(String(localized: "Choose a rule and let Echo rank a small group before sending any AI request. Outreach is never sent automatically."))
                 }
                 ForEach(insights) { insight in
                     Section {
@@ -68,10 +68,10 @@ struct AIInsightsView: View {
 
     private func reason(for insight: LocalRelationshipInsight) -> String {
         switch insight.kind {
-        case .intentionAheadOfAction: "Some high-priority business contacts have no completed follow-up in Echo yet."
-        case .spaceMismatch: "Some low-priority contacts still have repeated activity; review where effort is going."
-        case .intentChanged: "A business role or follow-up preference changed over time."
-        case .journeyProgress: "This summarizes the commercial context recorded in Echo."
+        case .intentionAheadOfAction: String(localized: "Some high-priority business contacts have no completed follow-up in Echo yet.")
+        case .spaceMismatch: String(localized: "Some low-priority contacts still have repeated activity; review where effort is going.")
+        case .intentChanged: String(localized: "A business role or follow-up preference changed over time.")
+        case .journeyProgress: String(localized: "This summarizes the commercial context recorded in Echo.")
         case .insufficientData: String(localized: "Echo does not infer a pattern until you have recorded enough context.")
         }
     }

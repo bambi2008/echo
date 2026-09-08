@@ -70,8 +70,8 @@ enum RelationshipGuidanceEngine {
             return [LocalRelationshipInsight(
                 id: "insufficient",
                 kind: .insufficientData,
-                title: "Not enough business activity yet",
-                detail: "Add a role, a note, or a completed follow-up to a few business contacts before asking Echo to find patterns.",
+                title: String(localized: "Not enough business activity yet"),
+                detail: String(localized: "Add a role, a note, or a completed follow-up to a few business contacts before asking Echo to find patterns."),
                 contactIdentifiers: []
             )]
         }
@@ -85,8 +85,8 @@ enum RelationshipGuidanceEngine {
             insights.append(LocalRelationshipInsight(
                 id: "deepen-gap",
                 kind: .intentionAheadOfAction,
-                title: "Priority contacts need a next step",
-                detail: "\(priorityWithoutActions.count) Hot or Warm contacts have no completed follow-up recorded in Echo yet.",
+                title: String(localized: "Priority contacts need a next step"),
+                detail: String(localized: "\(priorityWithoutActions.count) Hot or Warm contacts have no completed follow-up recorded in Echo yet."),
                 contactIdentifiers: priorityWithoutActions.map(\.systemIdentifier)
             ))
         }
@@ -99,8 +99,8 @@ enum RelationshipGuidanceEngine {
             insights.append(LocalRelationshipInsight(
                 id: "space-gap",
                 kind: .spaceMismatch,
-                title: "Business contacts are cooling",
-                detail: "\(cooling.count) commercial contacts have no recorded activity for 60 days or more. Review Pipeline and set a next action where needed.",
+                title: String(localized: "Business contacts are cooling"),
+                detail: String(localized: "\(cooling.count) commercial contacts have no recorded activity for 60 days or more. Review Pipeline and set a next action where needed."),
                 contactIdentifiers: cooling.map(\.systemIdentifier)
             ))
         }
@@ -110,8 +110,8 @@ enum RelationshipGuidanceEngine {
             insights.append(LocalRelationshipInsight(
                 id: "unclassified",
                 kind: .intentChanged,
-                title: "Some contacts need a business role",
-                detail: "Classify \(unclassified.count) contacts as prospects, clients, partners, or another role so Echo can rank them accurately.",
+                title: String(localized: "Some contacts need a business role"),
+                detail: String(localized: "Classify \(unclassified.count) contacts as prospects, clients, partners, or another role so Echo can rank them accurately."),
                 contactIdentifiers: unclassified.map(\.systemIdentifier)
             ))
         }
@@ -127,8 +127,8 @@ enum RelationshipGuidanceEngine {
             insights.append(LocalRelationshipInsight(
                 id: "legacy-intent",
                 kind: .intentionAheadOfAction,
-                title: "Business intent needs a next step",
-                detail: "(legacyIntentContacts.count) commercial contacts have a recorded intent but no new follow-up decision in the business workspace.",
+                title: String(localized: "Business intent needs a next step"),
+                detail: String(localized: "\(legacyIntentContacts.count) commercial contacts have a recorded intent but no new follow-up decision in the business workspace."),
                 contactIdentifiers: legacyIntentContacts.map(\.systemIdentifier)
             ))
         }
@@ -140,8 +140,8 @@ enum RelationshipGuidanceEngine {
         insights.append(LocalRelationshipInsight(
             id: "progress",
             kind: .journeyProgress,
-            title: "Your business network is taking shape",
-            detail: "Echo has context for \(reviewed.count) commercial contacts: \(roleSummary).",
+            title: String(localized: "Your business network is taking shape"),
+            detail: String(localized: "Echo has context for \(reviewed.count) commercial contacts: \(roleSummary)."),
             contactIdentifiers: reviewed.map(\.systemIdentifier)
         ))
         return insights

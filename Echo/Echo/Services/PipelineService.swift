@@ -4,14 +4,18 @@ import SwiftData
 enum NextActionFilter: String, CaseIterable, Identifiable {
     case any, due, overdue, unscheduled
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String { String(localized: String.LocalizationValue(rawValue.capitalized)) }
 }
 
 enum PipelineSort: String, CaseIterable, Identifiable {
     case newest, nextAction, priority, aiScore
     var id: String { rawValue }
     var title: String {
-        switch self { case .nextAction: "Next action"; case .aiScore: "AI score"; default: rawValue.capitalized }
+        switch self {
+        case .nextAction: String(localized: "Next action")
+        case .aiScore: String(localized: "AI score")
+        default: String(localized: String.LocalizationValue(rawValue.capitalized))
+        }
     }
 }
 
@@ -241,10 +245,10 @@ enum PipelineStageError: LocalizedError {
     case needsTwoStages, duplicateName, terminalStagesRequired, stageInUse(String)
     var errorDescription: String? {
         switch self {
-        case .needsTwoStages: "Keep at least two named stages."
-        case .duplicateName: "Each stage needs a unique name."
-        case .terminalStagesRequired: "Won and Lost are protected terminal stages."
-        case .stageInUse(let name): "Move items out of \(name) before deleting it."
+        case .needsTwoStages: String(localized: "Keep at least two named stages.")
+        case .duplicateName: String(localized: "Each stage needs a unique name.")
+        case .terminalStagesRequired: String(localized: "Won and Lost are protected terminal stages.")
+        case .stageInUse(let name): String(localized: "Move items out of \(name) before deleting it.")
         }
     }
 }

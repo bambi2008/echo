@@ -137,7 +137,10 @@ struct ContactDetailView: View {
                     LabeledContent("Company", value: companyName)
                 }
                 if !contact.tags.isEmpty {
-                    LabeledContent("Identity", value: contact.tags.joined(separator: " · "))
+                    LabeledContent(
+                        "Identity",
+                        value: contact.tags.map { ContactIdentity(rawValue: $0)?.title ?? $0 }.joined(separator: " · ")
+                    )
                 }
             }
 
@@ -152,7 +155,7 @@ struct ContactDetailView: View {
                                 HStack {
                                     Text(deal.title).font(.headline)
                                     Spacer()
-                                    Text(deal.stage.title)
+                                    Text(deal.stage.localizedTitle)
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(.indigo)
                                 }

@@ -12,7 +12,7 @@ struct PipelineStageDefinition: Identifiable, Hashable {
     var title: String { legacyStage?.title ?? id }
     var displayTitle: String {
         guard legacyStage != nil else { return id }
-        return String(localized: String.LocalizationValue(title))
+        return legacyStage?.localizedTitle ?? id
     }
     var symbol: String { legacyStage?.symbol ?? "circle.fill" }
     var isClosed: Bool { legacyStage?.isClosed == true }

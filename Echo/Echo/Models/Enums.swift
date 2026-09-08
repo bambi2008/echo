@@ -184,9 +184,9 @@ enum RelationshipDomain: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .personal: "Personal"
-        case .business: "Business"
-        case .both: "Both"
+        case .personal: String(localized: "Personal")
+        case .business: String(localized: "Business")
+        case .both: String(localized: "Both")
         }
     }
 
@@ -221,15 +221,15 @@ enum BusinessContactRole: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .prospect: "Prospect"
-        case .client: "Client"
-        case .partner: "Partner"
-        case .supplier: "Supplier"
-        case .investor: "Investor"
-        case .advisor: "Advisor"
-        case .colleague: "Colleague"
-        case .referral: "Referral source"
-        case .other: "Other business contact"
+        case .prospect: String(localized: "Prospect")
+        case .client: String(localized: "Client")
+        case .partner: String(localized: "Partner")
+        case .supplier: String(localized: "Supplier")
+        case .investor: String(localized: "Investor")
+        case .advisor: String(localized: "Advisor")
+        case .colleague: String(localized: "Colleague")
+        case .referral: String(localized: "Referral source")
+        case .other: String(localized: "Other business contact")
         }
     }
 
@@ -264,6 +264,10 @@ enum ContactIdentity: String, CaseIterable, Identifiable {
     case community = "Community"
 
     var id: String { rawValue }
+
+    var title: String {
+        String(localized: String.LocalizationValue(rawValue))
+    }
 
     var domain: RelationshipDomain {
         switch self {
@@ -316,6 +320,9 @@ enum DealStage: String, Codable, CaseIterable, Identifiable {
         case .closedLost: "Lost"
         }
     }
+    var localizedTitle: String {
+        String(localized: String.LocalizationValue(title))
+    }
     var symbol: String {
         switch self {
         case .discovered, .lead: "sparkle.magnifyingglass"
@@ -347,13 +354,13 @@ enum DealStage: String, Codable, CaseIterable, Identifiable {
 enum AgentAutonomyLevel: String, Codable, CaseIterable, Identifiable {
     case manual, assist, supervised, autonomous
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String { String(localized: String.LocalizationValue(rawValue.capitalized)) }
     var explanation: String {
         switch self {
-        case .manual: "No agent actions"
-        case .assist: "Analyze and recommend"
-        case .supervised: "Prepare actions for approval"
-        case .autonomous: "Act only within an explicit policy"
+        case .manual: String(localized: "No agent actions")
+        case .assist: String(localized: "Analyze and recommend")
+        case .supervised: String(localized: "Prepare actions for approval")
+        case .autonomous: String(localized: "Act only within an explicit policy")
         }
     }
 }
@@ -361,13 +368,13 @@ enum AgentAutonomyLevel: String, Codable, CaseIterable, Identifiable {
 enum PipelineItemStatus: String, Codable, CaseIterable, Identifiable {
     case active, paused, won, lost, archived
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String { String(localized: String.LocalizationValue(rawValue.capitalized)) }
 }
 
 enum WorkPriority: String, Codable, CaseIterable, Identifiable {
     case low, medium, high, urgent
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String { String(localized: String.LocalizationValue(rawValue.capitalized)) }
     var rank: Int {
         switch self { case .low: 0; case .medium: 1; case .high: 2; case .urgent: 3 }
     }
@@ -376,13 +383,13 @@ enum WorkPriority: String, Codable, CaseIterable, Identifiable {
 enum InteractionActor: String, Codable, CaseIterable, Identifiable {
     case human, agent, external
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String { String(localized: String.LocalizationValue(rawValue.capitalized)) }
 }
 
 enum InteractionDirection: String, Codable, CaseIterable, Identifiable {
     case inbound, outbound, internalDirection = "internal"
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String { String(localized: String.LocalizationValue(rawValue.capitalized)) }
 }
 
 enum AgentActionType: String, Codable, CaseIterable, Identifiable {
@@ -391,11 +398,11 @@ enum AgentActionType: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .followUp: "Follow up"
-        case .messageReceived: "Message received"
-        case .stageChange: "Stage change"
-        case .scoreChange: "Score change"
-        default: rawValue.capitalized
+        case .followUp: String(localized: "Follow up")
+        case .messageReceived: String(localized: "Message received")
+        case .stageChange: String(localized: "Stage change")
+        case .scoreChange: String(localized: "Score change")
+        default: String(localized: String.LocalizationValue(rawValue.capitalized))
         }
     }
 }
@@ -403,14 +410,14 @@ enum AgentActionType: String, Codable, CaseIterable, Identifiable {
 enum AgentActionStatus: String, Codable, CaseIterable, Identifiable {
     case proposed, approved, running, completed, failed, cancelled
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String { String(localized: String.LocalizationValue(rawValue.capitalized)) }
 }
 
 enum EvidenceSourceType: String, Codable, CaseIterable, Identifiable {
     case web, document, email, userProvided, system, other
     var id: String { rawValue }
     var title: String {
-        switch self { case .userProvided: "User provided"; default: rawValue.capitalized }
+        switch self { case .userProvided: String(localized: "User provided"); default: String(localized: String.LocalizationValue(rawValue.capitalized)) }
     }
 }
 
@@ -419,11 +426,11 @@ enum InteractionType: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .reachedOut: "Reached out"
-        case .called: "Called"
-        case .messaged: "Messaged"
-        case .emailed: "Emailed"
-        case .metInPerson: "Met in person"
+        case .reachedOut: String(localized: "Reached out")
+        case .called: String(localized: "Called")
+        case .messaged: String(localized: "Messaged")
+        case .emailed: String(localized: "Emailed")
+        case .metInPerson: String(localized: "Met in person")
         }
     }
     var symbol: String {

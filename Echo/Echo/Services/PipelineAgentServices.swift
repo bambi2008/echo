@@ -12,12 +12,12 @@ enum PipelineAgentError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .missingOrganizationWebsite: "Add an organization website before researching it."
-        case .invalidWebsite: "The organization website is not a valid HTTPS or HTTP URL."
-        case .websiteRequestFailed(let code): "The organization website returned HTTP \(code)."
-        case .emptyWebsite: "No readable text was found on the organization website."
-        case .missingPrimaryContactEmail: "Add an email address to the primary contact first."
-        case .emailSentButAuditFailed(let message): "Gmail accepted the email, but Echo could not save its timeline record: \(message)"
+        case .missingOrganizationWebsite: String(localized: "Add an organization website before researching it.")
+        case .invalidWebsite: String(localized: "The organization website is not a valid HTTPS or HTTP URL.")
+        case .websiteRequestFailed(let code): String(localized: "The organization website returned HTTP \(code).")
+        case .emptyWebsite: String(localized: "No readable text was found on the organization website.")
+        case .missingPrimaryContactEmail: String(localized: "Add an email address to the primary contact first.")
+        case .emailSentButAuditFailed(let message): String(localized: "Gmail accepted the email, but Echo could not save its timeline record: \(message)")
         }
     }
 }
@@ -28,7 +28,7 @@ struct DeepSeekPipelineAgentService: AgentService {
 
     func evaluate(item: Deal, in context: ModelContext) async throws {
         let audit = AgentAction(actionType: .analysis, status: .running,
-            summary: "Analyzing pipeline context", source: "DeepSeek",
+            summary: String(localized: "Analyzing pipeline context"), source: "DeepSeek",
             pipelineItem: item, organization: item.organization, contact: item.contact)
         context.insert(audit)
         try context.save()
@@ -74,12 +74,12 @@ struct DeepSeekPipelineAgentService: AgentService {
             value.riskNotes = privacy.restoreAliases(in: result.value.riskNotes)
             value.lastEvaluatedAt = .now
             audit.status = .completed
-            audit.summary = "Pipeline intelligence updated"
-            audit.details = "Model: \(result.model.rawValue)"
+            audit.summary = String(localized: "Pipeline intelligence updated")
+            audit.details = String(localized: "Model: \(result.model.rawValue)")
             try context.save()
         } catch {
             audit.status = .failed
-            audit.summary = "Pipeline analysis failed"
+            audit.summary = String(localized: "Pipeline analysis failed")
             audit.details = error.localizedDescription
             try context.save()
             throw error
@@ -140,7 +140,7 @@ struct PipelineResearchCoordinator {
     func research(item: Deal, provider: any ResearchProvider, in context: ModelContext) async throws {
         guard let organization = item.organization else { throw PipelineAgentError.missingOrganizationWebsite }
         let audit = AgentAction(actionType: .research, status: .running,
-            summary: "Researching organization website", source: "Website",
+            summary: String(localized: "Researching organization website"), source: "Website",
             pipelineItem: item, organization: organization, contact: item.contact)
         context.insert(audit)
         try context.save()
@@ -154,12 +154,12 @@ struct PipelineResearchCoordinator {
                 context.insert(source)
             }
             audit.status = .completed
-            audit.summary = "Organization website captured"
-            audit.details = "Stored \(evidence.count) source record(s)."
+            audit.summary = String(localized: "Organization website captured")
+            audit.details = String(localized: "Stored \(evidence.count) source record(s).")
             try context.save()
         } catch {
             audit.status = .failed
-            audit.summary = "Website research failed"
+            audit.summary = String(localized: "Website research failed")
             audit.details = error.localizedDescription
             try context.save()
             throw error
@@ -206,7 +206,7 @@ struct GmailEmailDeliveryProvider: EmailDeliveryProvider {
 struct PipelineEmailService {
     func recordPrepared(_ outreach: PreparedOutreach, for item: Deal, in context: ModelContext) throws {
         context.insert(AgentAction(actionType: .outreach, status: .proposed,
-            summary: "Prepared email draft", details: "Model: \(outreach.model ?? "Unknown")",
+            summary: String(localized: "Prepared email draft"), details: String(localized: "Model: \(outreach.model ?? "Unknown")"),
             source: outreach.model == nil ? "Human" : "DeepSeek",
             pipelineItem: item, organization: item.organization, contact: item.contact))
         try context.save()
@@ -227,19 +227,19 @@ struct PipelineEmailService {
             receipt = try await provider.send(outreach, to: recipient)
         } catch {
             context.insert(AgentAction(actionType: .outreach, status: .failed,
-                summary: "Gmail send failed", details: error.localizedDescription,
+                summary: String(localized: "Gmail send failed"), details: error.localizedDescription,
                 source: "Gmail", pipelineItem: item, organization: item.organization, contact: contact))
             try context.save()
             throw error
         }
         do {
             context.insert(Interaction(date: receipt.sentAt, type: .emailed,
-                summary: "Sent email: \(outreach.subject)", contact: contact,
+                summary: String(localized: "Sent email: \(outreach.subject)"), contact: contact,
                 externalIdentifier: "gmail:\(receipt.externalIdentifier):\(contact.systemIdentifier)",
                 source: "gmail", isIncoming: false, actor: .human, direction: .outbound,
                 pipelineItem: item, organization: item.organization))
             context.insert(AgentAction(timestamp: receipt.sentAt, actionType: .outreach,
-                status: .completed, summary: "Email sent via Gmail", details: "Subject: \(outreach.subject)",
+                status: .completed, summary: String(localized: "Email sent via Gmail"), details: String(localized: "Subject: \(outreach.subject)"),
                 source: "Gmail", pipelineItem: item, organization: item.organization, contact: contact))
             contact.lastReachedOut = max(contact.lastReachedOut ?? .distantPast, receipt.sentAt)
             contact.reachCount += 1
