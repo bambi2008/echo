@@ -32,6 +32,20 @@
 				<string>com.googleusercontent.apps.584656353169-ih6dd4dth5lo17aigac05k5l5qju6nr5</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.bambi2008.Echo</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.bambi2008.echo</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>com.bambi2008.kip</string>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>

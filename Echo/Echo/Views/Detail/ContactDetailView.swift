@@ -2,6 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct ContactDetailView: View {
+    @EnvironmentObject private var kipHandoffRouter: KipHandoffRouter
     @Environment(\.dismiss) private var dismissDetail
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
@@ -17,6 +18,7 @@ struct ContactDetailView: View {
     @State private var dealPendingDeletion: Deal?
     @State private var showingDeleteDealConfirmation = false
     @State private var dealErrorMessage: String?
+    @State private var kipHandoffMessage: String?
 
     var body: some View {
         List {
@@ -51,6 +53,50 @@ struct ContactDetailView: View {
                 Text("Business profile")
             } footer: {
                 Text("Use this profile to decide who needs a follow-up and what to do next.")
+            }
+
+            if let handoff = kipHandoffRouter.handoff(for: contact) {
+                Section {
+                    Label {
+                        Text("\(handoff.action.title) \(contact.fullName)")
+                            .font(.headline)
+                    } icon: {
+                        Image(systemName: handoff.action.symbol)
+                            .foregroundStyle(.indigo)
+                    }
+                    if !handoff.note.isEmpty {
+                        Text(handoff.note)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let eventAt = handoff.eventAt {
+                        Label {
+                            Text(eventAt, format: .dateTime.month().day().hour().minute())
+                        } icon: {
+                            Image(systemName: "calendar")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                    if canStart(handoff.action) {
+                        Button {
+                            start(handoff.action)
+                        } label: {
+                            Label(startTitle(handoff.action), systemImage: handoff.action.symbol)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.indigo)
+                    }
+                    Button {
+                        completeKipHandoff()
+                    } label: {
+                        Label("Completed — return to Kip", systemImage: "checkmark.circle.fill")
+                    }
+                } header: {
+                    Text("From Kip")
+                } footer: {
+                    Text("Echo never sends a message or places a call without your confirmation.")
+                }
             }
 
             if contact.phoneNumber != nil || contact.emailAddress != nil {
@@ -329,6 +375,14 @@ struct ContactDetailView: View {
         } message: {
             Text(dealErrorMessage ?? "")
         }
+        .alert("Kip and Echo", isPresented: Binding(
+            get: { kipHandoffMessage != nil },
+            set: { if !$0 { kipHandoffMessage = nil } }
+        )) {
+            Button("OK") { kipHandoffMessage = nil }
+        } message: {
+            Text(kipHandoffMessage ?? "")
+        }
     }
 
     private var subtitle: String? {
@@ -399,6 +453,64 @@ struct ContactDetailView: View {
             dealPendingDeletion = nil
         } catch {
             dealErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func canStart(_ action: KipHandoffAction) -> Bool {
+        switch action {
+        case .call:
+            contact.phoneNumber.flatMap { PhoneCallService.destination(for: $0) } != nil
+        case .message:
+            contact.phoneNumber != nil
+        case .email:
+            contact.emailAddress != nil
+        case .contact:
+            contact.phoneNumber != nil || contact.emailAddress != nil
+        case .meet:
+            false
+        }
+    }
+
+    private func startTitle(_ action: KipHandoffAction) -> String {
+        switch action {
+        case .call: "Start call"
+        case .message: "Write message"
+        case .email: "Write email"
+        case .contact: contact.phoneNumber == nil ? "Write email" : "Choose a message"
+        case .meet: ""
+        }
+    }
+
+    private func start(_ action: KipHandoffAction) {
+        switch action {
+        case .call:
+            guard let phoneNumber = contact.phoneNumber,
+                  let callURL = PhoneCallService.destination(for: phoneNumber) else { return }
+            EchoEngine.markReachedOut(to: contact, type: .called, note: nil, in: modelContext)
+            openURL(callURL)
+        case .message:
+            outreachChannel = .message
+        case .email:
+            outreachChannel = .email
+        case .contact:
+            if contact.phoneNumber != nil {
+                outreachChannel = .message
+            } else if contact.emailAddress != nil {
+                outreachChannel = .email
+            }
+        case .meet:
+            break
+        }
+    }
+
+    private func completeKipHandoff() {
+        guard let url = kipHandoffRouter.completionURL() else { return }
+        openURL(url) { result in
+            if case .discarded = result {
+                kipHandoffMessage = "Kip could not be opened. Keep Kip installed, then try again."
+            } else {
+                kipHandoffRouter.clear()
+            }
         }
     }
 }

@@ -35,6 +35,30 @@ final class EchoTests: XCTestCase {
         XCTAssertEqual(contact.initials, "LP")
     }
 
+    func testKipHandoffRoutesOnlyValidatedEchoLinks() {
+        let router = KipHandoffRouter()
+        let url = URL(string: "com.bambi2008.echo://kip-handoff?person=%E5%BC%A0%E4%B8%89&kipItemId=kip-42&action=call&note=%E7%A1%AE%E8%AE%A4%E5%90%88%E5%90%8C")!
+
+        XCTAssertTrue(router.handle(url))
+        XCTAssertEqual(router.handoff?.person, "张三")
+        XCTAssertEqual(router.handoff?.itemID, "kip-42")
+        XCTAssertEqual(router.handoff?.action, .call)
+        XCTAssertEqual(router.handoff?.note, "确认合同")
+        XCTAssertFalse(router.handle(URL(string: "https://example.com")!))
+    }
+
+    func testKipContactMatcherPrefersAnExactNormalizedName() {
+        let target = EchoContact(givenName: "Jing", familyName: "Chen")
+        let partial = EchoContact(givenName: "Jing", familyName: "Chen Smith")
+
+        let matches = KipContactMatcher.matches(
+            person: "jing chen",
+            contacts: [partial, target]
+        )
+
+        XCTAssertEqual(matches.map(\.systemIdentifier), [target.systemIdentifier])
+    }
+
     func testPhonePlaceholderDisplaysAsUnnamedAndIsExcludedFromTodaysEcho() {
         let contact = EchoContact(
             givenName: "18111090503",

@@ -4,6 +4,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct RelationshipsView: View {
+    @EnvironmentObject private var kipHandoffRouter: KipHandoffRouter
     @Environment(\.modelContext) private var modelContext
     @Environment(\.editMode) private var editMode
     @Query(sort: \EchoContact.givenName) private var contacts: [EchoContact]
@@ -20,6 +21,8 @@ struct RelationshipsView: View {
     @State private var confirmingBulkDelete = false
     @State private var isImportingPhoneContacts = false
     @State private var didAutoSync = false
+    @State private var path = NavigationPath()
+    @State private var lastRoutedHandoffID: UUID?
 
     private var visible: [EchoContact] {
         let methodMatches = contacts.filter { $0.isInEchoLayer && methodFilter.includes($0) }
@@ -42,7 +45,7 @@ struct RelationshipsView: View {
     private var isEditing: Bool { editMode?.wrappedValue == .active }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
@@ -97,9 +100,15 @@ struct RelationshipsView: View {
                                     }
                                     .buttonStyle(.plain)
                                 } else {
-                                    NavigationLink(value: contact) {
+                                    Button {
+                                        if kipHandoffRouter.handoff != nil {
+                                            kipHandoffRouter.assign(contact)
+                                        }
+                                        path.append(contact)
+                                    } label: {
                                         ContactChoiceRow(contact: contact, isSelected: false)
                                     }
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
@@ -127,6 +136,9 @@ struct RelationshipsView: View {
                 guard autoSyncContacts, !didAutoSync else { return }
                 didAutoSync = true
                 importPhoneContacts()
+            }
+            .onChange(of: kipHandoffRouter.handoff?.id, initial: true) { _, _ in
+                routeKipHandoffIfNeeded()
             }
             .safeAreaInset(edge: .bottom) {
                 HStack(spacing: 10) {
@@ -232,6 +244,23 @@ struct RelationshipsView: View {
                 Button(String(localized: "OK")) { message = nil }
             } message: { Text(message ?? "") }
         }
+    }
+
+    private func routeKipHandoffIfNeeded() {
+        guard let handoff = kipHandoffRouter.handoff,
+              handoff.id != lastRoutedHandoffID else { return }
+        lastRoutedHandoffID = handoff.id
+        let matches = KipContactMatcher.matches(person: handoff.person, contacts: contacts)
+        guard matches.count == 1, let contact = matches.first else {
+            searchText = handoff.person
+            message = matches.isEmpty
+                ? String(localized: "Echo could not match \(handoff.person). Choose or add the right contact to continue this Kip reminder.")
+                : String(localized: "More than one contact matches \(handoff.person). Choose the right person to continue this Kip reminder.")
+            return
+        }
+        kipHandoffRouter.assign(contact)
+        path = NavigationPath()
+        path.append(contact)
     }
 
     @ViewBuilder

@@ -5,11 +5,13 @@ import OSLog
 @main
 struct EchoApp: App {
     @StateObject private var persistence = EchoPersistenceController()
+    @StateObject private var kipHandoffRouter = KipHandoffRouter()
 
     var body: some Scene {
         WindowGroup {
             if let container = persistence.container {
                 EchoLoadedRoot(container: container)
+                    .environmentObject(kipHandoffRouter)
             } else if persistence.couldNotOpenStore {
                 EchoPersistenceRecoveryView(retry: persistence.retry)
             } else {
