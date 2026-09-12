@@ -51,6 +51,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSContactsUsageDescription</key>
 	<string>Echo 只导入你选择的联系人，帮助你管理和推进商务关系。</string>
 	<key>NSMicrophoneUsageDescription</key>
