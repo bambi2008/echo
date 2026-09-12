@@ -7,6 +7,9 @@ final class Deal {
     var value: Double
     var stageRawValue: String
     var nextActionDate: Date?
+    /// Human-readable instruction for the next follow-up. Optional so older
+    /// stores can migrate without needing a default value in existing rows.
+    var nextActionNote: String?
     var createdAt: Date
     var contact: EchoContact?
     // Optional/defaulted additions keep automatic migration safe for existing Deal records.
@@ -32,6 +35,7 @@ final class Deal {
         currency: String = "USD",
         stage: DealStage = .discovered,
         nextActionDate: Date? = nil,
+        nextActionNote: String? = nil,
         contact: EchoContact? = nil,
         pipeline: Pipeline? = nil,
         organization: Organization? = nil,
@@ -45,6 +49,7 @@ final class Deal {
         self.value = value ?? 0
         self.stageRawValue = stage.rawValue
         self.nextActionDate = nextActionDate
+        self.nextActionNote = nextActionNote
         self.createdAt = .now
         self.contact = contact
         self.updatedAt = .now

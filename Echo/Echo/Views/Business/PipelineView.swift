@@ -181,6 +181,12 @@ private struct PipelineItemCard: View {
                 HStack(spacing: 8) { Text(item.stageDefinition.displayTitle).font(.caption.bold()).foregroundStyle(.secondary); Text(localizedPipelineValue(item.priority.title)).font(.caption.bold()).foregroundStyle(item.priority == .urgent ? .red : .indigo); if let score = item.intelligence?.score { Label("\(score)", systemImage: "sparkles").font(.caption.bold()) }; if item.hasMonetaryValue { Text(item.value, format: .currency(code: item.resolvedCurrency).precision(.fractionLength(0))).font(.caption.bold()) } }
                 if let summary = item.intelligence?.summary, !summary.isEmpty { Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
                 if let date = item.nextActionDate { Label { Text(date, format: .dateTime.month().day()) } icon: { Image(systemName: "calendar") }.font(.caption).foregroundStyle(date < .now ? .red : .secondary) }
+                if let note = item.nextActionNote?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
+                    Label(note, systemImage: "text.bubble")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
             }.pipelineSurface()
         }.buttonStyle(.plain)
     }
@@ -209,7 +215,15 @@ struct PipelineItemDetailView: View {
                 if let organization = item.organization { NavigationLink("Organization · \(organization.name)") { OrganizationDetailView(organization: organization) } }
                 if let contact = item.contact { NavigationLink("Primary contact · \(contact.fullName)") { ContactDetailView(contact: contact) } }
                 if item.hasMonetaryValue { LabeledContent("Value", value: item.value.formatted(.currency(code: item.resolvedCurrency))) }
-                if let date = item.nextActionDate { LabeledContent("Next action") { Text(date, style: .date) } }
+                if let date = item.nextActionDate {
+                    LabeledContent("Next action") { Text(date, style: .date) }
+                }
+                if let note = item.nextActionNote?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
+                    LabeledContent("Action details") {
+                        Text(note)
+                            .multilineTextAlignment(.trailing)
+                    }
+                }
                 Toggle("Human Attention", isOn: Binding(get: { item.humanAttentionRequired }, set: { setAttention($0) })).tint(.indigo).accessibilityIdentifier("pipeline.detail.attention")
             }
             Section { if let intelligence = item.intelligence { intelligenceContent(intelligence); Button("Edit AI intelligence") { showingIntelligence = true } } else { Text("No AI intelligence yet").foregroundStyle(.secondary); Button("Add intelligence record") { showingIntelligence = true } } } header: { Label("AI Intelligence", systemImage: "sparkles").accessibilityIdentifier("pipeline.detail.ai") }
@@ -308,21 +322,29 @@ struct PipelineItemEditor: View {
     @State private var title: String; @State private var stageIdentifier: String; @State private var priority: WorkPriority
     @State private var organizationID: UUID?; @State private var contactID: String?; @State private var relatedIDs: Set<String>
     @State private var hasValue: Bool; @State private var value: Double; @State private var currency: String
-    @State private var hasNextAction: Bool; @State private var nextActionDate: Date; @State private var notes: String
+    @State private var hasNextAction: Bool; @State private var nextActionDate: Date; @State private var nextActionNote: String; @State private var notes: String
     @State private var attention: Bool; @State private var errorMessage: String?; @State private var showingNewOrganization = false
     init(pipeline: Pipeline?, item: Deal? = nil, presetContact: EchoContact? = nil) {
         self.pipeline = pipeline; self.item = item
         _title = State(initialValue: item?.title ?? ""); _stageIdentifier = State(initialValue: item?.stageIdentifier ?? pipeline?.stageDefinitions.first?.id ?? DealStage.discovered.rawValue); _priority = State(initialValue: item?.priority ?? .medium)
         _organizationID = State(initialValue: item?.organization?.id ?? presetContact?.organization?.id); _contactID = State(initialValue: item?.contact?.systemIdentifier ?? presetContact?.systemIdentifier); _relatedIDs = State(initialValue: Set(item?.relatedContacts.map(\.systemIdentifier) ?? (presetContact.map { [$0.systemIdentifier] } ?? [])))
         _hasValue = State(initialValue: item?.hasMonetaryValue ?? pipeline?.usesMonetaryValue == true); _value = State(initialValue: item?.value ?? 0); _currency = State(initialValue: item?.resolvedCurrency ?? "USD")
-        _hasNextAction = State(initialValue: item?.nextActionDate != nil); _nextActionDate = State(initialValue: item?.nextActionDate ?? Calendar.current.date(byAdding: .day, value: 3, to: .now) ?? .now)
+        _hasNextAction = State(initialValue: item?.nextActionDate != nil); _nextActionDate = State(initialValue: item?.nextActionDate ?? Calendar.current.date(byAdding: .day, value: 3, to: .now) ?? .now); _nextActionNote = State(initialValue: item?.nextActionNote ?? "")
         _notes = State(initialValue: item?.humanNotes ?? ""); _attention = State(initialValue: item?.humanAttentionRequired ?? false)
     }
     var body: some View {
         NavigationStack { Form {
             Section("Work item") { TextField("Title", text: $title); Picker("Stage", selection: $stageIdentifier) { ForEach(pipeline?.stageDefinitions ?? DealStage.defaultAgenticStages.map { PipelineStageDefinition(identifier: $0.rawValue) }) { Text($0.displayTitle).tag($0.id) } }; Picker("Priority", selection: $priority) { ForEach(WorkPriority.allCases) { Text(localizedPipelineValue($0.title)).tag($0) } }; Toggle("Human Attention", isOn: $attention) }
             Section("Organization and people") { Picker("Organization", selection: $organizationID) { Text("No organization").tag(UUID?.none); ForEach(organizations) { Text($0.name).tag(Optional($0.id)) } }; Button { showingNewOrganization = true } label: { Label("New organization", systemImage: "building.2.crop.circle") }; Picker("Primary contact", selection: $contactID) { Text("No primary contact").tag(String?.none); ForEach(contacts) { Text($0.fullName).tag(Optional($0.systemIdentifier)) } }; NavigationLink("Related people · \(relatedIDs.count)") { ContactMultiSelectView(selection: $relatedIDs, contacts: contacts) } }
-            Section("Next step") { Toggle("Set next action", isOn: $hasNextAction); if hasNextAction { DatePicker("Date", selection: $nextActionDate, displayedComponents: [.date]) } }
+            Section("Next step") {
+                Toggle("Set next action", isOn: $hasNextAction)
+                if hasNextAction {
+                    DatePicker("Date", selection: $nextActionDate, displayedComponents: [.date])
+                    TextField("Action details", text: $nextActionNote, axis: .vertical)
+                        .lineLimit(2...4)
+                        .accessibilityIdentifier("pipeline.nextAction.note")
+                }
+            }
             Section("Value") { Toggle("Track value", isOn: $hasValue); if hasValue { TextField("Amount", value: $value, format: .number).keyboardType(.decimalPad); TextField("Currency", text: $currency).textInputAutocapitalization(.characters) } }
             Section("Human notes") { TextField("Notes written by you", text: $notes, prompt: Text("AI intelligence stays separate."), axis: .vertical) }
             if item != nil { Section { Button("Delete item", role: .destructive, action: delete) } }
@@ -335,7 +357,7 @@ struct PipelineItemEditor: View {
         let previousAttention = target.humanAttentionRequired
         target.title = title.trimmingCharacters(in: .whitespacesAndNewlines); target.priority = priority; target.organization = organization; target.contact = contact; target.relatedContacts = related
         if let organization { ([contact].compactMap { $0 } + related).forEach { if $0.organization == nil { $0.organization = organization } } }
-        target.value = hasValue ? value : 0; target.valueIsSet = hasValue; target.currency = currency.uppercased(); target.nextActionDate = hasNextAction ? nextActionDate : nil; target.humanNotes = notes.isEmpty ? nil : notes; target.updatedAt = .now
+        target.value = hasValue ? value : 0; target.valueIsSet = hasValue; target.currency = currency.uppercased(); target.nextActionDate = hasNextAction ? nextActionDate : nil; target.nextActionNote = hasNextAction ? nextActionNote.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty : nil; target.humanNotes = notes.isEmpty ? nil : notes; target.updatedAt = .now
         do {
             if item == nil {
                 target.stageIdentifier = stageIdentifier
@@ -378,3 +400,4 @@ private struct IntelligenceEditor: View {
 
 private extension View { func pipelineSurface() -> some View { padding(14).frame(maxWidth: .infinity, alignment: .leading).background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16)) } }
 private extension Text { func pipelineCount() -> some View { font(.caption.bold()).padding(.horizontal, 8).padding(.vertical, 4).background(.quaternary, in: Capsule()) } }
+private extension String { var nilIfEmpty: String? { isEmpty ? nil : self } }

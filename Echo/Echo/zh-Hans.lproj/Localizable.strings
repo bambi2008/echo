@@ -158,6 +158,7 @@
 "Company" = "公司";
 "Role" = "职位";
 "Identity" = "身份";
+"Identity tag" = "身份标签";
 "Contact history" = "联系记录";
 "Log a moment" = "记录一次联系";
 "Memory" = "记忆";
@@ -304,6 +305,7 @@
 "Next step" = "下一步";
 "Set next action" = "设置下一步行动";
 "Date" = "日期";
+"Action details" = "行动内容";
 "Track value" = "记录价值";
 "Amount" = "金额";
 "Currency" = "币种";
@@ -506,6 +508,11 @@
 "Add business contacts" = "添加商务联系人";
 "Add contact" = "添加联系人";
 "Add opportunity" = "添加业务机会";
+"Edit opportunity" = "编辑业务机会";
+"Delete opportunity" = "删除业务机会";
+"Delete opportunity?" = "删除这条业务机会？";
+"This removes the business opportunity from the contact and pipeline." = "这会从联系人和业务管道中移除这条业务机会。";
+"Could not delete opportunity" = "无法删除业务机会";
 "Add someone" = "添加联系人";
 "Adjust filters or add a business opportunity." = "调整筛选条件，或新增一个业务机会。";
 "Analyze %lld people" = "分析 %lld 位联系人";

@@ -12,6 +12,11 @@ struct ContactDetailView: View {
     @State private var outreachChannel: OutreachChannel?
     @State private var showingEditContact = false
     @State private var showingNewDeal = false
+    @State private var showingDealEditor = false
+    @State private var editingDeal: Deal?
+    @State private var dealPendingDeletion: Deal?
+    @State private var showingDeleteDealConfirmation = false
+    @State private var dealErrorMessage: String?
 
     var body: some View {
         List {
@@ -29,7 +34,7 @@ struct ContactDetailView: View {
             }
 
             Section {
-                Picker("Business role", selection: businessRoleBinding) {
+                Picker("Identity tag", selection: businessRoleBinding) {
                     ForEach(BusinessContactRole.allCases) { role in
                         Label(role.title, systemImage: role.symbol).tag(role)
                     }
@@ -123,7 +128,7 @@ struct ContactDetailView: View {
             }
 
             Section("Profile") {
-                LabeledContent("Role", value: contact.businessRole.title)
+                LabeledContent("Identity tag", value: contact.businessRole.title)
                 if let phoneNumber = contact.phoneNumber {
                     LabeledContent("Phone", value: phoneNumber)
                 }
@@ -153,11 +158,38 @@ struct ContactDetailView: View {
                         ForEach(businessDeals) { deal in
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack {
-                                    Text(deal.title).font(.headline)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(deal.title).font(.headline)
+                                        if let note = deal.nextActionNote?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
+                                            Label(note, systemImage: "text.bubble")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(2)
+                                        }
+                                    }
                                     Spacer()
                                     Text(deal.stage.localizedTitle)
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(.indigo)
+                                    Menu {
+                                        Button {
+                                            editingDeal = deal
+                                            showingDealEditor = true
+                                        } label: {
+                                            Label("Edit opportunity", systemImage: "pencil")
+                                        }
+                                        Button(role: .destructive) {
+                                            dealPendingDeletion = deal
+                                            showingDeleteDealConfirmation = true
+                                        } label: {
+                                            Label("Delete opportunity", systemImage: "trash")
+                                        }
+                                    } label: {
+                                        Image(systemName: "ellipsis.circle")
+                                            .font(.title3)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .accessibilityLabel("Manage opportunity")
                                 }
                                 Text(deal.value, format: .currency(code: "USD").precision(.fractionLength(0)))
                                     .font(.subheadline.weight(.semibold))
@@ -272,6 +304,31 @@ struct ContactDetailView: View {
         .sheet(isPresented: $showingNewDeal) {
             PipelineItemEditor(pipeline: nil, presetContact: contact)
         }
+        .sheet(isPresented: $showingDealEditor, onDismiss: { editingDeal = nil }) {
+            if let editingDeal {
+                PipelineItemEditor(pipeline: editingDeal.pipeline, item: editingDeal)
+            }
+        }
+        .confirmationDialog(
+            "Delete opportunity?",
+            isPresented: $showingDeleteDealConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete opportunity", role: .destructive) {
+                deletePendingDeal()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes the business opportunity from the contact and pipeline.")
+        }
+        .alert("Could not delete opportunity", isPresented: Binding(
+            get: { dealErrorMessage != nil },
+            set: { if !$0 { dealErrorMessage = nil } }
+        )) {
+            Button("OK") { dealErrorMessage = nil }
+        } message: {
+            Text(dealErrorMessage ?? "")
+        }
     }
 
     private var subtitle: String? {
@@ -332,6 +389,17 @@ struct ContactDetailView: View {
             return interaction.type.title
         }
         return isIncoming ? "Received email" : "Sent email"
+    }
+
+    private func deletePendingDeal() {
+        guard let deal = dealPendingDeletion else { return }
+        modelContext.delete(deal)
+        do {
+            try modelContext.save()
+            dealPendingDeletion = nil
+        } catch {
+            dealErrorMessage = error.localizedDescription
+        }
     }
 }
 

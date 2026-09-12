@@ -57,6 +57,7 @@ struct DeepSeekPipelineAgentService: AgentService {
             People: \(item.allContacts.map(\.fullName).joined(separator: ", "))
             Human notes: \(item.humanNotes ?? "None")
             Next action: \(item.nextActionDate?.formatted(date: .abbreviated, time: .omitted) ?? "None")
+            Next action details: \(item.nextActionNote ?? "None")
             Recorded interactions:
             \(interactions.isEmpty ? "None" : interactions)
             Captured evidence:
@@ -184,6 +185,7 @@ struct DeepSeekCommunicationProvider: CommunicationProvider {
         Pipeline item: \(item.title)
         Stage: \(item.stageDefinition.title)
         Human notes: \(item.humanNotes ?? "None")
+        Next action details: \(item.nextActionNote ?? "None")
         AI recommendation: \(item.intelligence?.recommendedNextAction ?? "None")
         """)
         let result = try await features.pipelineOutreach(context: context)

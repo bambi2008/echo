@@ -94,7 +94,7 @@ struct EditContactView: View {
                 }
 
                 Section {
-                    Picker("Business role", selection: $businessRole) {
+                    Picker("Identity tag", selection: $businessRole) {
                         ForEach(BusinessContactRole.allCases) { role in
                             Label(role.title, systemImage: role.symbol).tag(role)
                         }
