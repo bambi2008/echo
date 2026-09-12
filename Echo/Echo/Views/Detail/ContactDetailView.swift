@@ -505,8 +505,8 @@ struct ContactDetailView: View {
 
     private func completeKipHandoff() {
         guard let url = kipHandoffRouter.completionURL() else { return }
-        openURL(url) { result in
-            if case .discarded = result {
+        openURL(url) { accepted in
+            if !accepted {
                 kipHandoffMessage = "Kip could not be opened. Keep Kip installed, then try again."
             } else {
                 kipHandoffRouter.clear()
