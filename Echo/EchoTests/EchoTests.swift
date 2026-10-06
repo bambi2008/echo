@@ -249,6 +249,41 @@ final class EchoTests: XCTestCase {
         XCTAssertEqual(contact.interactions.first?.isIncoming, true)
     }
 
+    func testSynchronizeActivityExcludesIncomingInteractions() {
+        let contact = EchoContact(givenName: "Ava")
+        let oldOutbound = Interaction(
+            date: Calendar.current.date(byAdding: .day, value: -10, to: .now)!,
+            type: .emailed,
+            summary: "Sent proposal",
+            contact: contact,
+            isIncoming: false,
+            direction: .outbound
+        )
+        let recentInbound = Interaction(
+            date: Calendar.current.date(byAdding: .day, value: -2, to: .now)!,
+            type: .emailed,
+            summary: "Client replied",
+            contact: contact,
+            isIncoming: true,
+            direction: .inbound
+        )
+        let internalNote = Interaction(
+            date: .now,
+            type: .reachedOut,
+            summary: "Internal note",
+            contact: contact,
+            isIncoming: false,
+            direction: .internalDirection
+        )
+        contact.interactions = [oldOutbound, recentInbound, internalNote]
+
+        EchoEngine.synchronizeActivity(for: contact)
+
+        XCTAssertEqual(contact.reachCount, 1)
+        XCTAssertEqual(contact.lastReachedOut, oldOutbound.date)
+        XCTAssertEqual(contact.daysSinceContact, 2)
+    }
+
     func testStaleContactNeedsInclusionDecisionOnlyWhenLastContactIsKnown() {
         let unknown = EchoContact(givenName: "Unknown history")
         XCTAssertFalse(unknown.needsEchoInclusionReview)
@@ -442,6 +477,27 @@ final class EchoTests: XCTestCase {
         ))
         XCTAssertEqual(webURL.host, "mail.google.com")
         XCTAssertTrue(webURL.absoluteString.contains("view=cm"))
+    }
+
+    func testGmailBulkComposeUsesBccForEveryRecipient() throws {
+        let recipients = ["one@example.com", "two@example.com"]
+        let appURL = try XCTUnwrap(GmailComposeService.bulkAppURL(
+            recipients: recipients,
+            subject: "项目跟进",
+            body: "请确认下一步。"
+        ))
+        XCTAssertEqual(appURL.scheme, "googlegmail")
+        let appQuery = URLComponents(url: appURL, resolvingAgainstBaseURL: false)?.queryItems
+        XCTAssertEqual(appQuery?.first(where: { $0.name == "bcc" })?.value, recipients.joined(separator: ","))
+        XCTAssertNil(appQuery?.first(where: { $0.name == "to" }))
+
+        let webURL = try XCTUnwrap(GmailComposeService.bulkWebURL(
+            recipients: recipients,
+            subject: "项目跟进",
+            body: "请确认下一步。"
+        ))
+        let webQuery = URLComponents(url: webURL, resolvingAgainstBaseURL: false)?.queryItems
+        XCTAssertEqual(webQuery?.first(where: { $0.name == "bcc" })?.value, recipients.joined(separator: ","))
     }
 
     func testPhoneCallBuildsSafeDialerDestination() throws {

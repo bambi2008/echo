@@ -21,6 +21,7 @@ struct RelationshipsView: View {
     @State private var message: String?
     @State private var selectedContactIDs = Set<String>()
     @State private var confirmingBulkDelete = false
+    @State private var showingBulkEmail = false
     @State private var isImportingPhoneContacts = false
     @State private var didAutoSync = false
     @State private var path = NavigationPath()
@@ -193,6 +194,12 @@ struct RelationshipsView: View {
                         }
                         if !selectedContactIDs.isEmpty {
                             Divider()
+                            Button {
+                                showingBulkEmail = true
+                            } label: {
+                                Label("群发邮件（\(selectedEmailContacts.count) 人）", systemImage: "envelope.badge.fill")
+                            }
+                            .disabled(selectedEmailContacts.isEmpty)
                             Button(role: .destructive) { confirmingBulkDelete = true } label: {
                                 Label(String(localized: "Delete selected (\(selectedContactIDs.count))"), systemImage: "trash")
                             }
@@ -245,6 +252,9 @@ struct RelationshipsView: View {
                         ? "CSV 中的客户都已经在 Echo 中。"
                         : "已新增 \(result.added) 位、更新 \(result.updated) 位 CSV 客户。"
                 }
+            }
+            .sheet(isPresented: $showingBulkEmail) {
+                BulkEmailComposerView(contacts: selectedEmailContacts)
             }
             .fileImporter(
                 isPresented: $showingVCFImporter,
@@ -315,6 +325,13 @@ struct RelationshipsView: View {
             selectedContactIDs.remove(contact.systemIdentifier)
         } else {
             selectedContactIDs.insert(contact.systemIdentifier)
+        }
+    }
+
+    private var selectedEmailContacts: [EchoContact] {
+        contacts.filter {
+            selectedContactIDs.contains($0.systemIdentifier)
+                && !($0.emailAddress?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
         }
     }
 

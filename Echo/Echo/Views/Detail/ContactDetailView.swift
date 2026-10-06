@@ -19,6 +19,10 @@ struct ContactDetailView: View {
     @State private var showingDeleteDealConfirmation = false
     @State private var dealErrorMessage: String?
     @State private var kipHandoffMessage: String?
+    @State private var showingNewInteraction = false
+    @State private var editingInteraction: Interaction?
+    @State private var interactionPendingDeletion: Interaction?
+    @State private var showingDeleteInteractionConfirmation = false
 
     var body: some View {
         List {
@@ -264,7 +268,7 @@ struct ContactDetailView: View {
                 }
             }
 
-            Section("Contact history") {
+            Section {
                 if contact.interactions.isEmpty {
                     Text("Past calls, messages, meetings, and emails will appear here.")
                         .foregroundStyle(.secondary)
@@ -296,10 +300,42 @@ struct ContactDetailView: View {
                                     .font(.caption)
                                     .foregroundStyle(.tertiary)
                             }
+                            Spacer(minLength: 4)
+                            Menu {
+                                Button {
+                                    editingInteraction = interaction
+                                } label: {
+                                    Label("编辑记录", systemImage: "pencil")
+                                }
+                                Button(role: .destructive) {
+                                    interactionPendingDeletion = interaction
+                                    showingDeleteInteractionConfirmation = true
+                                } label: {
+                                    Label("删除记录", systemImage: "trash")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis.circle")
+                                    .font(.title3)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .accessibilityLabel("管理联系记录")
                         }
                         .padding(.vertical, 3)
                     }
                 }
+            } header: {
+                HStack {
+                    Text("联系记录")
+                    Spacer()
+                    Button {
+                        showingNewInteraction = true
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                    }
+                    .accessibilityLabel("新增联系记录")
+                }
+            } footer: {
+                Text("可手动记录电话、邮件、消息、会议和客户反馈，方便后续跟进。")
             }
 
             Section("Record a connection") {
@@ -359,6 +395,12 @@ struct ContactDetailView: View {
                 PipelineItemEditor(pipeline: editingDeal.pipeline, item: editingDeal)
             }
         }
+        .sheet(isPresented: $showingNewInteraction) {
+            InteractionEditorView(contact: contact)
+        }
+        .sheet(item: $editingInteraction, onDismiss: { editingInteraction = nil }) { interaction in
+            InteractionEditorView(contact: contact, interaction: interaction)
+        }
         .confirmationDialog(
             "Delete opportunity?",
             isPresented: $showingDeleteDealConfirmation,
@@ -370,6 +412,18 @@ struct ContactDetailView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This removes the business opportunity from the contact and pipeline.")
+        }
+        .confirmationDialog(
+            "删除这条联系记录？",
+            isPresented: $showingDeleteInteractionConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("删除记录", role: .destructive) {
+                deletePendingInteraction()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("删除后将不再参与客户关系和跟进提醒分析。")
         }
         .alert("Could not delete opportunity", isPresented: Binding(
             get: { dealErrorMessage != nil },
@@ -458,6 +512,15 @@ struct ContactDetailView: View {
         } catch {
             dealErrorMessage = error.localizedDescription
         }
+    }
+
+    private func deletePendingInteraction() {
+        guard let interaction = interactionPendingDeletion else { return }
+        modelContext.delete(interaction)
+        try? modelContext.save()
+        EchoEngine.synchronizeActivity(for: contact)
+        try? modelContext.save()
+        interactionPendingDeletion = nil
     }
 
     private func canStart(_ action: KipHandoffAction) -> Bool {

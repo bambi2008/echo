@@ -228,7 +228,11 @@ final class EchoContact {
     }
 
     var daysSinceContact: Int? {
-        let latestInteraction = interactions.map(\.date).max()
+        // Internal notes are useful context but are not customer contact.
+        let latestInteraction = interactions
+            .filter { $0.direction != .internalDirection }
+            .map(\.date)
+            .max()
         guard let latest = [lastReachedOut, latestInteraction].compactMap({ $0 }).max() else { return nil }
         return Calendar.current.dateComponents([.day], from: latest, to: .now).day
     }
@@ -236,7 +240,13 @@ final class EchoContact {
     var needsEchoInclusionReview: Bool {
         guard isInEchoLayer, hasRealName, let daysSinceContact, daysSinceContact >= 100 else { return false }
         guard let reviewedAt = lastEchoInclusionReviewedAt else { return true }
-        let latestActivity = [lastReachedOut, interactions.map(\.date).max()]
+        let latestActivity = [
+            lastReachedOut,
+            interactions
+                .filter { $0.direction != .internalDirection }
+                .map(\.date)
+                .max()
+        ]
             .compactMap { $0 }
             .max()
         return latestActivity.map { $0 > reviewedAt } ?? false
