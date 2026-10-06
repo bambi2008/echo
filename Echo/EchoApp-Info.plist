@@ -46,6 +46,8 @@
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>com.bambi2008.kip</string>
+		<string>googlegmail</string>
+		<string>gmail</string>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>

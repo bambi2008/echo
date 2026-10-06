@@ -15,6 +15,8 @@ struct RelationshipsView: View {
     @State private var showingBusinessCard = false
     @State private var showingVCFImporter = false
     @State private var vcfPreview: VCFImportPreview?
+    @State private var showingCSVImporter = false
+    @State private var csvPreview: CSVImportPreview?
     @State private var methodFilter: RelationshipContactMethodFilter = .all
     @State private var message: String?
     @State private var selectedContactIDs = Set<String>()
@@ -183,6 +185,9 @@ struct RelationshipsView: View {
                         Button { showingVCFImporter = true } label: {
                             Label(String(localized: "Import a VCF file"), systemImage: "doc.badge.plus")
                         }
+                        Button { showingCSVImporter = true } label: {
+                            Label("导入 CSV 客户名单", systemImage: "tablecells.badge.ellipsis")
+                        }
                         Button { showingBusinessCard = true } label: {
                             Label(String(localized: "Scan a business card"), systemImage: "person.crop.rectangle")
                         }
@@ -234,11 +239,24 @@ struct RelationshipsView: View {
                         : String(localized: "Added \(result.added) and updated \(result.updated) VCF contacts.")
                 }
             }
+            .sheet(item: $csvPreview) { preview in
+                CSVImportPreviewView(preview: preview) { result in
+                    message = result.added == 0 && result.updated == 0
+                        ? "CSV 中的客户都已经在 Echo 中。"
+                        : "已新增 \(result.added) 位、更新 \(result.updated) 位 CSV 客户。"
+                }
+            }
             .fileImporter(
                 isPresented: $showingVCFImporter,
                 allowedContentTypes: [.vCard],
                 allowsMultipleSelection: false,
                 onCompletion: handleVCFSelection
+            )
+            .fileImporter(
+                isPresented: $showingCSVImporter,
+                allowedContentTypes: [.commaSeparatedText, .text],
+                allowsMultipleSelection: false,
+                onCompletion: handleCSVSelection
             )
             .alert(String(localized: "Echo"), isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
                 Button(String(localized: "OK")) { message = nil }
@@ -328,6 +346,21 @@ struct RelationshipsView: View {
             let hasAccess = url.startAccessingSecurityScopedResource()
             defer { if hasAccess { url.stopAccessingSecurityScopedResource() } }
             vcfPreview = try VCFImportService().preview(
+                data: Data(contentsOf: url),
+                fileName: url.lastPathComponent,
+                in: modelContext
+            )
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+
+    private func handleCSVSelection(_ result: Result<[URL], Error>) {
+        do {
+            guard let url = try result.get().first else { return }
+            let hasAccess = url.startAccessingSecurityScopedResource()
+            defer { if hasAccess { url.stopAccessingSecurityScopedResource() } }
+            csvPreview = try CSVImportService().preview(
                 data: Data(contentsOf: url),
                 fileName: url.lastPathComponent,
                 in: modelContext

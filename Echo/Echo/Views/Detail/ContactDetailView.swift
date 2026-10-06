@@ -187,6 +187,10 @@ struct ContactDetailView: View {
                 if let companyName = contact.companyName {
                     LabeledContent("Company", value: companyName)
                 }
+                if let website = contact.organization?.website,
+                   !website.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    LabeledContent("Website", value: website)
+                }
                 if !contact.tags.isEmpty {
                     LabeledContent(
                         "Identity",

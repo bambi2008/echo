@@ -93,7 +93,9 @@ struct OutreachComposerView: View {
                 } header: {
                     Text("Suggested outreach")
                 } footer: {
-                    Text("Review and edit before opening \(channel.title). The current starter was created on this device.")
+                    Text(channel == .email
+                        ? "检查内容后打开 Gmail 撰写。Echo 不会在后台自动发送邮件。"
+                        : "Review and edit before opening \(channel.title). The current starter was created on this device.")
                 }
 
                 Section {
@@ -120,7 +122,7 @@ struct OutreachComposerView: View {
                     Button {
                         launch()
                     } label: {
-                        Label("Open \(channel.title)", systemImage: channel.symbol)
+                        Label(channel == .email ? "在 Gmail 中撰写" : "Open \(channel.title)", systemImage: channel.symbol)
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
@@ -228,14 +230,38 @@ struct OutreachComposerView: View {
             return
         }
 
-        var components = URLComponents()
-        components.scheme = channel == .message ? "sms" : "mailto"
-        components.path = destination
-        var queryItems = [URLQueryItem(name: "body", value: draft)]
         if channel == .email {
-            queryItems.insert(URLQueryItem(name: "subject", value: "Checking in"), at: 0)
+            let subject = "Checking in"
+            guard let gmailURL = GmailComposeService.appURL(
+                recipient: destination,
+                subject: subject,
+                body: draft
+            ) else {
+                errorMessage = "Echo could not prepare Gmail. Check this person's email address."
+                return
+            }
+
+            // Gmail's iOS URL scheme opens the reviewed draft in the Gmail
+            // app. If Gmail is not installed, keep the same draft intact by
+            // opening Gmail web compose instead of silently sending it.
+            if UIApplication.shared.canOpenURL(gmailURL) {
+                openURL(gmailURL)
+            } else if let webURL = GmailComposeService.webURL(
+                recipient: destination,
+                subject: subject,
+                body: draft
+            ) {
+                openURL(webURL)
+            } else {
+                errorMessage = "Echo could not open Gmail. Check this person's email address."
+            }
+            return
         }
-        components.queryItems = queryItems
+
+        var components = URLComponents()
+        components.scheme = "sms"
+        components.path = destination
+        components.queryItems = [URLQueryItem(name: "body", value: draft)]
         guard let url = components.url else {
             errorMessage = "Echo could not open \(channel.title). Check this person's contact details."
             return

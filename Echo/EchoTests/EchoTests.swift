@@ -368,6 +368,72 @@ final class EchoTests: XCTestCase {
         XCTAssertFalse(linkedin.draftWasIncluded)
     }
 
+    func testCSVParserPreservesQuotedCommasAndNewlines() throws {
+        let csv = """
+        级别,企业／路线,公开商务入口,来源
+        优先预审1,"SUGA／东莞清溪","business_inquiry@suga.com.hk；0769-87890888","https://suga.com.hk/contact\nhttps://suga.com.hk/solutions"
+        """
+
+        let rows = try CSVImportService.parse(csv)
+
+        XCTAssertEqual(rows.count, 2)
+        XCTAssertEqual(rows[1][1], "SUGA／东莞清溪")
+        XCTAssertEqual(rows[1][3], "https://suga.com.hk/contact\nhttps://suga.com.hk/solutions")
+    }
+
+    func testCSVBusinessPreviewExtractsAndImportsCommercialFields() throws {
+        let csv = """
+        级别,企业／路线,实际场地与性质,公开商务入口,适配判断（非已承诺）,来源,核验日期
+        优先预审1,"SUGA／东莞清溪","制造实体","business_inquiry@suga.com.hk；0769-87890888","整机研发制造候选","https://suga.com.hk/contact-us/",2026-10-06
+        """
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: EchoContact.self, Organization.self, Interaction.self, EchoNote.self, Deal.self,
+            RelationshipReflection.self, RelationshipAction.self, ReflectionJourney.self,
+            configurations: configuration
+        )
+
+        let preview = try CSVImportService().preview(
+            data: Data(csv.utf8),
+            fileName: "customers.csv",
+            in: container.mainContext
+        )
+        XCTAssertEqual(preview.newCount, 1)
+        XCTAssertEqual(preview.contacts.first?.fullName, "SUGA")
+        XCTAssertEqual(preview.contacts.first?.emailAddress, "business_inquiry@suga.com.hk")
+        XCTAssertEqual(preview.contacts.first?.phoneNumber, "0769-87890888")
+
+        let result = try CSVImportService().importContacts(preview, into: container.mainContext)
+        XCTAssertEqual(result.added, 1)
+        let contact = try XCTUnwrap(container.mainContext.fetch(FetchDescriptor<EchoContact>()).first)
+        XCTAssertEqual(contact.companyName, "SUGA／东莞清溪")
+        XCTAssertEqual(contact.businessRole, .prospect)
+        XCTAssertEqual(contact.organization?.website, "https://suga.com.hk/contact-us/")
+        XCTAssertTrue(contact.relationshipContext?.contains("适配判断") == true)
+    }
+
+    func testGmailComposePreservesRecipientSubjectAndUnicodeBody() throws {
+        let appURL = try XCTUnwrap(GmailComposeService.appURL(
+            recipient: "sales@example.com",
+            subject: "项目跟进",
+            body: "你好，确认一下下周的工厂考察。"
+        ))
+        XCTAssertEqual(appURL.scheme, "googlegmail")
+        XCTAssertEqual(appURL.host, "co")
+        let appQuery = URLComponents(url: appURL, resolvingAgainstBaseURL: false)?.queryItems
+        XCTAssertEqual(appQuery?.first(where: { $0.name == "to" })?.value, "sales@example.com")
+        XCTAssertEqual(appQuery?.first(where: { $0.name == "subject" })?.value, "项目跟进")
+        XCTAssertEqual(appQuery?.first(where: { $0.name == "body" })?.value, "你好，确认一下下周的工厂考察。")
+
+        let webURL = try XCTUnwrap(GmailComposeService.webURL(
+            recipient: "sales@example.com",
+            subject: "项目跟进",
+            body: "你好"
+        ))
+        XCTAssertEqual(webURL.host, "mail.google.com")
+        XCTAssertTrue(webURL.absoluteString.contains("view=cm"))
+    }
+
     func testPhoneCallBuildsSafeDialerDestination() throws {
         let destination = try XCTUnwrap(
             PhoneCallService.destination(for: "+852 (9123) 4567")
