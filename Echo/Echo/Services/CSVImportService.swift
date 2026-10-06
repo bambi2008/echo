@@ -263,6 +263,13 @@ struct CSVImportService {
                 case ",":
                     row.append(field)
                     field = ""
+                case "\r\n":
+                    // Swift represents CRLF as one Character (an extended
+                    // grapheme cluster), so handle it before LF-only rows.
+                    row.append(field)
+                    field = ""
+                    if row.contains(where: { !$0.trimmed.isEmpty }) { rows.append(row) }
+                    row = []
                 case "\n":
                     row.append(field)
                     field = ""
@@ -272,6 +279,14 @@ struct CSVImportService {
                 case "\r":
                     let next = text.index(after: index)
                     if next < text.endIndex, text[next] == "\n" {
+                        // CRLF is a row separator. Consume both characters but
+                        // still finalize the current row. Skipping the LF
+                        // without appending the row merges the header with the
+                        // first data row and produces an empty preview.
+                        row.append(field)
+                        field = ""
+                        if row.contains(where: { !$0.trimmed.isEmpty }) { rows.append(row) }
+                        row = []
                         index = next
                     } else {
                         row.append(field)

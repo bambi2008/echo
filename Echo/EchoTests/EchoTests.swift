@@ -381,6 +381,16 @@ final class EchoTests: XCTestCase {
         XCTAssertEqual(rows[1][3], "https://suga.com.hk/contact\nhttps://suga.com.hk/solutions")
     }
 
+    func testCSVParserHandlesCRLFRows() throws {
+        let csv = "级别,企业／路线,公开商务入口,来源\r\n优先预审1,工厂A,hello@example.com；0769-12345678,https://example.com\r\n"
+
+        let rows = try CSVImportService.parse(csv)
+
+        XCTAssertEqual(rows.count, 2)
+        XCTAssertEqual(rows[0][2], "公开商务入口")
+        XCTAssertEqual(rows[1][2], "hello@example.com；0769-12345678")
+    }
+
     func testCSVBusinessPreviewExtractsAndImportsCommercialFields() throws {
         let csv = """
         级别,企业／路线,实际场地与性质,公开商务入口,适配判断（非已承诺）,来源,核验日期

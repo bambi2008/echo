@@ -115,6 +115,9 @@
 "Import a VCF file" = "导入 VCF 文件";
 "All VCF contacts already exist in Echo." = "VCF 中的联系人都已经在 Echo 中。";
 "Added %lld and updated %lld VCF contacts." = "已新增 %lld 位、更新 %lld 位 VCF 联系人。";
+"The selected CSV file is empty." = "所选 CSV 文件为空。";
+"This CSV file does not contain a recognizable business contact column." = "这个 CSV 文件没有可识别的商务联系人列。";
+"No business contacts with an email address or phone number were found in this CSV file." = "这个 CSV 文件中没有找到包含邮箱或电话号码的商务联系人。";
 
 "Patterns, not judgments" = "看见模式，而不是下判断";
 "These observations come only from intentions and actions you recorded in Echo. No API key is needed." = "这些观察只来自你在 Echo 里记录的意愿和行动，不需要 API Key。";
