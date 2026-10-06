@@ -6,7 +6,6 @@ import UniformTypeIdentifiers
 struct RelationshipsView: View {
     @EnvironmentObject private var kipHandoffRouter: KipHandoffRouter
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.editMode) private var editMode
     @Query(sort: \EchoContact.givenName) private var contacts: [EchoContact]
     @AppStorage("echo.contacts.autoSync") private var autoSyncContacts = false
     @State private var searchText = ""
@@ -20,6 +19,7 @@ struct RelationshipsView: View {
     @State private var methodFilter: RelationshipContactMethodFilter = .all
     @State private var message: String?
     @State private var selectedContactIDs = Set<String>()
+    @State private var isSelectingContacts = false
     @State private var confirmingBulkDelete = false
     @State private var showingBulkEmail = false
     @State private var isImportingPhoneContacts = false
@@ -45,7 +45,11 @@ struct RelationshipsView: View {
             .sorted { ($0.daysSinceContact ?? 365) > ($1.daysSinceContact ?? 365) }
     }
 
-    private var isEditing: Bool { editMode?.wrappedValue == .active }
+    // Keep selection mode as local state instead of relying on EditButton's
+    // environment propagation. This makes the tap target deterministic inside
+    // nested DisclosureGroups: in selection mode a contact row can never route
+    // to the detail screen.
+    private var isEditing: Bool { isSelectingContacts }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -94,14 +98,13 @@ struct RelationshipsView: View {
                             ForEach(groupContacts) { contact in
                                 if isEditing {
                                     Button { toggleSelection(for: contact) } label: {
-                                        HStack {
-                                            ContactChoiceRow(contact: contact, isSelected: selectedContactIDs.contains(contact.systemIdentifier))
-                                            Spacer()
-                                            Image(systemName: selectedContactIDs.contains(contact.systemIdentifier) ? "checkmark.circle.fill" : "circle")
-                                                .foregroundStyle(selectedContactIDs.contains(contact.systemIdentifier) ? .indigo : .secondary)
-                                        }
+                                        ContactChoiceRow(
+                                            contact: contact,
+                                            isSelected: selectedContactIDs.contains(contact.systemIdentifier)
+                                        )
                                     }
                                     .buttonStyle(.plain)
+                                    .accessibilityIdentifier("relationships.contact.select.\(contact.systemIdentifier)")
                                 } else {
                                     Button {
                                         if kipHandoffRouter.handoff != nil {
@@ -165,7 +168,15 @@ struct RelationshipsView: View {
             .navigationDestination(for: EchoContact.self) { ContactDetailView(contact: $0) }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    EditButton()
+                    Button(isEditing ? String(localized: "Done") : String(localized: "Edit")) {
+                        withAnimation {
+                            isSelectingContacts.toggle()
+                            if !isSelectingContacts {
+                                selectedContactIDs.removeAll()
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier("relationships.edit")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
@@ -340,7 +351,7 @@ struct RelationshipsView: View {
         selected.forEach(modelContext.delete)
         try? modelContext.save()
         selectedContactIDs.removeAll()
-        editMode?.wrappedValue = .inactive
+        isSelectingContacts = false
     }
 
     private func importPhoneContacts() {
