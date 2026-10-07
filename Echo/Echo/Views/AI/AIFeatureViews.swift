@@ -721,6 +721,7 @@ struct DocumentRecognitionView: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var saved = false
+    @State private var businessRole: BusinessContactRole = .prospect
 
     private var cardSaveValidation: BusinessCardSaveValidation {
         guard let card else { return .missingNameAndCompany }
@@ -781,6 +782,15 @@ struct DocumentRecognitionView: View {
                         if let model {
                             Text(model).font(.caption2).foregroundStyle(.tertiary)
                         }
+                        Picker(String(localized: "Business role"), selection: $businessRole) {
+                            ForEach(BusinessContactRole.allCases) { role in
+                                Label(role.title, systemImage: role.symbol).tag(role)
+                            }
+                        }
+                        .accessibilityIdentifier("businessCard.businessRole")
+                        Text(String(localized: "Choose whether this is a client, supplier, partner, or another business contact before saving."))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
                         if cardSaveValidation != .ready {
                             Label(cardSaveValidation.message, systemImage: "exclamationmark.circle")
                                 .font(.footnote)
@@ -849,6 +859,7 @@ struct DocumentRecognitionView: View {
         card = nil
         policy = nil
         saved = false
+        businessRole = .prospect
         Task {
             defer { isLoading = false }
             do {
@@ -896,7 +907,7 @@ struct DocumentRecognitionView: View {
             phoneNumber: card.phone.nilIfEmpty,
             emailAddress: card.email.nilIfEmpty,
             relationshipDomain: .business,
-            businessRole: .prospect,
+            businessRole: businessRole,
             companyName: card.company.nilIfEmpty,
             jobTitle: card.title.nilIfEmpty
         )

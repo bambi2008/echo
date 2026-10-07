@@ -401,6 +401,7 @@
 "Update" = "更新";
 "Exists" = "已存在";
 "Business card" = "商务名片";
+"Choose whether this is a client, supplier, partner, or another business contact before saving." = "保存前请选择这是客户、供应商、合作伙伴或其他商务联系人。";
 "Policy scan" = "保单识别";
 "Premium" = "保费";
 "Type" = "类型";

@@ -52,7 +52,7 @@ final class EchoTests: XCTestCase {
         let contact = EchoContact(
             givenName: "",
             relationshipDomain: .business,
-            businessRole: .prospect,
+            businessRole: .supplier,
             companyName: "Northstar Limited"
         )
         container.mainContext.insert(contact)
@@ -62,6 +62,7 @@ final class EchoTests: XCTestCase {
             container.mainContext.fetch(FetchDescriptor<EchoContact>()).first
         )
         XCTAssertEqual(stored.companyName, "Northstar Limited")
+        XCTAssertEqual(stored.businessRole, .supplier)
         XCTAssertFalse(stored.hasRealName)
     }
 
