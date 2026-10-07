@@ -10,7 +10,10 @@ struct BusinessHomeView: View {
     @State private var showingManualContact = false
 
     private var businessContacts: [EchoContact] {
-        contacts.filter { $0.isInEchoLayer && $0.hasRealName }
+        contacts.filter {
+            $0.isInEchoLayer
+                && ($0.hasRealName || $0.companyName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
+        }
     }
 
     private var dueDeals: [Deal] {

@@ -658,6 +658,10 @@
 "Save connection" = "保存联系";
 "Save to People" = "保存到联系人";
 "Saved to People" = "已保存到联系人";
+"Recognize at least a name or company before saving the contact." = "至少识别出姓名或公司名称后才能保存联系人。";
+"The business card is still being processed. Please wait and try again." = "名片仍在处理中，请稍候再试。";
+"Echo could not save this contact. Check that Echo data is available, then try again." = "Echo 无法保存此联系人。请确认 Echo 数据可用后重试。";
+"This saves to Echo's local business contacts and does not require Contacts permission." = "此操作会保存到 Echo 的本地商务联系人，不需要通讯录权限。";
 "Scan business card" = "扫描商务名片";
 "Send this email now?" = "现在发送这封邮件？";
 "Sign out" = "退出登录";

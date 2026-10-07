@@ -35,6 +35,36 @@ final class EchoTests: XCTestCase {
         XCTAssertEqual(contact.initials, "LP")
     }
 
+    func testBusinessCardSaveAllowsCompanyOnlyAndExplainsMissingIdentity() throws {
+        XCTAssertEqual(
+            BusinessCardSaveValidation.evaluate(name: "", company: "Northstar Limited"),
+            .ready
+        )
+        XCTAssertEqual(
+            BusinessCardSaveValidation.evaluate(name: "   ", company: "  "),
+            .missingNameAndCompany
+        )
+
+        let container = try ModelContainer(
+            for: EchoContact.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let contact = EchoContact(
+            givenName: "",
+            relationshipDomain: .business,
+            businessRole: .prospect,
+            companyName: "Northstar Limited"
+        )
+        container.mainContext.insert(contact)
+        try container.mainContext.save()
+
+        let stored = try XCTUnwrap(
+            container.mainContext.fetch(FetchDescriptor<EchoContact>()).first
+        )
+        XCTAssertEqual(stored.companyName, "Northstar Limited")
+        XCTAssertFalse(stored.hasRealName)
+    }
+
     func testKipHandoffRoutesOnlyValidatedEchoLinks() {
         let router = KipHandoffRouter()
         let url = URL(string: "com.bambi2008.echo://kip-handoff?person=%E5%BC%A0%E4%B8%89&kipItemId=kip-42&action=call&note=%E7%A1%AE%E8%AE%A4%E5%90%88%E5%90%8C")!

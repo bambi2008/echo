@@ -718,8 +718,14 @@ struct DocumentRecognitionView: View {
     @State private var policy: PolicyDocumentInfo?
     @State private var model: String?
     @State private var isLoading = false
+    @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var saved = false
+
+    private var cardSaveValidation: BusinessCardSaveValidation {
+        guard let card else { return .missingNameAndCompany }
+        return BusinessCardSaveValidation.evaluate(name: card.name, company: card.company)
+    }
 
     var body: some View {
         ScrollView {
@@ -775,9 +781,26 @@ struct DocumentRecognitionView: View {
                         if let model {
                             Text(model).font(.caption2).foregroundStyle(.tertiary)
                         }
-                        Button(saved ? String(localized: "Saved to People") : String(localized: "Save to People"), action: saveCard)
-                            .buttonStyle(.borderedProminent)
-                            .disabled(saved || card.name.isEmpty)
+                        if cardSaveValidation != .ready {
+                            Label(cardSaveValidation.message, systemImage: "exclamationmark.circle")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        Button {
+                            saveCard()
+                        } label: {
+                            if isSaving {
+                                ProgressView()
+                                    .frame(maxWidth: .infinity)
+                            } else {
+                                Text(saved ? String(localized: "Saved to People") : String(localized: "Save to People"))
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(saved || isLoading || isSaving || cardSaveValidation != .ready)
+                        Text(String(localized: "This saves to Echo's local business contacts and does not require Contacts permission."))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
                     }
                     .padding(16)
                     .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
@@ -851,10 +874,24 @@ struct DocumentRecognitionView: View {
     }
 
     private func saveCard() {
-        guard let card, !card.name.isEmpty else { return }
-        let parts = card.name.split(separator: " ", maxSplits: 1).map(String.init)
+        guard let card else {
+            errorMessage = String(localized: "The business card is still being processed. Please wait and try again.")
+            return
+        }
+        guard cardSaveValidation == .ready else {
+            errorMessage = cardSaveValidation.message
+            return
+        }
+        guard !isLoading, !isSaving else {
+            errorMessage = String(localized: "The business card is still being processed. Please wait and try again.")
+            return
+        }
+
+        isSaving = true
+        let name = card.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = name.split(separator: " ", maxSplits: 1).map(String.init)
         let contact = EchoContact(
-            givenName: parts.first ?? card.name,
+            givenName: parts.first ?? "",
             familyName: parts.count > 1 ? parts[1] : "",
             phoneNumber: card.phone.nilIfEmpty,
             emailAddress: card.email.nilIfEmpty,
@@ -864,8 +901,35 @@ struct DocumentRecognitionView: View {
             jobTitle: card.title.nilIfEmpty
         )
         modelContext.insert(contact)
-        try? modelContext.save()
-        saved = true
+        do {
+            try modelContext.save()
+            saved = true
+        } catch {
+            modelContext.delete(contact)
+            let message = String(localized: "Echo could not save this contact. Check that Echo data is available, then try again.")
+            errorMessage = "\(message)\n\(error.localizedDescription)"
+        }
+        isSaving = false
+    }
+}
+
+enum BusinessCardSaveValidation: Equatable {
+    case ready
+    case missingNameAndCompany
+
+    static func evaluate(name: String, company: String) -> Self {
+        let hasName = !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasCompany = !company.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return hasName || hasCompany ? .ready : .missingNameAndCompany
+    }
+
+    var message: String {
+        switch self {
+        case .ready:
+            return ""
+        case .missingNameAndCompany:
+            return String(localized: "Recognize at least a name or company before saving the contact.")
+        }
     }
 }
 
