@@ -79,8 +79,31 @@ struct OnboardingView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             Spacer()
-            PrimaryButton("Set up my business workspace", identifier: "onboarding.continue") {
-                move(to: .businessSetup)
+            VStack(spacing: 12) {
+                PrimaryButton("Set up my business workspace", identifier: "onboarding.continue") {
+                    move(to: .businessSetup)
+                }
+                if contacts.isEmpty {
+                    Button {
+                        do {
+                            try DemoData.seedReviewWorkspace(in: modelContext)
+                            stageRawValue = OnboardingStage.completed.rawValue
+                            finish()
+                        } catch {
+                            statusMessage = String(localized: "The sample workspace could not be prepared. Please try again.")
+                        }
+                    } label: {
+                        Label(String(localized: "Explore the sample workspace"), systemImage: "sparkles.rectangle.stack")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 48)
+                    }
+                    .buttonStyle(.bordered)
+                    Text("Optional fictional business records are stored only on this device and can be removed in Settings.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
             }
         }
     }

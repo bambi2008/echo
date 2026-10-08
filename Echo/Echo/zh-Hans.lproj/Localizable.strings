@@ -1,4 +1,14 @@
 "Echo" = "Echo";
+"Explore the sample workspace" = "体验示例工作区";
+"Optional fictional business records are stored only on this device and can be removed in Settings." = "可选的虚构商务资料仅保存在这台设备上，可在设置中移除。";
+"The sample workspace could not be prepared. Please try again." = "无法创建示例工作区，请重试。";
+"Sample records" = "示例资料";
+"Fictional · stored on this device" = "虚构内容 · 仅保存在本机";
+"Remove sample workspace" = "移除示例工作区";
+"The sample workspace was removed. Your other contacts were not changed." = "示例工作区已移除，其他联系人未受影响。";
+"The sample workspace could not be removed." = "无法移除示例工作区。";
+"Sample workspace" = "示例工作区";
+"Only the fictional contacts and opportunities created by sample mode are removed." = "只会移除示例模式创建的虚构联系人和商机。";
 "Relationships" = "关系";
 "Insights" = "洞察";
 "Settings" = "设置";

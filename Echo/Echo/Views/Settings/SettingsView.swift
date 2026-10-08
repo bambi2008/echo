@@ -45,6 +45,24 @@ struct SettingsView: View {
                     Text("Reset removes contacts, notes, interactions, opportunities, and local business records saved by Echo. It never deletes iPhone Contacts, Gmail, or other source data.")
                 }
 
+                if contacts.contains(where: { $0.systemIdentifier.hasPrefix(DemoData.reviewSampleContactPrefix) }) {
+                    Section {
+                        LabeledContent("Sample records", value: String(localized: "Fictional · stored on this device"))
+                        Button("Remove sample workspace", role: .destructive) {
+                            do {
+                                try DemoData.removeReviewWorkspaceSample(in: modelContext)
+                                statusMessage = String(localized: "The sample workspace was removed. Your other contacts were not changed.")
+                            } catch {
+                                statusMessage = String(localized: "The sample workspace could not be removed.")
+                            }
+                        }
+                    } header: {
+                        Text("Sample workspace")
+                    } footer: {
+                        Text("Only the fictional contacts and opportunities created by sample mode are removed.")
+                    }
+                }
+
                 Section {
                     Toggle("Refresh iPhone Contacts on launch", isOn: $autoSyncContacts)
                     Button { importAllContacts() } label: {
